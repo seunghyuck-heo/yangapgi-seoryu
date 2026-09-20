@@ -2196,10 +2196,19 @@ input[type="password"]::placeholder {
   padding: 6px 4px;
   border: none;
   background: transparent;
-  color: #4a5364; /* 일반 아이콘(백키/검색)과 동일 색 */
+  color: var(--brand-dark); /* 탭 시 바뀌던 색을 기본색으로 고정 */
   font-size: 14px;
   font-weight: 700;
   letter-spacing: -0.01em;
+}
+/* 탭/호버/포커스해도 색·배경 변하지 않게 고정 */
+.patient-detail-page__pdf:hover:not(:disabled),
+.patient-detail-page__pdf:focus,
+.patient-detail-page__pdf:focus-visible,
+.patient-detail-page__pdf:active {
+  color: var(--brand-dark);
+  background: transparent;
+  border: none;
 }
 .patient-detail-page__pdf:active {
   transform: translateY(1px);
