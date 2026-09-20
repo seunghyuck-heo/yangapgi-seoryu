@@ -23,3 +23,12 @@ services:
       # 신분증 이름 자동 인식(Google Gemini 무료 등급) — 대시보드에서 값 입력
       - key: GEMINI_API_KEY
         sync: false
+      # 구글 시트 동기화(서비스 계정) — 대시보드에서 값 입력
+      - key: GOOGLE_SA_EMAIL
+        sync: false
+      - key: GOOGLE_SA_KEY
+        sync: false
+      - key: SHEET_ID
+        sync: false
+      - key: SHEET_GID
+        sync: false

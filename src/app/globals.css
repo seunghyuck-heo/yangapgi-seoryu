@@ -1426,6 +1426,11 @@ input[type="password"]::placeholder {
   min-width: 0;
 }
 
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 /* 양압기 환자(고객) 리스트 */
 .customer-list__count {
   font-size: 13px;

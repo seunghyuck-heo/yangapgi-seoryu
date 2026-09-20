@@ -24,25 +24,37 @@ export default function CustomersPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [searchMode, setSearchMode] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const searchRef = useRef<HTMLInputElement | null>(null);
 
+  async function loadList() {
+    try {
+      const res = await fetch("/api/customers");
+      const json = await res.json();
+      setCustomers(res.ok ? json.customers ?? [] : []);
+    } catch {
+      setCustomers([]);
+    }
+  }
+
+  async function syncAndLoad() {
+    setSyncing(true);
+    try {
+      await fetch("/api/customers/sync"); // 시트 → Supabase 동기화(실패해도 목록은 로드)
+    } catch {
+      // 무시
+    }
+    await loadList();
+    setSyncing(false);
+  }
+
   useEffect(() => {
-    let ignore = false;
-    fetch("/api/customers")
-      .then(async (res) => {
-        const json = await res.json();
-        if (ignore) return;
-        setCustomers(res.ok ? json.customers ?? [] : []);
-      })
-      .catch(() => {
-        if (!ignore) setCustomers([]);
-      })
-      .finally(() => {
-        if (!ignore) setLoading(false);
-      });
-    return () => {
-      ignore = true;
-    };
+    (async () => {
+      await loadList(); // 우선 현재 데이터 즉시 표시
+      setLoading(false);
+      await syncAndLoad(); // 이어서 시트 최신으로 동기화
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -107,17 +119,33 @@ export default function CustomersPage() {
             <h1 className="app-header__title" style={{ fontFamily: "var(--font-body)", fontWeight: 800 }}>
               양압기 환자 리스트
             </h1>
-            <button
-              type="button"
-              className="app-header__action"
-              aria-label="검색"
-              onClick={() => setSearchMode(true)}
-            >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="11" cy="11" r="7" />
-                <path d="M21 21l-4.3-4.3" />
-              </svg>
-            </button>
+            <div className="app-header__actions">
+              <button
+                type="button"
+                className="app-header__action"
+                aria-label="동기화"
+                onClick={syncAndLoad}
+                disabled={syncing}
+              >
+                <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={syncing ? { animation: "spin 0.8s linear infinite" } : undefined}>
+                  <path d="M21 12a9 9 0 0 1-9 9c-2.5 0-4.8-1-6.4-2.7L3 16" />
+                  <path d="M3 12a9 9 0 0 1 9-9c2.5 0 4.8 1 6.4 2.7L21 8" />
+                  <path d="M21 3v5h-5" />
+                  <path d="M3 21v-5h5" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                className="app-header__action"
+                aria-label="검색"
+                onClick={() => setSearchMode(true)}
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="7" />
+                  <path d="M21 21l-4.3-4.3" />
+                </svg>
+              </button>
+            </div>
           </div>
         )}
       </header>
