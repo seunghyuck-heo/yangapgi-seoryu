@@ -70,30 +70,37 @@ export default function CustomersPage() {
 
       <header className="app-header app-header--sub">
         {searchMode ? (
-          <div className="app-header__row">
-            <div className="search-inline">
-              <button
-                type="button"
-                className="search-inline__back"
-                aria-label="뒤로"
-                onClick={() => {
-                  setSearchMode(false);
-                  setSearch("");
-                }}
-              >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M15 18l-6-6 6-6" />
+          <div className="app-header__row app-header__row--search">
+            <div className="search-box">
+              <span className="search-box__icon" aria-hidden>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="7" />
+                  <path d="M21 21l-4.3-4.3" />
                 </svg>
-              </button>
+              </span>
               <input
                 ref={searchRef}
                 type="text"
-                className="search-inline__input"
+                className="search-box__input"
                 placeholder="이름·번호·전화·지사 검색"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
+            <button
+              type="button"
+              className="app-header__action"
+              aria-label="닫기"
+              onClick={() => {
+                setSearchMode(false);
+                setSearch("");
+              }}
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 6 6 18" />
+                <path d="m6 6 12 12" />
+              </svg>
+            </button>
           </div>
         ) : (
           <div className="app-header__row">
