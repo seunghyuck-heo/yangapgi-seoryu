@@ -234,7 +234,40 @@ export default function DocSubmitList({
       // 실패해도 이름은 직접 입력 가능
     }
 
-    // 가로/기울어진 촬영 → 정위치로 회전해 신분증 이미지 교체 저장(같은 경로 덮어쓰기)
+    // 신분증에서 증명사진 잘라내고, '잘린 얼굴'만 AI에 다시 물어 정위치 회전각 결정(정확도 ↑)
+    let photoPath: string | undefined;
+    if (box) {
+      try {
+        const faceRaw = await cropFace(dataUrl, box);
+        if (faceRaw) {
+          // 얼굴 크롭만 보고 회전각 판단
+          try {
+            const fr = await fetch("/api/face-rotation", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ dataUrl: faceRaw }),
+            });
+            if (fr.ok) {
+              const n = (await fr.json()).rotation;
+              if (typeof n === "number") rotation = n; // 얼굴 기준 회전각 우선
+            }
+          } catch {
+            // 실패 시 신분증 기준 rotation 유지
+          }
+          const faceUrl = rotation ? await rotateDataUrl(faceRaw, rotation) : faceRaw;
+          const up = await fetch("/api/uploads", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ patientId: pid, docType: "id_card", kind: "photo", dataUrl: faceUrl }),
+          });
+          if (up.ok) photoPath = (await up.json()).path;
+        }
+      } catch {
+        // 사진 추출 실패해도 진행
+      }
+    }
+
+    // 신분증 원본도 정위치로 회전해 저장(같은 경로 덮어쓰기)
     if (rotation) {
       try {
         const uprightFull = await rotateDataUrl(dataUrl, rotation);
@@ -245,25 +278,6 @@ export default function DocSubmitList({
         });
       } catch {
         // 실패해도 진행
-      }
-    }
-
-    // 신분증에서 증명사진 잘라 정위치로 회전 후 포토ID로 업로드
-    let photoPath: string | undefined;
-    if (box) {
-      try {
-        let faceUrl = await cropFace(dataUrl, box);
-        if (faceUrl && rotation) faceUrl = await rotateDataUrl(faceUrl, rotation);
-        if (faceUrl) {
-          const up = await fetch("/api/uploads", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ patientId: pid, docType: "id_card", kind: "photo", dataUrl: faceUrl }),
-          });
-          if (up.ok) photoPath = (await up.json()).path;
-        }
-      } catch {
-        // 사진 추출 실패해도 진행
       }
     }
 
