@@ -60,12 +60,11 @@ export async function POST(req: Request) {
     const json = await res.json();
     const text: string =
       json?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text ?? "").join("") ?? "";
-    const finishReason: string = json?.candidates?.[0]?.finishReason ?? "";
     // 한글 이름만 정리 (2~5자)
     const cleaned = text.replace(/\s/g, "");
     const m = cleaned.match(/[가-힣]{2,5}/);
     const name = m ? m[0] : "";
-    return NextResponse.json({ name, debug: { raw: text.slice(0, 120), finishReason } });
+    return NextResponse.json({ name });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500 });
   }
