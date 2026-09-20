@@ -88,9 +88,46 @@ export default function OverlayDocumentForm({
 
   const aspectRatio = overlay.width / overlay.height;
 
+  // 고정 체크(항상 동의) + 오늘 날짜 자동 입력 초기화
+  useEffect(() => {
+    const t = new Date();
+    const y = String(t.getFullYear());
+    const m = String(t.getMonth() + 1).padStart(2, "0");
+    const d = String(t.getDate()).padStart(2, "0");
+    setValues((prev) => {
+      const next = { ...prev };
+      let changed = false;
+      for (const f of overlay.fields) {
+        if (f.type === "checkbox" && f.fixedChecked && next[f.key] !== true) {
+          next[f.key] = true;
+          changed = true;
+        }
+      }
+      const groups = new Set<string>();
+      for (const f of overlay.fields) if (f.autoToday && f.dateGroup) groups.add(f.dateGroup);
+      for (const g of groups) {
+        const parts = overlay.fields.filter((f) => f.dateGroup === g);
+        const anyFilled = parts.some((f) => typeof next[f.key] === "string" && (next[f.key] as string).trim());
+        if (anyFilled) continue;
+        next[`__d_${g}`] = `${y}-${m}-${d}`;
+        for (const f of parts) {
+          if (f.datePart === "y") next[f.key] = f.fullYear ? y : y.slice(2);
+          else if (f.datePart === "m") next[f.key] = String(Number(m));
+          else if (f.datePart === "d") next[f.key] = String(Number(d));
+          else if (f.datePart === "full") next[f.key] = `${y}.${m}.${d}`;
+        }
+        changed = true;
+      }
+      return changed ? next : prev;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function handleTapField(key: string) {
     const field = fieldByKey.get(key);
     if (!field) return;
+    // 고정 체크·오늘날짜 자동 필드는 편집 불가
+    if (field.fixedChecked || field.autoToday) return;
 
     if (field.type === "checkbox") {
       setValues((prev) => {
@@ -268,7 +305,7 @@ export default function OverlayDocumentForm({
         );
       }
     } else if (field.type === "checkbox") {
-      if (value) {
+      if (value || field.fixedChecked) {
         filled = true;
         content = (
           <svg

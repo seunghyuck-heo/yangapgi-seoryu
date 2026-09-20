@@ -32,6 +32,10 @@ export interface OverlayField {
   prefix?: string;
   /** 원본 서식에 이미 접두어가 인쇄된 경우: 팝업엔 접두어 표시, 문서엔 접두어 숨김 */
   hidePrefixOnDoc?: boolean;
+  /** 체크박스: 항상 체크됨(편집 불가) */
+  fixedChecked?: boolean;
+  /** 날짜: 오늘 날짜 자동 입력(편집 불가). 같은 dateGroup에 지정 */
+  autoToday?: boolean;
 }
 
 export interface OverlayDoc {
