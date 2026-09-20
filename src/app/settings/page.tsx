@@ -84,48 +84,13 @@ export default function SettingsPage() {
     }
   }
 
-  async function handleGoogle() {
+  function handleGoogle() {
     setError(null);
     setInfo(null);
     setBusy(true);
-
-    // 홈스크린 설치형 앱(standalone)에서는 비동기 이후 외부 페이지 열기가 막히므로,
-    // 사용자가 누른 그 순간(제스처 유효) 먼저 빈 창을 열어두고 나중에 구글 URL을 채운다.
-    const isStandalone =
-      window.matchMedia?.("(display-mode: standalone)").matches ||
-      (navigator as unknown as { standalone?: boolean }).standalone === true;
-    let popup: Window | null = null;
-    if (isStandalone) {
-      popup = window.open("", "_blank");
-    }
-
-    try {
-      const supabase = getSupabaseBrowserClient();
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=/settings`,
-          skipBrowserRedirect: true,
-        },
-      });
-      if (error) {
-        popup?.close();
-        setError(`구글 로그인 오류: ${error.message}`);
-        return;
-      }
-      if (data?.url) {
-        if (popup) popup.location.href = data.url;
-        else window.location.assign(data.url);
-      } else {
-        popup?.close();
-        setError("구글 로그인 URL을 받지 못했습니다. 잠시 후 다시 시도해 주세요.");
-      }
-    } catch (e) {
-      popup?.close();
-      setError(`구글 로그인 실패: ${(e as Error).message}`);
-    } finally {
-      setBusy(false);
-    }
+    // 서버 주도 로그인: 같은 창에서 in-scope 경로로 이동 → 서버가 구글로 302.
+    // 설치형 PWA(standalone)에서도 막히지 않는다.
+    window.location.href = "/auth/login/google?next=/settings";
   }
 
   function startEdit() {
