@@ -314,13 +314,15 @@ input[type="password"]::placeholder {
 .search-box {
   flex: 1;
   min-width: 0;
+  height: 44px;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   gap: 12px;
   background: var(--paper);
   border: 1px solid var(--border-strong);
   border-radius: 999px;
-  padding: 10px 16px;
+  padding: 0 16px;
 }
 .search-box__icon {
   flex-shrink: 0;
@@ -339,7 +341,8 @@ input[type="password"]::placeholder {
   background: transparent;
   box-shadow: none;
   outline: none;
-  font-size: 16px;
+  font-size: 18px;
+  caret-color: var(--brand);
   padding: 0;
   -webkit-tap-highlight-color: transparent;
 }
