@@ -62,13 +62,13 @@ export default function CustomersPage() {
     <div className="tab-page">
       <div className="doc-page__toolbar no-print">
         <button type="button" className="app-header__action" aria-label="뒤로" onClick={() => router.push("/settings")}>
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
             <path d="M15 18l-6-6 6-6" />
           </svg>
         </button>
       </div>
 
-      <header className="app-header">
+      <header className="app-header app-header--sub">
         {searchMode ? (
           <div className="app-header__row">
             <button

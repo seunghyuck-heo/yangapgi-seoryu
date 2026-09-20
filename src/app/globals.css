@@ -288,6 +288,19 @@ input[type="password"]::placeholder {
 .app-header__action:active {
   transform: translateY(1px);
 }
+/* 탭/호버/포커스해도 색 변하지 않게 고정 */
+.app-header__action:hover:not(:disabled),
+.app-header__action:focus,
+.app-header__action:focus-visible {
+  color: #4a5364;
+  background: transparent;
+  border: none;
+}
+
+/* 서브 페이지 헤더: 백키(툴바) 바로 아래라 상단 여백 축소 */
+.app-header--sub {
+  padding-top: 6px;
+}
 
 .app-header__search {
   flex: 1;
