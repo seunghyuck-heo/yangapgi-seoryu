@@ -10,6 +10,16 @@ interface PatientDetailPageProps {
   params: Promise<{ id: string }>;
 }
 
+// form_data에 실제 입력값이 하나라도 있는지
+function hasFormData(fd: Record<string, unknown> | null | undefined): boolean {
+  if (!fd) return false;
+  return Object.values(fd).some((v) => {
+    if (typeof v === "string") return v.trim() !== "";
+    if (typeof v === "boolean") return v;
+    return v != null;
+  });
+}
+
 export default function PatientDetailPage({ params }: PatientDetailPageProps) {
   const { id } = use(params);
   const [patient, setPatient] = useState<PatientWithDocuments | null>(null);
@@ -42,8 +52,13 @@ export default function PatientDetailPage({ params }: PatientDetailPageProps) {
       <ul className="doc-row-list">
         {DOC_TYPE_ORDER.map((docType) => {
           const doc = patient.documents.find((d) => d.doc_type === docType);
-          // 완료 / 작성중(저장됐지만 미완료) / 작성 필요(기록 없음)
-          const state = doc?.status === "completed" ? "complete" : doc ? "progress" : "none";
+          // 완료 / 작성중(입력 있음·임시저장) / 작성 필요(입력 없이 방문만 or 기록 없음)
+          const state =
+            doc?.status === "completed"
+              ? "complete"
+              : doc && hasFormData(doc.form_data)
+                ? "progress"
+                : "none";
           const label = state === "complete" ? "완료" : state === "progress" ? "작성중" : "작성 필요";
           const style = DOC_ICON_STYLES[docType];
           return (

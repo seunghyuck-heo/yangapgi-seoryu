@@ -38,6 +38,7 @@ export default function OverlayDocumentForm({
   patientId,
   initialFormData,
   initialSignedUrls,
+  initialStatus,
   backHref,
   preview = false,
 }: OverlayDocumentFormProps) {
@@ -182,6 +183,23 @@ export default function OverlayDocumentForm({
     setValues((prev) => ({ ...prev, [field.key]: json.path }));
     setSigUrls((prev) => ({ ...prev, [field.key]: dataUrl }));
     setOpenField(null);
+  }
+
+  // 나갈 때: 완료 문서가 아니면 방문 기록을 draft로 저장한다.
+  // (입력이 하나도 없으면 '작성 필요', 하나라도 있으면 '작성중'으로 표시됨)
+  async function handleBack() {
+    if (!preview && initialStatus !== "completed") {
+      try {
+        await fetch(`/api/documents/${patientId}/${docType}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ form_data: values, status: "draft" }),
+        });
+      } catch {
+        // 저장 실패해도 이동은 진행
+      }
+    }
+    router.push(backHref);
   }
 
   async function handleSubmit(targetStatus: "draft" | "completed") {
@@ -335,7 +353,7 @@ export default function OverlayDocumentForm({
   return (
     <div className="doc-page">
       <div className="doc-page__toolbar no-print">
-        <button type="button" className="doc-page__back" onClick={() => router.push(backHref)}>
+        <button type="button" className="doc-page__back" onClick={handleBack}>
           ← 목록으로
         </button>
         <button type="button" onClick={() => window.print()}>
