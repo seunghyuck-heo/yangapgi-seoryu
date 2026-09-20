@@ -32,6 +32,21 @@ const ROWS: RowConfig[] = [
 const MAX_DIMENSION = 1800;
 const JPEG_QUALITY = 0.85;
 
+// OCR 결과 텍스트에서 한국 이름(2~4자) 추정 (best-effort)
+function guessKoreanName(text: string): string {
+  const bad = new Set([
+    "주민등록증", "운전면허증", "자동차운전면허증", "대한민국", "성명", "주소", "이름", "발급",
+  ]);
+  const lines = text
+    .split(/\n/)
+    .map((l) => l.replace(/\s/g, "").trim())
+    .filter(Boolean);
+  for (const l of lines) if (/^[가-힣]{2,4}$/.test(l) && !bad.has(l)) return l;
+  const toks = text.replace(/[^가-힣]/g, " ").match(/[가-힣]{2,4}/g) || [];
+  for (const t of toks) if (!bad.has(t)) return t;
+  return "";
+}
+
 function resizeImageFile(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -73,6 +88,9 @@ export default function DocSubmitList({
   const [sheetOpen, setSheetOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [ocrBusy, setOcrBusy] = useState(false);
+  const [nameSheet, setNameSheet] = useState<{ value: string } | null>(null);
+  const [nameSaving, setNameSaving] = useState(false);
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
   const galleryInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -135,6 +153,7 @@ export default function DocSubmitList({
           return;
         }
         await loadStatuses();
+        void runIdOcr(dataUrl);
       } catch (err) {
         setError((err as Error).message);
       } finally {
@@ -143,6 +162,43 @@ export default function DocSubmitList({
     }
     if (cameraInputRef.current) cameraInputRef.current.value = "";
     if (galleryInputRef.current) galleryInputRef.current.value = "";
+  }
+
+  // 신분증 이미지에서 이름 추정 → 확인/수정 시트 (완전 브라우저 처리, 외부 전송 없음)
+  async function runIdOcr(dataUrl: string) {
+    if (!patientId || preview) return;
+    setOcrBusy(true);
+    let guess = "";
+    try {
+      const Tesseract = (await import("tesseract.js")).default;
+      const { data } = await Tesseract.recognize(dataUrl, "kor");
+      guess = guessKoreanName(data.text || "");
+    } catch {
+      // OCR 실패해도 이름은 직접 입력 가능
+    } finally {
+      setOcrBusy(false);
+    }
+    setNameSheet({ value: guess });
+  }
+
+  async function saveName() {
+    if (!nameSheet || !patientId) return;
+    const name = nameSheet.value.trim();
+    if (!name) {
+      setNameSheet(null);
+      return;
+    }
+    setNameSaving(true);
+    try {
+      await fetch(`/api/patients/${patientId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      setNameSheet(null);
+    } finally {
+      setNameSaving(false);
+    }
   }
 
   function handleRowClick(docType: DocType) {
@@ -247,6 +303,46 @@ export default function DocSubmitList({
             <button type="button" className="sheet__cancel" onClick={() => setSheetOpen(false)}>
               취소
             </button>
+          </div>
+        </div>
+      )}
+
+      {ocrBusy && (
+        <div className="sheet-overlay sheet-overlay--center">
+          <div className="sheet sheet--center">
+            <div className="sheet__title">신분증에서 이름 인식 중…</div>
+            <p style={{ textAlign: "center", color: "var(--ink-soft)", fontSize: 13, lineHeight: 1.6 }}>
+              사진은 휴대폰 안에서만 처리되며 외부로 전송되지 않아요.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {nameSheet && (
+        <div className="sheet-overlay sheet-overlay--center">
+          <div className="sheet sheet--center" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet__title">환자 이름 확인</div>
+            <p style={{ textAlign: "center", color: "var(--ink-soft)", fontSize: 13, marginTop: -4 }}>
+              인식된 이름이 맞는지 확인하고, 다르면 고쳐 주세요.
+            </p>
+            <input
+              type="text"
+              value={nameSheet.value}
+              placeholder="환자 이름"
+              autoFocus
+              onChange={(e) => setNameSheet({ value: e.target.value })}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") saveName();
+              }}
+            />
+            <div className="field-popup__actions">
+              <button type="button" onClick={() => setNameSheet(null)}>
+                건너뛰기
+              </button>
+              <button type="button" className="primary" onClick={saveName} disabled={nameSaving}>
+                {nameSaving ? "저장 중..." : "확인"}
+              </button>
+            </div>
           </div>
         </div>
       )}
