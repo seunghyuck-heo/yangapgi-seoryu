@@ -33,6 +33,41 @@ const ROWS: RowConfig[] = [
 const MAX_DIMENSION = 1800;
 const JPEG_QUALITY = 0.85;
 
+// 이미지를 시계방향 deg(0/90/180/270)만큼 회전한 jpeg dataURL 반환
+function rotateDataUrl(dataUrl: string, deg: number): Promise<string> {
+  return new Promise((resolve) => {
+    const r = ((deg % 360) + 360) % 360;
+    if (r === 0) {
+      resolve(dataUrl);
+      return;
+    }
+    const img = new Image();
+    img.onerror = () => resolve(dataUrl);
+    img.onload = () => {
+      const w = img.naturalWidth;
+      const h = img.naturalHeight;
+      const canvas = document.createElement("canvas");
+      if (r === 90 || r === 270) {
+        canvas.width = h;
+        canvas.height = w;
+      } else {
+        canvas.width = w;
+        canvas.height = h;
+      }
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        resolve(dataUrl);
+        return;
+      }
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+      ctx.rotate((r * Math.PI) / 180);
+      ctx.drawImage(img, -w / 2, -h / 2);
+      resolve(canvas.toDataURL("image/jpeg", 0.9));
+    };
+    img.src = dataUrl;
+  });
+}
+
 // Gemini 얼굴 box[ymin,xmin,ymax,xmax](0~1000) 중심으로 정사각형 크롭 → 원형 아바타에 얼굴이 꽉 차게
 function cropFace(dataUrl: string, box: number[]): Promise<string | null> {
   return new Promise((resolve) => {
@@ -179,6 +214,7 @@ export default function DocSubmitList({
     setOcrBusy(true);
     let guess = "";
     let box: number[] | null = null;
+    let rotation = 0;
     try {
       const res = await fetch("/api/ocr-name", {
         method: "POST",
@@ -189,16 +225,32 @@ export default function DocSubmitList({
         const json = await res.json();
         guess = typeof json.name === "string" ? json.name : "";
         box = Array.isArray(json.box) ? json.box : null;
+        rotation = typeof json.rotation === "number" ? json.rotation : 0;
       }
     } catch {
       // 실패해도 이름은 직접 입력 가능
     }
 
-    // 신분증에서 증명사진 잘라 포토ID로 업로드
+    // 가로/기울어진 촬영 → 정위치로 회전해 신분증 이미지 교체 저장(같은 경로 덮어쓰기)
+    if (rotation) {
+      try {
+        const uprightFull = await rotateDataUrl(dataUrl, rotation);
+        await fetch("/api/uploads", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ patientId: pid, docType: "id_card", kind: "id_card", dataUrl: uprightFull }),
+        });
+      } catch {
+        // 실패해도 진행
+      }
+    }
+
+    // 신분증에서 증명사진 잘라 정위치로 회전 후 포토ID로 업로드
     let photoPath: string | undefined;
     if (box) {
       try {
-        const faceUrl = await cropFace(dataUrl, box);
+        let faceUrl = await cropFace(dataUrl, box);
+        if (faceUrl && rotation) faceUrl = await rotateDataUrl(faceUrl, rotation);
         if (faceUrl) {
           const up = await fetch("/api/uploads", {
             method: "POST",
@@ -360,9 +412,9 @@ export default function DocSubmitList({
       {ocrBusy && (
         <div className="sheet-overlay sheet-overlay--center">
           <div className="sheet sheet--center">
-            <div className="sheet__title">신분증에서 이름 인식 중…</div>
+            <div className="sheet__title sheet__title--name">신분증 분석 중…</div>
             <p style={{ textAlign: "center", color: "var(--ink-soft)", fontSize: 13, lineHeight: 1.6 }}>
-              AI가 이름을 자동으로 읽고 있어요. 잠시만 기다려 주세요.
+              AI가 이름과 사진을 자동으로 읽고 있어요. 잠시만 기다려 주세요.
             </p>
           </div>
         </div>
