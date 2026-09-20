@@ -39,7 +39,7 @@ export default function PatientDetailPage({ params }: PatientDetailPageProps) {
       <h1>{patient.name}</h1>
       <p className="patient-detail-page__meta">{patient.phone || "연락처 미등록"}</p>
 
-      <div className="doc-card-grid">
+      <ul className="doc-row-list">
         {DOC_TYPE_ORDER.map((docType) => {
           const doc = patient.documents.find((d) => d.doc_type === docType);
           // 완료 / 작성중(저장됐지만 미완료) / 작성 필요(기록 없음)
@@ -47,20 +47,23 @@ export default function PatientDetailPage({ params }: PatientDetailPageProps) {
           const label = state === "complete" ? "완료" : state === "progress" ? "작성중" : "작성 필요";
           const style = DOC_ICON_STYLES[docType];
           return (
-            <Link
-              key={docType}
-              href={`/patients/${id}/doc/${docType}`}
-              className={`doc-card doc-card--${state}`}
-            >
-              <div className="doc-card__icon" style={{ background: style.color, color: "#fff" }}>
-                {style.icon}
-              </div>
-              <div className="doc-card__title">{DOC_TYPE_LABELS[docType]}</div>
-              <div className="doc-card__status">{label}</div>
-            </Link>
+            <li key={docType}>
+              <Link href={`/patients/${id}/doc/${docType}`} className="doc-row">
+                <span className="doc-row__icon" style={{ background: style.color, color: "#fff" }}>
+                  {style.icon}
+                </span>
+                <span className="doc-row__title">{DOC_TYPE_LABELS[docType]}</span>
+                <span className={`doc-row__status doc-row__status--${state}`}>{label}</span>
+                <span className="doc-row__chevron" aria-hidden>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9 18l6-6-6-6" />
+                  </svg>
+                </span>
+              </Link>
+            </li>
           );
         })}
-      </div>
+      </ul>
     </div>
   );
 }

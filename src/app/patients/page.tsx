@@ -11,7 +11,19 @@ export default function PatientsPage() {
   const [search, setSearch] = useState("");
   const [searchMode, setSearchMode] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [editMode, setEditMode] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [deleting, setDeleting] = useState(false);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+
+  function loadPatients() {
+    return fetch("/api/patients")
+      .then(async (res) => {
+        const json = await res.json();
+        setPatients(res.ok ? json.patients : []);
+      })
+      .catch(() => setPatients([]));
+  }
 
   useEffect(() => {
     let ignore = false;
@@ -45,6 +57,36 @@ export default function PatientsPage() {
     ? patients.filter((p) => p.name.toLowerCase().includes(q.toLowerCase()))
     : patients;
 
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function exitEdit() {
+    setEditMode(false);
+    setSelected(new Set());
+  }
+
+  async function handleDelete() {
+    if (selected.size === 0) return;
+    if (!window.confirm(`선택한 환자 ${selected.size}명을 삭제할까요? 이 작업은 되돌릴 수 없습니다.`))
+      return;
+    setDeleting(true);
+    try {
+      await Promise.all(
+        [...selected].map((id) => fetch(`/api/patients/${id}`, { method: "DELETE" }))
+      );
+      await loadPatients();
+      exitEdit();
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   return (
     <div className="tab-page">
       <header className="app-header">
@@ -77,17 +119,30 @@ export default function PatientsPage() {
             <h1 className="app-header__title" style={{ fontFamily: "var(--font-body)", fontWeight: 700 }}>
               환자 보기
             </h1>
-            <button
-              type="button"
-              className="app-header__action"
-              aria-label="환자 검색"
-              onClick={() => setSearchMode(true)}
-            >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="11" cy="11" r="7" />
-                <path d="M21 21l-4.3-4.3" />
-              </svg>
-            </button>
+            <div className="app-header__actions">
+              <button
+                type="button"
+                className={`app-header__action ${editMode ? "app-header__action--active" : ""}`}
+                aria-label="편집"
+                onClick={() => (editMode ? exitEdit() : setEditMode(true))}
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 20h9" />
+                  <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                className="app-header__action"
+                aria-label="환자 검색"
+                onClick={() => setSearchMode(true)}
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="7" />
+                  <path d="M21 21l-4.3-4.3" />
+                </svg>
+              </button>
+            </div>
           </div>
         )}
       </header>
@@ -113,26 +168,69 @@ export default function PatientsPage() {
               const done = completeCount(patient.documents);
               const total = DOC_TYPE_ORDER.length;
               const allDone = done >= total;
+              const checked = selected.has(patient.id);
+
+              const inner = (
+                <>
+                  {editMode && (
+                    <span className={`patient-list__check ${checked ? "patient-list__check--on" : ""}`} aria-hidden>
+                      {checked && (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M20 6 9 17l-5-5" />
+                        </svg>
+                      )}
+                    </span>
+                  )}
+                  <div className="patient-list__avatar" aria-hidden>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="8" r="4" />
+                      <path d="M4 21c0-3.3 3.6-6 8-6s8 2.7 8 6" />
+                    </svg>
+                  </div>
+                  <div className="patient-list__name">{patient.name}</div>
+                  <div className={`patient-list__progress ${allDone ? "patient-list__progress--done" : ""}`}>
+                    {done} / {total} {allDone ? "완료" : ""}
+                  </div>
+                </>
+              );
+
               return (
                 <li key={patient.id}>
-                  <Link href={`/patients/${patient.id}`} className="patient-list__item">
-                    <div className="patient-list__avatar" aria-hidden>
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-                        <circle cx="12" cy="8" r="4" />
-                        <path d="M4 21c0-3.3 3.6-6 8-6s8 2.7 8 6" />
-                      </svg>
-                    </div>
-                    <div className="patient-list__name">{patient.name}</div>
-                    <div className={`patient-list__progress ${allDone ? "patient-list__progress--done" : ""}`}>
-                      {done} / {total} {allDone ? "완료" : ""}
-                    </div>
-                  </Link>
+                  {editMode ? (
+                    <button
+                      type="button"
+                      className={`patient-list__item patient-list__item--edit ${checked ? "patient-list__item--checked" : ""}`}
+                      onClick={() => toggleSelect(patient.id)}
+                    >
+                      {inner}
+                    </button>
+                  ) : (
+                    <Link href={`/patients/${patient.id}`} className="patient-list__item">
+                      {inner}
+                    </Link>
+                  )}
                 </li>
               );
             })}
           </ul>
         )}
       </div>
+
+      {editMode && (
+        <div className="edit-actionbar no-print">
+          <button type="button" className="edit-actionbar__cancel" onClick={exitEdit}>
+            취소
+          </button>
+          <button
+            type="button"
+            className="edit-actionbar__delete"
+            onClick={handleDelete}
+            disabled={selected.size === 0 || deleting}
+          >
+            {deleting ? "삭제 중..." : `삭제하기${selected.size > 0 ? ` (${selected.size})` : ""}`}
+          </button>
+        </div>
+      )}
 
       <BottomTabs />
     </div>
