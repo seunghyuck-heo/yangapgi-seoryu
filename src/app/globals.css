@@ -2134,18 +2134,23 @@ input[type="password"]::placeholder {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  margin-right: 12px;
-  padding: 7px 12px;
+  margin-right: 20px; /* 아래 흰색 리스트 우측과 동일 정렬 */
+  padding: 6px 4px;
   border: none;
-  border-radius: 999px;
-  background: var(--brand);
-  color: #fff;
+  background: transparent;
+  color: #4a5364; /* 일반 아이콘(백키/검색)과 동일 색 */
   font-size: 14px;
   font-weight: 700;
   letter-spacing: -0.01em;
 }
 .patient-detail-page__pdf:active {
   transform: translateY(1px);
+}
+.patient-detail-page__pdf:hover,
+.patient-detail-page__pdf:focus,
+.patient-detail-page__pdf:focus-visible {
+  color: #4a5364;
+  background: transparent;
 }
 
 /* ===== 서류 묶음 PDF 뷰어 ===== */
