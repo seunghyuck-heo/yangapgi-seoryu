@@ -270,7 +270,19 @@ export default function OverlayDocumentForm({
     } else if (field.type === "checkbox") {
       if (value) {
         filled = true;
-        content = <span className="odoc-hotspot__check">✓</span>;
+        content = (
+          <svg
+            className="odoc-hotspot__check"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={3.5}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M20 6 9 17l-5-5" />
+          </svg>
+        );
       }
     } else if (field.boxPattern && field.boxPattern.length) {
       // 구간별 네모칸: 각 칸에 한 글자씩, 구간 사이는 대시 폭만큼 빈 칸

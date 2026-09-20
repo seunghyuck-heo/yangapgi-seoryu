@@ -1040,11 +1040,11 @@ input[type="password"]::placeholder {
 }
 
 .odoc-hotspot__check {
-  color: #1141c8;
-  font-weight: 800;
-  font-size: 2cqw;
-  line-height: 1;
-  padding-left: 0.4cqw;
+  height: 110%;
+  width: auto;
+  aspect-ratio: 1 / 1;
+  color: #111;
+  flex-shrink: 0;
 }
 
 .odoc-hotspot__sig {
