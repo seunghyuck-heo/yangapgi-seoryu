@@ -1,5 +1,5 @@
 // 양압기 서류계약 PWA 서비스워커 — 설치형 + 오프라인 열람
-const VERSION = "v2";
+const VERSION = "v3";
 const STATIC_CACHE = `static-${VERSION}`;
 const PAGE_CACHE = `pages-${VERSION}`;
 const ASSET_CACHE = `assets-${VERSION}`;

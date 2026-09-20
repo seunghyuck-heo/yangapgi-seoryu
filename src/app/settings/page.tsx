@@ -77,12 +77,31 @@ export default function SettingsPage() {
   async function handleGoogle() {
     setError(null);
     setInfo(null);
-    const supabase = getSupabaseBrowserClient();
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: `${window.location.origin}/auth/callback?next=/settings` },
-    });
-    if (error) setError(error.message);
+    setBusy(true);
+    try {
+      const supabase = getSupabaseBrowserClient();
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback?next=/settings`,
+          // 홈스크린 PWA(standalone)에서 자동 이동이 막히는 경우 대비: 직접 이동
+          skipBrowserRedirect: true,
+        },
+      });
+      if (error) {
+        setError(`구글 로그인 오류: ${error.message}`);
+        return;
+      }
+      if (data?.url) {
+        window.location.assign(data.url);
+      } else {
+        setError("구글 로그인 URL을 받지 못했습니다. 잠시 후 다시 시도해 주세요.");
+      }
+    } catch (e) {
+      setError(`구글 로그인 실패: ${(e as Error).message}`);
+    } finally {
+      setBusy(false);
+    }
   }
 
   function startEdit() {
@@ -187,7 +206,7 @@ export default function SettingsPage() {
 
               <div className="auth-divider"><span>또는</span></div>
 
-              <button type="button" className="google-btn" onClick={handleGoogle}>
+              <button type="button" className="google-btn" onClick={handleGoogle} disabled={busy}>
                 <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden>
                   <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.71-1.57 2.68-3.88 2.68-6.62z" />
                   <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.81.54-1.85.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18z" />
