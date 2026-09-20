@@ -221,6 +221,9 @@ export default function PatientsPage() {
                   </div>
                   <div className="patient-list__name">
                     {patient.name}
+                    {patient.customer_no != null && (
+                      <span className="patient-list__no">(No. {patient.customer_no})</span>
+                    )}
                     {!editMode && patient.name === "새 환자" && (
                       <button
                         type="button"

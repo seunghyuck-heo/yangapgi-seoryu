@@ -52,7 +52,12 @@ export default function PatientDetailPage({ params }: PatientDetailPageProps) {
           ← 환자 목록
         </button>
       </div>
-      <h1>{patient.name}</h1>
+      <h1>
+        {patient.name}
+        {patient.customer_no != null && (
+          <span className="patient-detail-page__no"> (No. {patient.customer_no})</span>
+        )}
+      </h1>
       {patient.phone ? <p className="patient-detail-page__meta">{patient.phone}</p> : null}
 
       <ul className="doc-row-list">

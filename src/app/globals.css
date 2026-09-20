@@ -1277,6 +1277,18 @@ input[type="password"]::placeholder {
   min-width: 0;
 }
 
+.patient-list__no {
+  color: var(--brand);
+  font-weight: 700;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.patient-detail-page__no {
+  color: var(--brand);
+  font-size: 18px;
+  font-weight: 700;
+}
+
 .patient-list__rename {
   flex-shrink: 0;
   padding: 4px 10px;

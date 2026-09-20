@@ -25,10 +25,16 @@ export async function listPatients(search?: string): Promise<PatientWithDocument
     documentsByPatient.set(doc.patient_id, list);
   }
 
-  const result: PatientWithDocuments[] = (patients ?? []).map((p) => ({
-    ...(p as Patient),
-    documents: documentsByPatient.get(p.id) ?? [],
-  }));
+  const result: PatientWithDocuments[] = (patients ?? []).map((p) => {
+    const docs = documentsByPatient.get(p.id) ?? [];
+    const idDoc = docs.find((d) => d.doc_type === "id_card");
+    const cn = idDoc?.form_data?.customer_no;
+    return {
+      ...(p as Patient),
+      documents: docs,
+      customer_no: typeof cn === "number" ? cn : null,
+    };
+  });
 
   // 신분증 증명사진(photo_path) 서명 URL 부여 → 포토ID 아바타
   const photoPaths: string[] = [];
@@ -65,7 +71,14 @@ export async function getPatient(id: string): Promise<PatientWithDocuments | nul
     .eq("patient_id", id);
   if (docsError) throw new Error(docsError.message);
 
-  return { ...(patient as Patient), documents: (documents ?? []) as PatientDocument[] };
+  const docs = (documents ?? []) as PatientDocument[];
+  const idDoc = docs.find((d) => d.doc_type === "id_card");
+  const cn = idDoc?.form_data?.customer_no;
+  return {
+    ...(patient as Patient),
+    documents: docs,
+    customer_no: typeof cn === "number" ? cn : null,
+  };
 }
 
 export async function createPatient(input: {

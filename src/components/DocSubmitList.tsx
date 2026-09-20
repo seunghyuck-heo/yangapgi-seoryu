@@ -155,7 +155,7 @@ export default function DocSubmitList({
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ocrBusy, setOcrBusy] = useState(false);
-  const [nameSheet, setNameSheet] = useState<{ value: string; path: string; pid: string; photoPath?: string } | null>(null);
+  const [nameSheet, setNameSheet] = useState<{ value: string; path: string; pid: string; photoPath?: string; birth6?: string } | null>(null);
   const [nameSaving, setNameSaving] = useState(false);
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
   const galleryInputRef = useRef<HTMLInputElement | null>(null);
@@ -216,6 +216,7 @@ export default function DocSubmitList({
     let guess = "";
     let box: number[] | null = null;
     let rotation = 0;
+    let birth6 = "";
     try {
       const res = await fetch("/api/ocr-name", {
         method: "POST",
@@ -227,6 +228,7 @@ export default function DocSubmitList({
         guess = typeof json.name === "string" ? json.name : "";
         box = Array.isArray(json.box) ? json.box : null;
         rotation = typeof json.rotation === "number" ? json.rotation : 0;
+        birth6 = typeof json.birth6 === "string" ? json.birth6 : "";
       }
     } catch {
       // 실패해도 이름은 직접 입력 가능
@@ -266,7 +268,7 @@ export default function DocSubmitList({
     }
 
     setOcrBusy(false);
-    setNameSheet({ value: guess, path, pid, photoPath });
+    setNameSheet({ value: guess, path, pid, photoPath, birth6 });
   }
 
   // 확인: 이 시점에 신분증 문서를 실제로 저장(등록)하고, 이름이 있으면 함께 저장
@@ -275,13 +277,33 @@ export default function DocSubmitList({
     const pid = nameSheet.pid;
     setNameSaving(true);
     try {
+      const name0 = nameSheet.value.trim();
+      // 고객 참조 매칭(이름+생년월일6) → 고유번호
+      let customerNo: number | null = null;
+      if (name0 && nameSheet.birth6 && nameSheet.birth6.length === 6) {
+        try {
+          const mr = await fetch("/api/match-customer", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name: name0, birth6: nameSheet.birth6 }),
+          });
+          if (mr.ok) customerNo = (await mr.json()).customer_no ?? null;
+        } catch {
+          // 매칭 실패해도 진행
+        }
+      }
+      const formData: Record<string, unknown> = {};
+      if (nameSheet.photoPath) formData.photo_path = nameSheet.photoPath;
+      if (nameSheet.birth6) formData.birth6 = nameSheet.birth6;
+      if (customerNo != null) formData.customer_no = customerNo;
+
       const docRes = await fetch(`/api/documents/${pid}/id_card`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           file_path: nameSheet.path,
           status: "completed",
-          form_data: nameSheet.photoPath ? { photo_path: nameSheet.photoPath } : {},
+          form_data: formData,
         }),
       });
       if (!docRes.ok) {

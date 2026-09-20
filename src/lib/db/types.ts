@@ -24,4 +24,6 @@ export interface PatientWithDocuments extends Patient {
   documents: PatientDocument[];
   /** 신분증에서 추출한 증명사진(포토ID)의 서명 URL */
   photo_url?: string | null;
+  /** 고객 참조 매칭으로 부여된 고유번호 (No.) */
+  customer_no?: number | null;
 }
