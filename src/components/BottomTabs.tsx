@@ -2,6 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+import { DOC_TYPE_ORDER } from "@/lib/templates/types";
+import type { PatientWithDocuments } from "@/lib/db/types";
 
 const stroke = {
   fill: "none",
@@ -41,18 +44,46 @@ const TABS = [
 
 export default function BottomTabs() {
   const pathname = usePathname();
+  const [inProgress, setInProgress] = useState(0);
+
+  // 진행중(작성 미완료) 환자 수 → 환자 보기 탭 배지
+  useEffect(() => {
+    let ignore = false;
+    fetch("/api/patients")
+      .then(async (res) => {
+        if (!res.ok) return;
+        const json = await res.json();
+        if (ignore) return;
+        const patients = (json.patients ?? []) as PatientWithDocuments[];
+        const count = patients.filter((p) => {
+          const done = DOC_TYPE_ORDER.filter((t) =>
+            p.documents.some((d) => d.doc_type === t && d.status === "completed")
+          ).length;
+          return done < DOC_TYPE_ORDER.length;
+        }).length;
+        setInProgress(count);
+      })
+      .catch(() => {});
+    return () => {
+      ignore = true;
+    };
+  }, [pathname]);
 
   return (
     <nav className="bottom-tabs no-print">
       {TABS.map((tab) => {
         const active = pathname === tab.href || pathname.startsWith(`${tab.href}/`);
+        const badge = tab.href === "/patients" && inProgress > 0 ? inProgress : null;
         return (
           <Link
             key={tab.href}
             href={tab.href}
             className={`bottom-tabs__tab ${active ? "bottom-tabs__tab--active" : ""}`}
           >
-            <span className="bottom-tabs__icon">{tab.icon}</span>
+            <span className="bottom-tabs__icon">
+              {tab.icon}
+              {badge !== null && <span className="bottom-tabs__badge">{badge}</span>}
+            </span>
             <span className="bottom-tabs__label">{tab.label}</span>
           </Link>
         );

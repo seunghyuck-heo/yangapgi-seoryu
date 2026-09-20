@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import BottomTabs from "@/components/BottomTabs";
-import DocStatusDots from "@/components/DocStatusDots";
 import { PatientWithDocuments } from "@/lib/db/types";
 import { DOC_TYPE_ORDER } from "@/lib/templates/types";
 
@@ -110,19 +109,27 @@ export default function PatientsPage() {
           </div>
         ) : (
           <ul className="patient-list">
-            {visible.map((patient) => (
-              <li key={patient.id}>
-                <Link href={`/patients/${patient.id}`} className="patient-list__item">
-                  <div className="patient-list__avatar">{patient.name.slice(0, 1)}</div>
-                  <div className="patient-list__name">{patient.name}</div>
-                  <div className="patient-list__phone">{patient.phone || "-"}</div>
-                  <DocStatusDots documents={patient.documents} />
-                  <div className="patient-list__progress">
-                    {completeCount(patient.documents)} / {DOC_TYPE_ORDER.length} 완료
-                  </div>
-                </Link>
-              </li>
-            ))}
+            {visible.map((patient) => {
+              const done = completeCount(patient.documents);
+              const total = DOC_TYPE_ORDER.length;
+              const allDone = done >= total;
+              return (
+                <li key={patient.id}>
+                  <Link href={`/patients/${patient.id}`} className="patient-list__item">
+                    <div className="patient-list__avatar" aria-hidden>
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="8" r="4" />
+                        <path d="M4 21c0-3.3 3.6-6 8-6s8 2.7 8 6" />
+                      </svg>
+                    </div>
+                    <div className="patient-list__name">{patient.name}</div>
+                    <div className={`patient-list__progress ${allDone ? "patient-list__progress--done" : ""}`}>
+                      {done} / {total} {allDone ? "완료" : ""}
+                    </div>
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>

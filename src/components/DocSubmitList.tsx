@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DocType } from "@/lib/templates/types";
-import { PatientDocument } from "@/lib/db/types";
 import { DOC_ICON_STYLES } from "./docIcons";
 
 interface DocSubmitListProps {
@@ -84,7 +83,6 @@ export default function DocSubmitList({
   fromSubmit = false,
 }: DocSubmitListProps) {
   const router = useRouter();
-  const [statusByType, setStatusByType] = useState<Record<string, PatientDocument["status"]>>({});
   const [sheetOpen, setSheetOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -93,35 +91,6 @@ export default function DocSubmitList({
   const [nameSaving, setNameSaving] = useState(false);
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
   const galleryInputRef = useRef<HTMLInputElement | null>(null);
-
-  async function loadStatuses() {
-    const res = await fetch(`/api/patients/${patientId}`);
-    const json = await res.json();
-    if (res.ok && json.patient) {
-      const map: Record<string, PatientDocument["status"]> = {};
-      for (const doc of json.patient.documents as PatientDocument[]) {
-        map[doc.doc_type] = doc.status;
-      }
-      setStatusByType(map);
-    }
-  }
-
-  useEffect(() => {
-    if (preview || !patientId) return;
-    let ignore = false;
-    fetch(`/api/patients/${patientId}`).then(async (res) => {
-      const json = await res.json();
-      if (ignore || !res.ok || !json.patient) return;
-      const map: Record<string, PatientDocument["status"]> = {};
-      for (const doc of json.patient.documents as PatientDocument[]) {
-        map[doc.doc_type] = doc.status;
-      }
-      setStatusByType(map);
-    });
-    return () => {
-      ignore = true;
-    };
-  }, [patientId, preview]);
 
   // 탭 진입 지연 제거: 각 서식 라우트를 미리 프리페치해 즉시 전환
   useEffect(() => {
@@ -164,7 +133,6 @@ export default function DocSubmitList({
           setError(docJson.error || "저장에 실패했습니다");
           return;
         }
-        await loadStatuses();
         void runIdOcr(dataUrl);
       } catch (err) {
         setError((err as Error).message);
@@ -244,7 +212,6 @@ export default function DocSubmitList({
       <ul className="doc-submit__list">
         {ROWS.map((row) => {
           const style = DOC_ICON_STYLES[row.docType];
-          const done = statusByType[row.docType] === "completed";
           return (
             <li key={row.docType}>
               <button
@@ -263,7 +230,6 @@ export default function DocSubmitList({
                   <span className="doc-submit__title">{row.title}</span>
                   <span className="doc-submit__subtitle">{row.subtitle}</span>
                 </span>
-                {done && <span className="doc-submit__check">완료</span>}
                 {row.docType === "id_card" ? (
                   <span className="doc-submit__upload">
                     {uploading ? "업로드 중" : "업로드"}

@@ -548,10 +548,28 @@ input[type="password"]::placeholder {
 }
 
 .bottom-tabs__icon {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   height: 24px;
+}
+
+.bottom-tabs__badge {
+  position: absolute;
+  top: -6px;
+  left: 14px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+  box-shadow: 0 0 0 2px var(--paper);
 }
 
 .bottom-tabs__label {
@@ -1203,9 +1221,9 @@ input[type="password"]::placeholder {
 .patient-list__item {
   width: 100%;
   display: grid;
-  grid-template-columns: auto 1.2fr 1fr auto auto;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
   background: var(--paper);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -1245,10 +1263,14 @@ input[type="password"]::placeholder {
 }
 
 .patient-list__progress {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
   white-space: nowrap;
-  font-weight: 600;
+  font-weight: 700;
+}
+
+.patient-list__progress--done {
+  color: var(--brand);
 }
 
 .doc-status-dots {
@@ -1768,32 +1790,7 @@ input[type="password"]::placeholder {
 
 @media (max-width: 640px) {
   .patient-list__item {
-    grid-template-columns: auto 1fr;
-    grid-template-areas:
-      "avatar name"
-      "dots dots"
-      "progress progress";
-    row-gap: 8px;
-  }
-
-  .patient-list__avatar {
-    grid-area: avatar;
-  }
-
-  .patient-list__name {
-    grid-area: name;
-  }
-
-  .patient-list__phone {
-    display: none;
-  }
-
-  .doc-status-dots {
-    grid-area: dots;
-  }
-
-  .patient-list__progress {
-    grid-area: progress;
+    grid-template-columns: auto 1fr auto;
   }
 
   .doc-table,
