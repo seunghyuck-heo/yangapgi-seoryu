@@ -71,27 +71,29 @@ export default function CustomersPage() {
       <header className="app-header app-header--sub">
         {searchMode ? (
           <div className="app-header__row">
-            <button
-              type="button"
-              className="app-header__action"
-              aria-label="뒤로"
-              onClick={() => {
-                setSearchMode(false);
-                setSearch("");
-              }}
-            >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                <path d="M15 18l-6-6 6-6" />
-              </svg>
-            </button>
-            <input
-              ref={searchRef}
-              type="text"
-              className="app-header__search"
-              placeholder="이름·번호·전화·지사 검색"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+            <div className="search-inline">
+              <button
+                type="button"
+                className="search-inline__back"
+                aria-label="뒤로"
+                onClick={() => {
+                  setSearchMode(false);
+                  setSearch("");
+                }}
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M15 18l-6-6 6-6" />
+                </svg>
+              </button>
+              <input
+                ref={searchRef}
+                type="text"
+                className="search-inline__input"
+                placeholder="이름·번호·전화·지사 검색"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
           </div>
         ) : (
           <div className="app-header__row">

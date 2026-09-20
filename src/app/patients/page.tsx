@@ -56,9 +56,14 @@ export default function PatientsPage() {
 
   // 내용(문서)이 없는 빈 폴더는 목록에서 숨김 (서식 제출 시작용 임시 폴더 등)
   const realPatients = patients.filter((p) => p.documents.length > 0);
-  const q = search.trim();
+  const q = search.trim().toLowerCase();
   const visible = q
-    ? realPatients.filter((p) => p.name.toLowerCase().includes(q.toLowerCase()))
+    ? realPatients.filter(
+        (p) =>
+          p.name.toLowerCase().includes(q) ||
+          (p.customer_no != null && String(p.customer_no).includes(q)) ||
+          (p.phone ?? "").toLowerCase().includes(q)
+      )
     : realPatients;
 
   function toggleSelect(id: string) {
