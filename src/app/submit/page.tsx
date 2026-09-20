@@ -9,13 +9,10 @@ import { DOC_TYPE_ORDER } from "@/lib/templates/types";
 
 const DRAFT_KEY = "draftPatientId";
 
-interface Mode {
-  patientId: string;
-  preview: boolean;
-}
-
 export default function SubmitPage() {
-  const [mode, setMode] = useState<Mode | null>(null);
+  // 목록은 즉시 표시하고, 임시 폴더(draft)는 뒤에서 준비한다.
+  const [patientId, setPatientId] = useState<string | null>(null);
+  const [preview, setPreview] = useState(false);
 
   useEffect(() => {
     let ignore = false;
@@ -39,7 +36,7 @@ export default function SubmitPage() {
               docs.some((d) => d.doc_type === t && d.status === "completed")
             ).length;
             if (json.patient && done < DOC_TYPE_ORDER.length) {
-              if (!ignore) setMode({ patientId: stored, preview: false });
+              if (!ignore) setPatientId(stored);
               return;
             }
           }
@@ -62,7 +59,7 @@ export default function SubmitPage() {
           } catch {
             // ignore
           }
-          if (!ignore) setMode({ patientId: createJson.patient.id, preview: false });
+          if (!ignore) setPatientId(createJson.patient.id);
           return;
         }
       } catch {
@@ -70,7 +67,10 @@ export default function SubmitPage() {
       }
 
       // 로그인 전(또는 Supabase 미연결) 이면 미리보기 모드로 화면은 그대로 표시
-      if (!ignore) setMode({ patientId: "preview-patient", preview: true });
+      if (!ignore) {
+        setPreview(true);
+        setPatientId("preview-patient");
+      }
     }
 
     ensureDraft();
@@ -98,15 +98,7 @@ export default function SubmitPage() {
       </header>
 
       <div className="tab-page__body">
-        {mode ? (
-          <DocSubmitList
-            patientId={mode.patientId}
-            preview={mode.preview}
-            fromSubmit={!mode.preview}
-          />
-        ) : (
-          <p className="muted-text">준비 중...</p>
-        )}
+        <DocSubmitList patientId={patientId} preview={preview} fromSubmit={!preview} />
       </div>
 
       <BottomTabs />

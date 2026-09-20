@@ -126,15 +126,6 @@ export default function SettingsPage() {
         ) : (
           /* ── 로그아웃 상태: 로그인 / 계정 만들기 ── */
           <section className="settings-group">
-            <div className="auth-lockhero">
-              <div className="login-required__icon" aria-hidden>
-                <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="4" y="10" width="16" height="10" rx="2" />
-                  <path d="M8 10V7a4 4 0 0 1 8 0v3" />
-                </svg>
-              </div>
-              <div className="login-required__title">{authMode === "login" ? "로그인" : "계정 만들기"}</div>
-            </div>
             <form className="settings-card" onSubmit={handleAuth} style={{ padding: 18, display: "flex", flexDirection: "column", gap: 12 }}>
               {authMode === "signup" && (
                 <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="이름 (또는 병원명)" />

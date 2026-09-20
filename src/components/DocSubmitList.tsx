@@ -7,7 +7,8 @@ import { PatientDocument } from "@/lib/db/types";
 import { DOC_ICON_STYLES } from "./docIcons";
 
 interface DocSubmitListProps {
-  patientId: string;
+  /** null이면 임시 폴더(draft) 준비 중 — 목록은 즉시 표시, 탭 동작만 준비 후 활성화 */
+  patientId: string | null;
   /** preview mode: rows link to /preview/[docType], no status fetch */
   preview?: boolean;
   /** when opened from the 서식 제출 tab: forms return to /submit */
@@ -88,7 +89,7 @@ export default function DocSubmitList({
   }
 
   useEffect(() => {
-    if (preview) return;
+    if (preview || !patientId) return;
     let ignore = false;
     fetch(`/api/patients/${patientId}`).then(async (res) => {
       const json = await res.json();
@@ -106,7 +107,9 @@ export default function DocSubmitList({
 
   async function handleIdFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (file) {
+    if (file && !patientId) {
+      setError("잠시 후 다시 시도해 주세요 (폴더 준비 중)");
+    } else if (file) {
       setUploading(true);
       setError(null);
       try {
@@ -151,6 +154,7 @@ export default function DocSubmitList({
       router.push(`/preview/${docType}`);
       return;
     }
+    if (!patientId) return; // 폴더 준비 전이면 잠시 대기(보통 1초 이내)
     const query = fromSubmit ? "?from=submit" : "";
     router.push(`/patients/${patientId}/doc/${docType}${query}`);
   }
