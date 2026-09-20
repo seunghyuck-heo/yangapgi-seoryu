@@ -1309,7 +1309,7 @@ input[type="password"]::placeholder {
   font-size: 13px;
   color: var(--muted);
   font-weight: 600;
-  margin-bottom: 4px;
+  margin-bottom: 8px;
 }
 .customer-list {
   list-style: none;

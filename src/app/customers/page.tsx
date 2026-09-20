@@ -61,8 +61,10 @@ export default function CustomersPage() {
   return (
     <div className="tab-page">
       <div className="doc-page__toolbar no-print">
-        <button type="button" className="doc-page__back" onClick={() => router.push("/settings")}>
-          ← 설정
+        <button type="button" className="app-header__action" aria-label="뒤로" onClick={() => router.push("/settings")}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
         </button>
       </div>
 
@@ -117,7 +119,7 @@ export default function CustomersPage() {
             {q ? "검색 결과가 없습니다." : "고객 데이터가 없습니다."}
           </p>
         ) : (
-          <>
+          <div className="customer-list-wrap">
             <p className="customer-list__count">총 {visible.length}명</p>
             <ul className="customer-list">
               {visible.map((c) => (
@@ -138,7 +140,7 @@ export default function CustomersPage() {
                 </li>
               ))}
             </ul>
-          </>
+          </div>
         )}
       </div>
     </div>

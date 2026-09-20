@@ -48,8 +48,10 @@ export default function PatientDetailPage({ params }: PatientDetailPageProps) {
   return (
     <div className="patient-detail-page">
       <div className="doc-page__toolbar no-print">
-        <button type="button" className="doc-page__back" onClick={() => router.push("/patients")}>
-          ← 환자 목록
+        <button type="button" className="app-header__action" aria-label="뒤로" onClick={() => router.push("/patients")}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
         </button>
       </div>
       <h1>
