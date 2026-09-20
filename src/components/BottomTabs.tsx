@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { DOC_TYPE_ORDER } from "@/lib/templates/types";
 import type { PatientWithDocuments } from "@/lib/db/types";
+import { isRegisteredPatient } from "@/lib/patientStatus";
 
 const stroke = {
   fill: "none",
@@ -62,7 +63,7 @@ export default function BottomTabs() {
         if (cancelled) return;
         const patients = (json.patients ?? []) as PatientWithDocuments[];
         const count = patients.filter((p) => {
-          if (p.documents.length === 0) return false; // 빈 폴더 제외
+          if (!isRegisteredPatient(p)) return false; // 신분증+이름 전엔 카운팅 안 함
           const done = DOC_TYPE_ORDER.filter((t) =>
             p.documents.some((d) => d.doc_type === t && d.status === "completed")
           ).length;

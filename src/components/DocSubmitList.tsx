@@ -288,6 +288,11 @@ export default function DocSubmitList({
   // 확인: 이 시점에 신분증 문서를 실제로 저장(등록)하고, 이름이 있으면 함께 저장
   async function saveName() {
     if (!nameSheet) return;
+    // 이름이 입력돼야 정식 환자로 등록 (신분증 업로드 + 이름 입력 후부터 카운팅)
+    if (!nameSheet.value.trim()) {
+      setError("환자 이름을 입력해 주세요.");
+      return;
+    }
     const pid = nameSheet.pid;
     setNameSaving(true);
     try {
@@ -484,7 +489,12 @@ export default function DocSubmitList({
               <button type="button" onClick={() => setNameSheet(null)}>
                 취소
               </button>
-              <button type="button" className="primary" onClick={saveName} disabled={nameSaving}>
+              <button
+                type="button"
+                className="primary"
+                onClick={saveName}
+                disabled={nameSaving || !nameSheet.value.trim()}
+              >
                 {nameSaving ? "저장 중..." : "확인"}
               </button>
             </div>

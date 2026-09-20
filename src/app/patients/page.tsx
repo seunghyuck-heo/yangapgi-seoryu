@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import BottomTabs, { PATIENTS_CHANGED_EVENT } from "@/components/BottomTabs";
 import { PatientWithDocuments } from "@/lib/db/types";
 import { DOC_TYPE_ORDER } from "@/lib/templates/types";
+import { isRegisteredPatient } from "@/lib/patientStatus";
 
 // 탭 전환/재진입 시 즉시 표시하기 위한 클라이언트 캐시 (stale-while-revalidate)
 let patientsCache: PatientWithDocuments[] | null = null;
@@ -96,8 +97,8 @@ export default function PatientsPage() {
     DOC_TYPE_ORDER.filter((t) => documents.some((d) => d.doc_type === t && d.status === "completed"))
       .length;
 
-  // 내용(문서)이 없는 빈 폴더는 목록에서 숨김 (서식 제출 시작용 임시 폴더 등)
-  const realPatients = patients.filter((p) => p.documents.length > 0);
+  // 신분증 업로드 + 이름 입력이 끝난 환자만 표시 (서식만 열었다 나온 빈 폴더 제외)
+  const realPatients = patients.filter(isRegisteredPatient);
   const q = search.trim().toLowerCase();
   const visible = q
     ? realPatients.filter(
