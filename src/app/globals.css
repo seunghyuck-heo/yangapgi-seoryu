@@ -322,6 +322,82 @@ input[type="password"]::placeholder {
   max-width: 280px;
 }
 
+/* 설정 - 프로필 카드 (로그인 상태) */
+.profile-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px 18px;
+  box-shadow: var(--shadow-card);
+}
+
+.profile-card__avatar {
+  flex-shrink: 0;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--brand-dark);
+  background: var(--brand-soft);
+}
+
+.profile-card__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.profile-card__name {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.profile-card__email {
+  font-size: 12.5px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-card__main input {
+  height: 40px;
+  font-size: 15px;
+}
+
+.profile-card__btn {
+  flex-shrink: 0;
+  padding: 9px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+}
+
+.logout-btn {
+  width: 100%;
+  margin-top: 4px;
+  padding: 15px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--danger);
+  border: none;
+  border-radius: var(--radius-sm);
+}
+
+.logout-btn:hover:not(:disabled) {
+  background: #a82f2f;
+  color: #fff;
+}
+
 /* 설정 로그인 화면의 자물쇠 헤더 */
 .auth-lockhero {
   display: flex;

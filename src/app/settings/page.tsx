@@ -10,18 +10,19 @@ export default function SettingsPage() {
   const router = useRouter();
   const { user, loading } = useUser();
 
-  // 로그인/회원가입 폼 상태 (로그아웃 상태에서 사용)
+  // 로그인/회원가입 폼 (로그아웃 상태)
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // 로그인 상태: 프로필 이름 로드/저장
+  // 로그인 상태: 프로필 이름 + 편집
   const [profileName, setProfileName] = useState("");
-  const [saved, setSaved] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [draftName, setDraftName] = useState("");
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -31,6 +32,8 @@ export default function SettingsPage() {
       setProfileName(data?.name ?? (user.user_metadata?.name as string) ?? "");
     })();
   }, [user]);
+
+  const displayName = profileName.trim() || (user?.email ? user.email.split("@")[0] : "사용자");
 
   async function handleAuth(e: React.FormEvent) {
     e.preventDefault();
@@ -55,11 +58,7 @@ export default function SettingsPage() {
           setError("비밀번호는 6자 이상이어야 합니다");
           return;
         }
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: { data: { name } },
-        });
+        const { data, error } = await supabase.auth.signUp({ email, password });
         if (error) {
           setError(error.message);
           return;
@@ -75,17 +74,22 @@ export default function SettingsPage() {
     }
   }
 
-  async function handleSaveName() {
+  function startEdit() {
+    setDraftName(profileName);
+    setEditing(true);
+  }
+
+  async function saveName() {
     if (!user) return;
-    setBusy(true);
-    setSaved(false);
+    setSaving(true);
     try {
       const supabase = getSupabaseBrowserClient();
-      await supabase.from("profiles").upsert({ id: user.id, name: profileName, updated_at: new Date().toISOString() });
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
+      const name = draftName.trim();
+      await supabase.from("profiles").upsert({ id: user.id, name, updated_at: new Date().toISOString() });
+      setProfileName(name);
+      setEditing(false);
     } finally {
-      setBusy(false);
+      setSaving(false);
     }
   }
 
@@ -107,19 +111,44 @@ export default function SettingsPage() {
         {loading ? (
           <p className="muted-text">불러오는 중...</p>
         ) : user ? (
-          /* ── 로그인 상태 ── */
+          /* ── 로그인 상태: 프로필 ── */
           <>
-            <section className="settings-group">
-              <h2 className="section-heading">로그인 정보</h2>
-              <div className="settings-card" style={{ padding: 18, display: "flex", flexDirection: "column", gap: 12 }}>
-                <input type="email" value={user.email ?? ""} readOnly placeholder="이메일" style={{ background: "var(--bg-soft)" }} />
-                <input type="text" value={profileName} onChange={(e) => setProfileName(e.target.value)} placeholder="이름" />
+            <div className="profile-card">
+              <div className="profile-card__avatar" aria-hidden>
+                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="8" r="4" />
+                  <path d="M4 21c0-3.3 3.6-6 8-6s8 2.7 8 6" />
+                </svg>
               </div>
-            </section>
-            <button type="button" className="primary" onClick={handleSaveName} disabled={busy} style={{ width: "100%", padding: 16, fontSize: 16, fontWeight: 700 }}>
-              {busy ? "저장 중..." : saved ? "저장됨 ✓" : "저장"}
-            </button>
-            <button type="button" onClick={handleLogout} style={{ width: "100%", padding: 14, marginTop: 4, color: "var(--danger)", fontWeight: 600 }}>
+              <div className="profile-card__main">
+                {editing ? (
+                  <input
+                    type="text"
+                    value={draftName}
+                    onChange={(e) => setDraftName(e.target.value)}
+                    placeholder="이름"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") saveName();
+                    }}
+                  />
+                ) : (
+                  <div className="profile-card__name">{displayName}</div>
+                )}
+                <div className="profile-card__email">{user.email}</div>
+              </div>
+              {editing ? (
+                <button type="button" className="profile-card__btn primary" onClick={saveName} disabled={saving}>
+                  {saving ? "저장 중" : "저장"}
+                </button>
+              ) : (
+                <button type="button" className="profile-card__btn" onClick={startEdit}>
+                  편집
+                </button>
+              )}
+            </div>
+
+            <button type="button" className="logout-btn" onClick={handleLogout}>
               로그아웃
             </button>
           </>
@@ -127,9 +156,6 @@ export default function SettingsPage() {
           /* ── 로그아웃 상태: 로그인 / 계정 만들기 ── */
           <section className="settings-group">
             <form className="settings-card" onSubmit={handleAuth} style={{ padding: 18, display: "flex", flexDirection: "column", gap: 12 }}>
-              {authMode === "signup" && (
-                <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="이름 (또는 병원명)" />
-              )}
               <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="이메일" autoComplete="email" />
               <input
                 type="password"
