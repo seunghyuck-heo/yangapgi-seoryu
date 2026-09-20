@@ -1,6 +1,6 @@
 {
   "name": "양압기 서류계약",
-  "short_name": "서류계약",
+  "short_name": "양압기 서류계약",
   "description": "양압기 치료 서비스 계약서류 작성·관리 시스템",
   "start_url": "/submit",
   "scope": "/",
