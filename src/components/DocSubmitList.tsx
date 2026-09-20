@@ -6,12 +6,14 @@ import { DocType } from "@/lib/templates/types";
 import { DOC_ICON_STYLES } from "./docIcons";
 
 interface DocSubmitListProps {
-  /** null이면 임시 폴더(draft) 준비 중 — 목록은 즉시 표시, 탭 동작만 준비 후 활성화 */
+  /** null이면 아직 폴더 없음 — 목록은 즉시 표시, 저장 행동 시 ensurePatientId로 생성 */
   patientId: string | null;
   /** preview mode: rows link to /preview/[docType], no status fetch */
   preview?: boolean;
   /** when opened from the 서식 제출 tab: forms return to /submit */
   fromSubmit?: boolean;
+  /** 저장 시점에만 환자 폴더를 만드는 지연 생성 함수(로그인 상태에서만 전달) */
+  ensurePatientId?: () => Promise<string | null>;
 }
 
 interface RowConfig {
@@ -81,13 +83,14 @@ export default function DocSubmitList({
   patientId,
   preview = false,
   fromSubmit = false,
+  ensurePatientId,
 }: DocSubmitListProps) {
   const router = useRouter();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ocrBusy, setOcrBusy] = useState(false);
-  const [nameSheet, setNameSheet] = useState<{ value: string; path: string } | null>(null);
+  const [nameSheet, setNameSheet] = useState<{ value: string; path: string; pid: string } | null>(null);
   const [nameSaving, setNameSaving] = useState(false);
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
   const galleryInputRef = useRef<HTMLInputElement | null>(null);
@@ -106,17 +109,22 @@ export default function DocSubmitList({
 
   async function handleIdFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (file && !patientId) {
-      setError("잠시 후 다시 시도해 주세요 (폴더 준비 중)");
-    } else if (file) {
+    if (file) {
       setUploading(true);
       setError(null);
       try {
+        // 저장 시점에만 폴더 생성(지연 생성)
+        let pid = patientId;
+        if (!pid && ensurePatientId) pid = await ensurePatientId();
+        if (!pid) {
+          setError("잠시 후 다시 시도해 주세요");
+          return;
+        }
         const dataUrl = await resizeImageFile(file);
         const uploadRes = await fetch("/api/uploads", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ patientId, docType: "id_card", kind: "id_card", dataUrl }),
+          body: JSON.stringify({ patientId: pid, docType: "id_card", kind: "id_card", dataUrl }),
         });
         const uploadJson = await uploadRes.json();
         if (!uploadRes.ok) {
@@ -125,7 +133,7 @@ export default function DocSubmitList({
         }
         // 신분증 문서 저장은 이름 확인 팝업에서 '확인'을 눌러야 실제로 이뤄진다.
         // (취소하면 저장되지 않아 환자 보기에 나타나지 않음)
-        void runIdOcr(dataUrl, uploadJson.path);
+        void runIdOcr(dataUrl, uploadJson.path, pid);
       } catch (err) {
         setError((err as Error).message);
       } finally {
@@ -137,8 +145,8 @@ export default function DocSubmitList({
   }
 
   // 신분증 이미지에서 이름 추정 → 확인/수정 시트 (완전 브라우저 처리, 외부 전송 없음)
-  async function runIdOcr(dataUrl: string, path: string) {
-    if (!patientId || preview) return;
+  async function runIdOcr(dataUrl: string, path: string, pid: string) {
+    if (preview) return;
     setOcrBusy(true);
     let guess = "";
     try {
@@ -150,15 +158,16 @@ export default function DocSubmitList({
     } finally {
       setOcrBusy(false);
     }
-    setNameSheet({ value: guess, path });
+    setNameSheet({ value: guess, path, pid });
   }
 
   // 확인: 이 시점에 신분증 문서를 실제로 저장(등록)하고, 이름이 있으면 함께 저장
   async function saveName() {
-    if (!nameSheet || !patientId) return;
+    if (!nameSheet) return;
+    const pid = nameSheet.pid;
     setNameSaving(true);
     try {
-      const docRes = await fetch(`/api/documents/${patientId}/id_card`, {
+      const docRes = await fetch(`/api/documents/${pid}/id_card`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ file_path: nameSheet.path, status: "completed" }),
@@ -170,7 +179,7 @@ export default function DocSubmitList({
       }
       const name = nameSheet.value.trim();
       if (name) {
-        await fetch(`/api/patients/${patientId}`, {
+        await fetch(`/api/patients/${pid}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ name }),
@@ -182,7 +191,7 @@ export default function DocSubmitList({
     }
   }
 
-  function handleRowClick(docType: DocType) {
+  async function handleRowClick(docType: DocType) {
     if (docType === "id_card") {
       setSheetOpen(true);
       return;
@@ -191,9 +200,12 @@ export default function DocSubmitList({
       router.push(`/preview/${docType}`);
       return;
     }
-    if (!patientId) return; // 폴더 준비 전이면 잠시 대기(보통 1초 이내)
+    // 저장 시점에만 폴더 생성(지연 생성)
+    let pid = patientId;
+    if (!pid && ensurePatientId) pid = await ensurePatientId();
+    if (!pid) return;
     const query = fromSubmit ? "?from=submit" : "";
-    router.push(`/patients/${patientId}/doc/${docType}${query}`);
+    router.push(`/patients/${pid}/doc/${docType}${query}`);
   }
 
   return (

@@ -1,83 +1,84 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import BottomTabs from "@/components/BottomTabs";
 import DocSubmitList from "@/components/DocSubmitList";
 import { PatientDocument } from "@/lib/db/types";
 import { DOC_TYPE_ORDER } from "@/lib/templates/types";
+import { useUser } from "@/lib/supabase/useUser";
 
 const DRAFT_KEY = "draftPatientId";
 
 export default function SubmitPage() {
-  // 목록은 즉시 표시하고, 임시 폴더(draft)는 뒤에서 준비한다.
+  const { user, loading } = useUser();
   const [patientId, setPatientId] = useState<string | null>(null);
-  const [preview, setPreview] = useState(false);
+  const creatingRef = useRef<Promise<string | null> | null>(null);
 
+  const preview = !loading && !user;
+
+  // 로그인 상태에서, 이번 세션의 미완료 draft가 있으면 이어서 사용(새로 만들지 않음)
   useEffect(() => {
+    if (loading || !user) return;
     let ignore = false;
-
-    async function ensureDraft() {
+    (async () => {
       let stored: string | null = null;
       try {
         stored = sessionStorage.getItem(DRAFT_KEY);
       } catch {
         stored = null;
       }
-
-      // 이번 세션에 진행 중인 draft가 있으면 이어서 사용
-      if (stored) {
-        try {
-          const res = await fetch(`/api/patients/${stored}`);
-          if (res.ok) {
-            const json = await res.json();
-            const docs: PatientDocument[] = json.patient?.documents ?? [];
-            const done = DOC_TYPE_ORDER.filter((t) =>
-              docs.some((d) => d.doc_type === t && d.status === "completed")
-            ).length;
-            if (json.patient && done < DOC_TYPE_ORDER.length) {
-              if (!ignore) setPatientId(stored);
-              return;
-            }
-          }
-        } catch {
-          // fall through to create
-        }
-      }
-
-      // 새 draft 폴더 생성 (서식 제출 시 이름이 자동으로 채워짐)
+      if (!stored) return;
       try {
-        const createRes = await fetch("/api/patients", {
+        const res = await fetch(`/api/patients/${stored}`);
+        if (!res.ok) return;
+        const json = await res.json();
+        const docs: PatientDocument[] = json.patient?.documents ?? [];
+        const done = DOC_TYPE_ORDER.filter((t) =>
+          docs.some((d) => d.doc_type === t && d.status === "completed")
+        ).length;
+        if (json.patient && done < DOC_TYPE_ORDER.length && !ignore) {
+          setPatientId(stored);
+        }
+      } catch {
+        // 무시
+      }
+    })();
+    return () => {
+      ignore = true;
+    };
+  }, [user, loading]);
+
+  // 실제 저장 행동(신분증 업로드/서식 진입) 시점에만 환자 폴더를 만든다(지연 생성)
+  async function ensurePatientId(): Promise<string | null> {
+    if (patientId) return patientId;
+    if (creatingRef.current) return creatingRef.current;
+    const task = (async () => {
+      try {
+        const res = await fetch("/api/patients", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ name: "새 환자" }),
         });
-        if (createRes.ok) {
-          const createJson = await createRes.json();
-          try {
-            sessionStorage.setItem(DRAFT_KEY, createJson.patient.id);
-          } catch {
-            // ignore
-          }
-          if (!ignore) setPatientId(createJson.patient.id);
-          return;
+        if (!res.ok) return null;
+        const json = await res.json();
+        const id = json.patient.id as string;
+        try {
+          sessionStorage.setItem(DRAFT_KEY, id);
+        } catch {
+          // ignore
         }
+        setPatientId(id);
+        return id;
       } catch {
-        // fall through to preview
+        return null;
+      } finally {
+        creatingRef.current = null;
       }
-
-      // 로그인 전(또는 Supabase 미연결) 이면 미리보기 모드로 화면은 그대로 표시
-      if (!ignore) {
-        setPreview(true);
-        setPatientId("preview-patient");
-      }
-    }
-
-    ensureDraft();
-    return () => {
-      ignore = true;
-    };
-  }, []);
+    })();
+    creatingRef.current = task;
+    return task;
+  }
 
   return (
     <div className="tab-page">
@@ -98,7 +99,12 @@ export default function SubmitPage() {
       </header>
 
       <div className="tab-page__body">
-        <DocSubmitList patientId={patientId} preview={preview} fromSubmit={!preview} />
+        <DocSubmitList
+          patientId={preview ? "preview-patient" : patientId}
+          preview={preview}
+          fromSubmit={!preview}
+          ensurePatientId={preview ? undefined : ensurePatientId}
+        />
       </div>
 
       <BottomTabs />

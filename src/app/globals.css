@@ -1943,6 +1943,9 @@ input[type="password"]::placeholder {
   .patient-list__item {
     grid-template-columns: auto 1fr auto;
   }
+  .patient-list__item--edit {
+    grid-template-columns: auto auto 1fr auto;
+  }
 
   .doc-table,
   .doc-table tbody,
