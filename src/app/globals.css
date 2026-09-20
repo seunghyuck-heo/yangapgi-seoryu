@@ -904,6 +904,22 @@ input[type="password"]::placeholder {
   padding: 14px;
 }
 
+/* 전화번호 등 접두어(010-) + 입력칸 */
+.field-popup__prefixrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.field-popup__prefixrow input[type="text"] {
+  flex: 1;
+}
+.field-popup__prefix {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
 .field-popup__actions {
   display: flex;
   gap: 10px;

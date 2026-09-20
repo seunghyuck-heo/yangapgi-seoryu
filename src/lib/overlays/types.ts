@@ -26,6 +26,10 @@ export interface OverlayField {
   boxPattern?: number[];
   /** 서명 팝업의 확정 버튼 문구 (기본 "서명 확정") */
   confirmText?: string;
+  /** 전화번호 등: 문서엔 접두어+하이픈 텍스트로 표시(네모칸 아님). 팝업은 구간 자동 하이픈 */
+  dashPattern?: number[];
+  /** dashPattern과 함께 문서에 고정 표시할 접두어 (예: "010-") */
+  prefix?: string;
 }
 
 export interface OverlayDoc {

@@ -12,7 +12,7 @@ export const poaOverlay: OverlayDoc = {
   fields: [
     { key: "insured_name", type: "text", x: 48.5, y: 13.22, w: 28, h: 1.34, label: "가입자 성명", align: "left" },
     { key: "insured_rrn", type: "text", x: 48.5, y: 15.96, w: 30, h: 1.34, label: "주민(외국인)등록번호", align: "left" },
-    { key: "delegator_phone", type: "text", x: 48.3, y: 26.92, w: 28, h: 1.34, label: "전화번호(수신용)", align: "left" },
+    { key: "delegator_phone", type: "text", x: 48.3, y: 26.92, w: 28, h: 1.34, label: "전화번호(수신용)", prefix: "010-", dashPattern: [4, 4], align: "left" },
     { key: "sms_consent", type: "checkbox", x: 80.94, y: 26.94, w: 1.5, h: 1.06, label: "문자메시지 수신동의" },
     { key: "gigan_start_y", type: "text", x: 14.5, y: 78.49, w: 5.6, h: 1.34, label: "위임 시작 연도", align: "right", dateGroup: "gigan_start", datePart: "y", fullYear: true },
     { key: "gigan_start_m", type: "text", x: 22.08, y: 78.49, w: 3, h: 1.34, label: "위임 시작 월", align: "right", dateGroup: "gigan_start", datePart: "m" },

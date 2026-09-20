@@ -40,8 +40,8 @@ export const contractOverlay: OverlayDoc = {
     { key: "patient_seal", type: "signature", x: 82.5, y: 92.6, w: 14, h: 2.7, label: "서명 (수기)" },
     // 을 주소
     { key: "patient_address", type: "text", x: 58, y: 95.6, w: 38, h: 1.4, label: "주소", align: "left" },
-    // 을 연락처 / 비상연락처 (각 010- 뒷자리)
-    { key: "patient_phone", type: "text", x: 56.4, y: 97.5, w: 15, h: 1.4, label: "연락처 (010- 뒷자리)", placeholder: "1234-5678" },
-    { key: "patient_emergency_phone", type: "text", x: 82.9, y: 97.5, w: 14, h: 1.4, label: "비상연락처 (010- 뒷자리)" },
+    // 을 연락처 / 비상연락처 (010- + 뒤 8자리, 4+4 자동 하이픈)
+    { key: "patient_phone", type: "text", x: 56.4, y: 97.5, w: 15, h: 1.4, label: "연락처", prefix: "010-", dashPattern: [4, 4], align: "left" },
+    { key: "patient_emergency_phone", type: "text", x: 82.9, y: 97.5, w: 14, h: 1.4, label: "비상연락처", prefix: "010-", dashPattern: [4, 4], align: "left" },
   ],
 };

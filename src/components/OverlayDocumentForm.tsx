@@ -261,6 +261,29 @@ export default function OverlayDocumentForm({
           {cells}
         </span>
       );
+    } else if (field.dashPattern && field.dashPattern.length) {
+      // 전화번호 등: 문서엔 접두어 + 하이픈 텍스트로 표시(네모칸 아님)
+      const str = typeof value === "string" ? value : "";
+      if (str.trim()) {
+        filled = true;
+        const display = (field.prefix ?? "") + formatBoxPattern(str, field.dashPattern);
+        content = (
+          <span
+            className="odoc-hotspot__text"
+            style={{
+              fontSize: `${field.fontPct ?? 1.4}cqw`,
+              justifyContent:
+                field.align === "left"
+                  ? "flex-start"
+                  : field.align === "right"
+                    ? "flex-end"
+                    : "center",
+            }}
+          >
+            {display}
+          </span>
+        );
+      }
     } else if (field.boxes && field.boxes >= 1) {
       // 자릿수 네모칸: 각 칸에 한 글자씩 균등 분배
       const str = typeof value === "string" ? value : "";
@@ -356,36 +379,52 @@ export default function OverlayDocumentForm({
         <div className="sheet-overlay" ref={popupRef} onClick={() => setOpenField(null)}>
           <div className="sheet field-popup" onClick={(e) => e.stopPropagation()}>
             <div className="field-popup__label">{openField.label ?? "입력"}</div>
-            <input
-              type="text"
-              value={
-                openField.boxPattern
-                  ? formatBoxPattern(textDraft, openField.boxPattern)
-                  : textDraft
-              }
-              placeholder={
-                openField.boxPattern
-                  ? `${openField.boxPattern.reduce((a, b) => a + b, 0)}자리 숫자 입력`
-                  : openField.boxes
-                    ? `${openField.boxes}자리 숫자 입력`
-                    : openField.placeholder
-              }
-              inputMode={openField.boxPattern || openField.boxes ? "numeric" : undefined}
-              onChange={(e) => {
-                if (openField.boxPattern) {
-                  const total = openField.boxPattern.reduce((a, b) => a + b, 0);
-                  setTextDraft(e.target.value.replace(/\D/g, "").slice(0, total));
-                } else if (openField.boxes) {
-                  setTextDraft(e.target.value.replace(/\D/g, "").slice(0, openField.boxes));
-                } else {
-                  setTextDraft(e.target.value);
+            <div className={openField.prefix ? "field-popup__prefixrow" : undefined}>
+              {openField.prefix && (
+                <span className="field-popup__prefix">{openField.prefix}</span>
+              )}
+              <input
+                type="text"
+                value={
+                  openField.dashPattern
+                    ? formatBoxPattern(textDraft, openField.dashPattern)
+                    : openField.boxPattern
+                      ? formatBoxPattern(textDraft, openField.boxPattern)
+                      : textDraft
                 }
-              }}
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === "Enter") commitText();
-              }}
-            />
+                placeholder={
+                  openField.dashPattern
+                    ? `뒤 ${openField.dashPattern.reduce((a, b) => a + b, 0)}자리 입력`
+                    : openField.boxPattern
+                      ? `${openField.boxPattern.reduce((a, b) => a + b, 0)}자리 숫자 입력`
+                      : openField.boxes
+                        ? `${openField.boxes}자리 숫자 입력`
+                        : openField.placeholder
+                }
+                inputMode={
+                  openField.dashPattern || openField.boxPattern || openField.boxes
+                    ? "numeric"
+                    : undefined
+                }
+                onChange={(e) => {
+                  if (openField.dashPattern) {
+                    const total = openField.dashPattern.reduce((a, b) => a + b, 0);
+                    setTextDraft(e.target.value.replace(/\D/g, "").slice(0, total));
+                  } else if (openField.boxPattern) {
+                    const total = openField.boxPattern.reduce((a, b) => a + b, 0);
+                    setTextDraft(e.target.value.replace(/\D/g, "").slice(0, total));
+                  } else if (openField.boxes) {
+                    setTextDraft(e.target.value.replace(/\D/g, "").slice(0, openField.boxes));
+                  } else {
+                    setTextDraft(e.target.value);
+                  }
+                }}
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") commitText();
+                }}
+              />
+            </div>
             <div className="field-popup__actions">
               <button type="button" onClick={() => setOpenField(null)}>
                 취소
