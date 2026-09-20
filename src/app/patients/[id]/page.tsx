@@ -76,12 +76,22 @@ export default function PatientDetailPage({ params }: PatientDetailPageProps) {
             <path d="M15 18l-6-6 6-6" />
           </svg>
         </button>
-        <button type="button" className="patient-detail-page__pdf" onClick={handleOpenBundle}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-            <path d="M14 2v6h6" />
+        <button type="button" className="patient-detail-page__pdf" aria-label="PDF 묶음" onClick={handleOpenBundle}>
+          <svg width="27" height="27" viewBox="0 0 24 24" fill="none">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" fill="#4a5364" />
+            <path d="M14 2v6h6z" fill="#fff" fillOpacity="0.34" />
+            <text
+              x="12"
+              y="18.4"
+              textAnchor="middle"
+              fontSize="7.3"
+              fontWeight="800"
+              fill="#fff"
+              fontFamily="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+            >
+              pdf
+            </text>
           </svg>
-          PDF
         </button>
       </div>
       <h1>
