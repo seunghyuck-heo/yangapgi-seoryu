@@ -1716,6 +1716,29 @@ input[type="password"]::placeholder {
   font-weight: 600;
 }
 
+/* 토스트 (예: 빈 칸을 모두 채우세요) */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--tabbar-height) + 24px);
+  transform: translateX(-50%);
+  z-index: 60;
+  max-width: calc(100% - 40px);
+  background: rgba(30, 34, 45, 0.95);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 12px 18px;
+  border-radius: 999px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+  text-align: center;
+  animation: toast-in 0.15s ease;
+}
+@keyframes toast-in {
+  from { opacity: 0; transform: translate(-50%, 8px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
 .action-bar {
   position: fixed;
   bottom: 0;

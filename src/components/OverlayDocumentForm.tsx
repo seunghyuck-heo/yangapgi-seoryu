@@ -57,6 +57,7 @@ export default function OverlayDocumentForm({
   const [textDraft, setTextDraft] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
   const popupRef = useRef<HTMLDivElement | null>(null);
   const dateInputRef = useRef<HTMLInputElement | null>(null);
   const dateGroupRef = useRef<string | null>(null);
@@ -202,7 +203,26 @@ export default function OverlayDocumentForm({
     router.push(backHref);
   }
 
+  function showToast(msg: string) {
+    setToast(msg);
+    window.setTimeout(() => setToast(null), 2200);
+  }
+
+  // 편집 대상(텍스트·서명) 칸이 모두 채워졌는지
+  function allFilled(): boolean {
+    return overlay.fields.every((f) => {
+      if (f.type === "checkbox") return true; // 체크박스는 필수 아님
+      const v = values[f.key];
+      return typeof v === "string" ? v.trim() !== "" : !!v;
+    });
+  }
+
   async function handleSubmit(targetStatus: "draft" | "completed") {
+    // 작성 완료 시 빈 칸이 있으면 막고 토스트
+    if (targetStatus === "completed" && !allFilled()) {
+      showToast("빈 칸을 모두 채우세요.");
+      return;
+    }
     if (preview) {
       if (targetStatus === "completed") router.push(backHref);
       return;
@@ -362,6 +382,7 @@ export default function OverlayDocumentForm({
       </div>
 
       {error && <div className="error-banner no-print">{error}</div>}
+      {toast && <div className="toast no-print">{toast}</div>}
 
       <ZoomableDocument aspectRatio={aspectRatio} onTapField={handleTapField}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
