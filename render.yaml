@@ -1,0 +1,22 @@
+# Render Blueprint — Next.js 웹 서비스 (무료 플랜)
+# 대시보드 > New > Blueprint 에서 이 저장소를 연결하면 자동 구성됩니다.
+services:
+  - type: web
+    name: yangapgi-seoryu
+    runtime: node
+    plan: free
+    region: singapore
+    branch: main
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      # 아래 2개는 Render 대시보드에서 값 입력 (sync:false = 커밋에 저장 안 함)
+      # NEXT_PUBLIC_SUPABASE_ANON_KEY 에는 Supabase의 Publishable key(sb_publishable_...) 를 넣습니다.
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        sync: false

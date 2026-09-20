@@ -1,0 +1,251 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { DocType } from "@/lib/templates/types";
+import { PatientDocument } from "@/lib/db/types";
+import { DOC_ICON_STYLES } from "./docIcons";
+
+interface DocSubmitListProps {
+  patientId: string;
+  /** preview mode: rows link to /preview/[docType], no status fetch */
+  preview?: boolean;
+  /** when opened from the 서식 제출 tab: forms return to /submit */
+  fromSubmit?: boolean;
+}
+
+interface RowConfig {
+  docType: DocType;
+  title: string;
+  subtitle: string;
+}
+
+const ROWS: RowConfig[] = [
+  { docType: "id_card", title: "신분증", subtitle: "카메라 촬영 또는 갤러리에서 업로드" },
+  { docType: "contract", title: "양압기치료 서비스 표준계약서", subtitle: "대여 계약 작성 및 서명" },
+  { docType: "subsidy_application", title: "양압기 급여대상자 등록 신청서", subtitle: "급여 대상자 등록 신청" },
+  { docType: "cms_autopay", title: "CMS 자동이체 신청서", subtitle: "대여료 자동이체 등록" },
+  { docType: "power_of_attorney", title: "요양비 지급청구 위임장", subtitle: "요양비 청구 위임" },
+];
+
+const MAX_DIMENSION = 1800;
+const JPEG_QUALITY = 0.85;
+
+function resizeImageFile(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("이미지를 읽을 수 없습니다"));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("이미지를 불러올 수 없습니다"));
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
+          const scale = MAX_DIMENSION / Math.max(width, height);
+          width = Math.round(width * scale);
+          height = Math.round(height * scale);
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          reject(new Error("이미지 처리에 실패했습니다"));
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", JPEG_QUALITY));
+      };
+      img.src = reader.result as string;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+export default function DocSubmitList({
+  patientId,
+  preview = false,
+  fromSubmit = false,
+}: DocSubmitListProps) {
+  const router = useRouter();
+  const [statusByType, setStatusByType] = useState<Record<string, PatientDocument["status"]>>({});
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const cameraInputRef = useRef<HTMLInputElement | null>(null);
+  const galleryInputRef = useRef<HTMLInputElement | null>(null);
+
+  async function loadStatuses() {
+    const res = await fetch(`/api/patients/${patientId}`);
+    const json = await res.json();
+    if (res.ok && json.patient) {
+      const map: Record<string, PatientDocument["status"]> = {};
+      for (const doc of json.patient.documents as PatientDocument[]) {
+        map[doc.doc_type] = doc.status;
+      }
+      setStatusByType(map);
+    }
+  }
+
+  useEffect(() => {
+    if (preview) return;
+    let ignore = false;
+    fetch(`/api/patients/${patientId}`).then(async (res) => {
+      const json = await res.json();
+      if (ignore || !res.ok || !json.patient) return;
+      const map: Record<string, PatientDocument["status"]> = {};
+      for (const doc of json.patient.documents as PatientDocument[]) {
+        map[doc.doc_type] = doc.status;
+      }
+      setStatusByType(map);
+    });
+    return () => {
+      ignore = true;
+    };
+  }, [patientId, preview]);
+
+  async function handleIdFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) {
+      setUploading(true);
+      setError(null);
+      try {
+        const dataUrl = await resizeImageFile(file);
+        const uploadRes = await fetch("/api/uploads", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ patientId, docType: "id_card", kind: "id_card", dataUrl }),
+        });
+        const uploadJson = await uploadRes.json();
+        if (!uploadRes.ok) {
+          setError(uploadJson.error || "업로드에 실패했습니다");
+          return;
+        }
+        const docRes = await fetch(`/api/documents/${patientId}/id_card`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ file_path: uploadJson.path, status: "completed" }),
+        });
+        if (!docRes.ok) {
+          const docJson = await docRes.json();
+          setError(docJson.error || "저장에 실패했습니다");
+          return;
+        }
+        await loadStatuses();
+      } catch (err) {
+        setError((err as Error).message);
+      } finally {
+        setUploading(false);
+      }
+    }
+    if (cameraInputRef.current) cameraInputRef.current.value = "";
+    if (galleryInputRef.current) galleryInputRef.current.value = "";
+  }
+
+  function handleRowClick(docType: DocType) {
+    if (docType === "id_card") {
+      setSheetOpen(true);
+      return;
+    }
+    if (preview) {
+      router.push(`/preview/${docType}`);
+      return;
+    }
+    const query = fromSubmit ? "?from=submit" : "";
+    router.push(`/patients/${patientId}/doc/${docType}${query}`);
+  }
+
+  return (
+    <div className="doc-submit">
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        hidden
+        onChange={handleIdFile}
+      />
+      <input ref={galleryInputRef} type="file" accept="image/*" hidden onChange={handleIdFile} />
+
+      {error && <div className="error-banner">{error}</div>}
+
+      <ul className="doc-submit__list">
+        {ROWS.map((row) => {
+          const style = DOC_ICON_STYLES[row.docType];
+          const done = statusByType[row.docType] === "completed";
+          return (
+            <li key={row.docType}>
+              <button
+                type="button"
+                className="doc-submit__row"
+                onClick={() => handleRowClick(row.docType)}
+                disabled={row.docType === "id_card" && uploading}
+              >
+                <span
+                  className="doc-submit__icon"
+                  style={{ background: style.color, color: "#fff" }}
+                >
+                  {style.icon}
+                </span>
+                <span className="doc-submit__text">
+                  <span className="doc-submit__title">{row.title}</span>
+                  <span className="doc-submit__subtitle">{row.subtitle}</span>
+                </span>
+                {done && <span className="doc-submit__check">완료</span>}
+                {row.docType === "id_card" ? (
+                  <span className="doc-submit__upload">
+                    {uploading ? "업로드 중" : "업로드"}
+                  </span>
+                ) : (
+                  <span className="doc-submit__chevron" aria-hidden>
+                    ›
+                  </span>
+                )}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+
+      {sheetOpen && (
+        <div className="sheet-overlay sheet-overlay--center" onClick={() => setSheetOpen(false)}>
+          <div className="sheet sheet--center" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet__title sheet__title--id">신분증 등록</div>
+            <button
+              type="button"
+              className="sheet__option"
+              onClick={() => {
+                setSheetOpen(false);
+                cameraInputRef.current?.click();
+              }}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                <circle cx="12" cy="13" r="4" />
+              </svg>
+              카메라로 촬영
+            </button>
+            <button
+              type="button"
+              className="sheet__option"
+              onClick={() => {
+                setSheetOpen(false);
+                galleryInputRef.current?.click();
+              }}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <path d="M21 15l-5-5L5 21" />
+              </svg>
+              갤러리에서 선택
+            </button>
+            <button type="button" className="sheet__cancel" onClick={() => setSheetOpen(false)}>
+              취소
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
