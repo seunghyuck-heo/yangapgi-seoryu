@@ -25,7 +25,23 @@ export default function CustomersPage() {
   const [search, setSearch] = useState("");
   const [searchMode, setSearchMode] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [showTop, setShowTop] = useState(false);
   const searchRef = useRef<HTMLInputElement | null>(null);
+
+  // 리스트가 길어 한참(대략 스크롤 10번 이상) 내려가면 맨 위로 버튼 표시
+  useEffect(() => {
+    const onScroll = () => {
+      const threshold = Math.max(1000, window.innerHeight * 2);
+      setShowTop(window.scrollY > threshold);
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
+  }, []);
 
   async function loadList() {
     try {
@@ -180,6 +196,20 @@ export default function CustomersPage() {
           </div>
         )}
       </div>
+
+      {showTop && (
+        <button
+          type="button"
+          className="go-top-btn no-print"
+          aria-label="맨 위로"
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 19V5" />
+            <path d="M5 12l7-7 7 7" />
+          </svg>
+        </button>
+      )}
     </div>
   );
 }
