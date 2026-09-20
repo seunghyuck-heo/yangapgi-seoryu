@@ -4,13 +4,10 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import BottomTabs from "@/components/BottomTabs";
 import DocStatusDots from "@/components/DocStatusDots";
-import LoginRequired from "@/components/LoginRequired";
-import { useUser } from "@/lib/supabase/useUser";
 import { PatientWithDocuments } from "@/lib/db/types";
 import { DOC_TYPE_ORDER } from "@/lib/templates/types";
 
 export default function PatientsPage() {
-  const { user, loading: authLoading } = useUser();
   const [patients, setPatients] = useState<PatientWithDocuments[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -34,13 +31,7 @@ export default function PatientsPage() {
   }
 
   useEffect(() => {
-    if (!user) {
-      setPatients([]);
-      setLoading(false);
-      return;
-    }
     let ignore = false;
-    setLoading(true);
     fetch("/api/patients")
       .then(async (res) => {
         const json = await res.json();
@@ -56,7 +47,7 @@ export default function PatientsPage() {
     return () => {
       ignore = true;
     };
-  }, [user]);
+  }, []);
 
   function handleSearchSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -74,12 +65,6 @@ export default function PatientsPage() {
       </header>
 
       <div className="tab-page__body">
-        {authLoading ? (
-          <p className="muted-text">불러오는 중...</p>
-        ) : !user ? (
-          <LoginRequired />
-        ) : (
-          <>
         <form onSubmit={handleSearchSubmit} className="patients-page__search">
           <input
             type="text"
@@ -110,8 +95,6 @@ export default function PatientsPage() {
               </li>
             ))}
           </ul>
-        )}
-          </>
         )}
       </div>
 

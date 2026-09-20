@@ -4,8 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import BottomTabs from "@/components/BottomTabs";
 import DocSubmitList from "@/components/DocSubmitList";
-import LoginRequired from "@/components/LoginRequired";
-import { useUser } from "@/lib/supabase/useUser";
 import { PatientDocument } from "@/lib/db/types";
 import { DOC_TYPE_ORDER } from "@/lib/templates/types";
 
@@ -17,14 +15,9 @@ interface Mode {
 }
 
 export default function SubmitPage() {
-  const { user, loading: authLoading } = useUser();
   const [mode, setMode] = useState<Mode | null>(null);
 
   useEffect(() => {
-    if (!user) {
-      setMode(null);
-      return;
-    }
     let ignore = false;
 
     async function ensureDraft() {
@@ -35,6 +28,7 @@ export default function SubmitPage() {
         stored = null;
       }
 
+      // 이번 세션에 진행 중인 draft가 있으면 이어서 사용
       if (stored) {
         try {
           const res = await fetch(`/api/patients/${stored}`);
@@ -54,6 +48,7 @@ export default function SubmitPage() {
         }
       }
 
+      // 새 draft 폴더 생성 (서식 제출 시 이름이 자동으로 채워짐)
       try {
         const createRes = await fetch("/api/patients", {
           method: "POST",
@@ -71,17 +66,18 @@ export default function SubmitPage() {
           return;
         }
       } catch {
-        // ignore
+        // fall through to preview
       }
 
-      if (!ignore) setMode(null);
+      // 로그인 전(또는 Supabase 미연결) 이면 미리보기 모드로 화면은 그대로 표시
+      if (!ignore) setMode({ patientId: "preview-patient", preview: true });
     }
 
     ensureDraft();
     return () => {
       ignore = true;
     };
-  }, [user]);
+  }, []);
 
   return (
     <div className="tab-page">
@@ -102,12 +98,12 @@ export default function SubmitPage() {
       </header>
 
       <div className="tab-page__body">
-        {authLoading ? (
-          <p className="muted-text">불러오는 중...</p>
-        ) : !user ? (
-          <LoginRequired />
-        ) : mode ? (
-          <DocSubmitList patientId={mode.patientId} preview={mode.preview} fromSubmit />
+        {mode ? (
+          <DocSubmitList
+            patientId={mode.patientId}
+            preview={mode.preview}
+            fromSubmit={!mode.preview}
+          />
         ) : (
           <p className="muted-text">준비 중...</p>
         )}
