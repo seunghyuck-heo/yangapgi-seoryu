@@ -204,10 +204,15 @@ export default function PatientsPage() {
                     </span>
                   )}
                   <div className="patient-list__avatar" aria-hidden>
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="12" cy="8" r="4" />
-                      <path d="M4 21c0-3.3 3.6-6 8-6s8 2.7 8 6" />
-                    </svg>
+                    {patient.photo_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={patient.photo_url} alt="" className="patient-list__photo" />
+                    ) : (
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="8" r="4" />
+                        <path d="M4 21c0-3.3 3.6-6 8-6s8 2.7 8 6" />
+                      </svg>
+                    )}
                   </div>
                   <div className="patient-list__name">
                     {patient.name}

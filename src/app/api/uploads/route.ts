@@ -45,6 +45,9 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "fieldKey가 필요합니다" }, { status: 400 });
       }
       path = `${user.id}/${patientId}/${docType}-signature-${fieldKey}.${ext}`;
+    } else if (kind === "photo") {
+      // 신분증에서 잘라낸 증명사진(포토ID)
+      path = `${user.id}/${patientId}/${docType}-photo.${ext}`;
     } else {
       path = `${user.id}/${patientId}/${docType}.${ext}`;
     }

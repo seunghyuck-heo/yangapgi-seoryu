@@ -1,5 +1,6 @@
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { Patient, PatientDocument, PatientWithDocuments } from "./types";
+import { createSignedUrls } from "./documents";
 
 export async function listPatients(search?: string): Promise<PatientWithDocuments[]> {
   const supabase = await getSupabaseServerClient();
@@ -24,10 +25,28 @@ export async function listPatients(search?: string): Promise<PatientWithDocument
     documentsByPatient.set(doc.patient_id, list);
   }
 
-  return (patients ?? []).map((p) => ({
+  const result: PatientWithDocuments[] = (patients ?? []).map((p) => ({
     ...(p as Patient),
     documents: documentsByPatient.get(p.id) ?? [],
   }));
+
+  // 신분증 증명사진(photo_path) 서명 URL 부여 → 포토ID 아바타
+  const photoPaths: string[] = [];
+  for (const p of result) {
+    const idDoc = p.documents.find((d) => d.doc_type === "id_card");
+    const pp = idDoc?.form_data?.photo_path;
+    if (typeof pp === "string" && pp) photoPaths.push(pp);
+  }
+  if (photoPaths.length) {
+    const signed = await createSignedUrls(photoPaths);
+    for (const p of result) {
+      const idDoc = p.documents.find((d) => d.doc_type === "id_card");
+      const pp = idDoc?.form_data?.photo_path;
+      p.photo_url = typeof pp === "string" && signed[pp] ? signed[pp] : null;
+    }
+  }
+
+  return result;
 }
 
 export async function getPatient(id: string): Promise<PatientWithDocuments | null> {

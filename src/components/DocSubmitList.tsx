@@ -33,6 +33,46 @@ const ROWS: RowConfig[] = [
 const MAX_DIMENSION = 1800;
 const JPEG_QUALITY = 0.85;
 
+// Gemini box[ymin,xmin,ymax,xmax](0~1000)로 얼굴 사진 영역을 잘라 jpeg dataURL 반환
+function cropFace(dataUrl: string, box: number[]): Promise<string | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onerror = () => resolve(null);
+    img.onload = () => {
+      const [ymin, xmin, ymax, xmax] = box;
+      const W = img.naturalWidth;
+      const H = img.naturalHeight;
+      // 약간의 여백(padding)
+      const pad = 0.06;
+      let x0 = (Math.min(xmin, xmax) / 1000 - pad) * W;
+      let y0 = (Math.min(ymin, ymax) / 1000 - pad) * H;
+      let x1 = (Math.max(xmin, xmax) / 1000 + pad) * W;
+      let y1 = (Math.max(ymin, ymax) / 1000 + pad) * H;
+      x0 = Math.max(0, x0);
+      y0 = Math.max(0, y0);
+      x1 = Math.min(W, x1);
+      y1 = Math.min(H, y1);
+      const cw = Math.round(x1 - x0);
+      const ch = Math.round(y1 - y0);
+      if (cw < 16 || ch < 16) {
+        resolve(null);
+        return;
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = cw;
+      canvas.height = ch;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        resolve(null);
+        return;
+      }
+      ctx.drawImage(img, x0, y0, cw, ch, 0, 0, cw, ch);
+      resolve(canvas.toDataURL("image/jpeg", 0.9));
+    };
+    img.src = dataUrl;
+  });
+}
+
 function resizeImageFile(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -75,7 +115,7 @@ export default function DocSubmitList({
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ocrBusy, setOcrBusy] = useState(false);
-  const [nameSheet, setNameSheet] = useState<{ value: string; path: string; pid: string } | null>(null);
+  const [nameSheet, setNameSheet] = useState<{ value: string; path: string; pid: string; photoPath?: string } | null>(null);
   const [nameSaving, setNameSaving] = useState(false);
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
   const galleryInputRef = useRef<HTMLInputElement | null>(null);
@@ -134,6 +174,7 @@ export default function DocSubmitList({
     if (preview) return;
     setOcrBusy(true);
     let guess = "";
+    let box: number[] | null = null;
     try {
       const res = await fetch("/api/ocr-name", {
         method: "POST",
@@ -143,13 +184,32 @@ export default function DocSubmitList({
       if (res.ok) {
         const json = await res.json();
         guess = typeof json.name === "string" ? json.name : "";
+        box = Array.isArray(json.box) ? json.box : null;
       }
     } catch {
       // 실패해도 이름은 직접 입력 가능
-    } finally {
-      setOcrBusy(false);
     }
-    setNameSheet({ value: guess, path, pid });
+
+    // 신분증에서 증명사진 잘라 포토ID로 업로드
+    let photoPath: string | undefined;
+    if (box) {
+      try {
+        const faceUrl = await cropFace(dataUrl, box);
+        if (faceUrl) {
+          const up = await fetch("/api/uploads", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ patientId: pid, docType: "id_card", kind: "photo", dataUrl: faceUrl }),
+          });
+          if (up.ok) photoPath = (await up.json()).path;
+        }
+      } catch {
+        // 사진 추출 실패해도 진행
+      }
+    }
+
+    setOcrBusy(false);
+    setNameSheet({ value: guess, path, pid, photoPath });
   }
 
   // 확인: 이 시점에 신분증 문서를 실제로 저장(등록)하고, 이름이 있으면 함께 저장
@@ -161,7 +221,11 @@ export default function DocSubmitList({
       const docRes = await fetch(`/api/documents/${pid}/id_card`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ file_path: nameSheet.path, status: "completed" }),
+        body: JSON.stringify({
+          file_path: nameSheet.path,
+          status: "completed",
+          form_data: nameSheet.photoPath ? { photo_path: nameSheet.photoPath } : {},
+        }),
       });
       if (!docRes.ok) {
         const docJson = await docRes.json();

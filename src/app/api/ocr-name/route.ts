@@ -27,7 +27,10 @@ export async function POST(req: Request) {
   const base64 = match[2];
 
   const prompt =
-    "이 이미지는 대한민국 신분증(주민등록증/운전면허증 등)입니다. 신분증에 적힌 사람의 성명(이름)만 한글로 정확히 추출하세요. 설명이나 라벨 없이 이름만 답하세요. 이름을 찾을 수 없으면 빈 문자열로만 답하세요.";
+    "이 대한민국 신분증(주민등록증/운전면허증 등) 이미지에서 두 가지를 찾아 JSON으로만 답하세요. " +
+    '형식: {"name":"홍길동","box":[ymin,xmin,ymax,xmax]} . ' +
+    "name = 신분증에 적힌 사람의 성명(한글). 못 찾으면 빈 문자열. " +
+    "box = 증명사진(얼굴 사진) 영역의 경계 상자를 0~1000으로 정규화한 정수 좌표. 사진을 못 찾으면 null.";
 
   try {
     const model = process.env.GEMINI_MODEL || "gemini-3.6-flash";
@@ -46,8 +49,9 @@ export async function POST(req: Request) {
         ],
         generationConfig: {
           temperature: 0,
-          maxOutputTokens: 200,
+          maxOutputTokens: 300,
           thinkingConfig: { thinkingBudget: 0 },
+          responseMimeType: "application/json",
         },
       }),
     });
@@ -60,11 +64,24 @@ export async function POST(req: Request) {
     const json = await res.json();
     const text: string =
       json?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text ?? "").join("") ?? "";
-    // 한글 이름만 정리 (2~5자)
-    const cleaned = text.replace(/\s/g, "");
-    const m = cleaned.match(/[가-힣]{2,5}/);
-    const name = m ? m[0] : "";
-    return NextResponse.json({ name });
+
+    let name = "";
+    let box: number[] | null = null;
+    try {
+      const parsed = JSON.parse(text);
+      if (typeof parsed?.name === "string") name = parsed.name.replace(/\s/g, "");
+      if (Array.isArray(parsed?.box) && parsed.box.length === 4 && parsed.box.every((n: unknown) => typeof n === "number")) {
+        box = parsed.box as number[];
+      }
+    } catch {
+      // JSON 파싱 실패 시 한글 이름만 정규식으로 회수
+      const m = text.replace(/\s/g, "").match(/[가-힣]{2,5}/);
+      name = m ? m[0] : "";
+    }
+    // 이름은 한글 2~5자만 허용
+    const nm = name.match(/[가-힣]{2,5}/);
+    name = nm ? nm[0] : "";
+    return NextResponse.json({ name, box });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500 });
   }

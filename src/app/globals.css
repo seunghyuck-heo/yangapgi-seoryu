@@ -1258,6 +1258,14 @@ input[type="password"]::placeholder {
   font-weight: 800;
   font-size: 15px;
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+.patient-list__photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
 }
 
 .patient-list__name {
