@@ -123,6 +123,18 @@ export default function DocSubmitList({
     };
   }, [patientId, preview]);
 
+  // 탭 진입 지연 제거: 각 서식 라우트를 미리 프리페치해 즉시 전환
+  useEffect(() => {
+    for (const row of ROWS) {
+      if (row.docType === "id_card") continue;
+      if (preview) {
+        router.prefetch(`/preview/${row.docType}`);
+      } else if (patientId) {
+        router.prefetch(`/patients/${patientId}/doc/${row.docType}`);
+      }
+    }
+  }, [patientId, preview, router]);
+
   async function handleIdFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (file && !patientId) {

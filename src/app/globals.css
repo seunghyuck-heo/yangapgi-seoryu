@@ -398,6 +398,44 @@ input[type="password"]::placeholder {
   color: #fff;
 }
 
+/* 로그인 폼: 이메일 로그인과 소셜 로그인 구분선 */
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 4px 0;
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* 구글 계정 로그인 버튼 */
+.google-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #3c4043;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.google-btn:hover:not(:disabled) {
+  background: #f7f8fa;
+  border-color: var(--border);
+  color: #3c4043;
+}
+
 /* 설정 로그인 화면의 자물쇠 헤더 */
 .auth-lockhero {
   display: flex;
@@ -625,6 +663,15 @@ input[type="password"]::placeholder {
   border-color: var(--brand);
   transform: translateY(-1px);
   color: var(--ink);
+}
+
+/* 목록 탭 시 하이라이트/눌림 효과 제거 — 즉시 진입 느낌 */
+.doc-submit__row {
+  -webkit-tap-highlight-color: transparent;
+  transition: none;
+}
+.doc-submit__row:active:not(:disabled) {
+  transform: none;
 }
 
 .doc-submit__icon {
