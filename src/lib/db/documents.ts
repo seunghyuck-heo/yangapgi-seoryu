@@ -125,6 +125,26 @@ export async function createSignedUrls(paths: string[]): Promise<Record<string, 
   return result;
 }
 
+/** 스토리지 객체들을 서버에서 직접 내려받아 base64 data URL 맵으로 반환 (CORS 회피, 캔버스 taint 없음) */
+export async function downloadStorageAsDataUrls(
+  paths: string[]
+): Promise<Record<string, string>> {
+  const unique = Array.from(new Set(paths.filter(Boolean)));
+  if (unique.length === 0) return {};
+  const supabase = await getSupabaseServerClient();
+  const result: Record<string, string> = {};
+  await Promise.all(
+    unique.map(async (path) => {
+      const { data, error } = await supabase.storage.from(DOCUMENTS_BUCKET).download(path);
+      if (error || !data) return;
+      const buf = Buffer.from(await data.arrayBuffer());
+      const type = data.type || "image/jpeg";
+      result[path] = `data:${type};base64,${buf.toString("base64")}`;
+    })
+  );
+  return result;
+}
+
 export async function uploadFile(
   path: string,
   buffer: Buffer,

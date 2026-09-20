@@ -2129,6 +2129,124 @@ input[type="password"]::placeholder {
 
 /* ---------- Print ---------- */
 
+/* ===== 환자 상세: PDF 묶음 버튼 ===== */
+.patient-detail-page__pdf {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-right: 12px;
+  padding: 7px 12px;
+  border: none;
+  border-radius: 999px;
+  background: var(--brand);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.patient-detail-page__pdf:active {
+  transform: translateY(1px);
+}
+
+/* ===== 서류 묶음 PDF 뷰어 ===== */
+.bundle-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: #d9dee6;
+  display: flex;
+  flex-direction: column;
+}
+.bundle-viewer__bar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(238, 241, 246, 0.96);
+  backdrop-filter: blur(6px);
+}
+.bundle-viewer__bar--top {
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+.bundle-viewer__title {
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.bundle-viewer__close {
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: transparent;
+  color: #2b3242;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.bundle-viewer__pages {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 16px 12px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+.bundle-page {
+  display: block;
+  width: min(760px, 94vw);
+  height: auto;
+  background: #fff;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.22);
+}
+.bundle-viewer__msg {
+  color: #3a4152;
+  font-size: 15px;
+  font-weight: 600;
+  padding: 40px 0;
+  text-align: center;
+}
+.bundle-viewer__bar--bottom {
+  justify-content: space-around;
+  padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+.bundle-viewer__action {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 4px;
+  border: none;
+  background: transparent;
+  color: #2b3242;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+.bundle-viewer__action:active {
+  transform: translateY(1px);
+}
+.bundle-viewer__action:disabled {
+  opacity: 0.45;
+}
+.bundle-viewer__busy {
+  position: fixed;
+  left: 50%;
+  bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  z-index: 210;
+  background: rgba(30, 34, 45, 0.95);
+  color: #fff;
+  font-size: 14px;
+  padding: 10px 18px;
+  border-radius: 999px;
+}
+
 @media print {
   .no-print {
     display: none !important;
@@ -2136,6 +2254,31 @@ input[type="password"]::placeholder {
 
   body {
     background: #fff;
+  }
+
+  /* ---- 서류 묶음 PDF: 뷰어 페이지만 A4로 인쇄 ---- */
+  body.bundle-printing > *:not(.bundle-viewer) {
+    display: none !important;
+  }
+  body.bundle-printing .bundle-viewer {
+    position: static !important;
+    display: block !important;
+    background: #fff !important;
+  }
+  body.bundle-printing .bundle-viewer__pages {
+    overflow: visible !important;
+    padding: 0 !important;
+    display: block !important;
+  }
+  body.bundle-printing .bundle-page {
+    width: 100% !important;
+    box-shadow: none !important;
+    page-break-after: always;
+    break-after: page;
+  }
+  body.bundle-printing .bundle-page:last-child {
+    page-break-after: auto;
+    break-after: auto;
   }
 
   .doc-page {

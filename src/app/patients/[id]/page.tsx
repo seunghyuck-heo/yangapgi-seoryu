@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, use } from "react";
+import { useEffect, useRef, useState, use } from "react";
 import { PatientWithDocuments } from "@/lib/db/types";
 import { DOC_TYPE_LABELS, DOC_TYPE_ORDER } from "@/lib/templates/types";
 import { DOC_ICON_STYLES } from "@/components/docIcons";
+import DocumentBundleViewer from "@/components/DocumentBundleViewer";
 
 interface PatientDetailPageProps {
   params: Promise<{ id: string }>;
@@ -27,6 +28,28 @@ export default function PatientDetailPage({ params }: PatientDetailPageProps) {
   const [patient, setPatient] = useState<PatientWithDocuments | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showBundle, setShowBundle] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function showToast(msg: string) {
+    setToast(msg);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 2600);
+  }
+
+  function handleOpenBundle() {
+    if (!patient) return;
+    const notDone = DOC_TYPE_ORDER.filter((dt) => {
+      const doc = patient.documents.find((d) => d.doc_type === dt);
+      return doc?.status !== "completed";
+    }).length;
+    if (notDone > 0) {
+      showToast(`${notDone}개가 아직 완료되지 않았습니다.`);
+      return;
+    }
+    setShowBundle(true);
+  }
 
   useEffect(() => {
     fetch(`/api/patients/${id}`)
@@ -52,6 +75,13 @@ export default function PatientDetailPage({ params }: PatientDetailPageProps) {
           <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
             <path d="M15 18l-6-6 6-6" />
           </svg>
+        </button>
+        <button type="button" className="patient-detail-page__pdf" onClick={handleOpenBundle}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <path d="M14 2v6h6" />
+          </svg>
+          PDF
         </button>
       </div>
       <h1>
@@ -92,6 +122,17 @@ export default function PatientDetailPage({ params }: PatientDetailPageProps) {
           );
         })}
       </ul>
+
+      {toast && <div className="toast no-print">{toast}</div>}
+
+      {showBundle && (
+        <DocumentBundleViewer
+          patientId={patient.id}
+          patientName={patient.name}
+          documents={patient.documents}
+          onClose={() => setShowBundle(false)}
+        />
+      )}
     </div>
   );
 }
