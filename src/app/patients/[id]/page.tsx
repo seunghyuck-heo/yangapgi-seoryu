@@ -41,16 +41,18 @@ export default function PatientDetailPage({ params }: PatientDetailPageProps) {
       <div className="doc-card-grid">
         {DOC_TYPE_ORDER.map((docType) => {
           const doc = patient.documents.find((d) => d.doc_type === docType);
-          const isComplete = doc?.status === "completed";
+          // 완료 / 진행중(저장됐지만 미완료) / 작성 필요(기록 없음)
+          const state = doc?.status === "completed" ? "complete" : doc ? "progress" : "none";
+          const label = state === "complete" ? "완료" : state === "progress" ? "진행중" : "작성 필요";
           return (
             <Link
               key={docType}
               href={`/patients/${id}/doc/${docType}`}
-              className={`doc-card ${isComplete ? "doc-card--complete" : ""}`}
+              className={`doc-card doc-card--${state}`}
             >
               <div className="doc-card__icon">{DOC_TYPE_ICONS[docType]}</div>
               <div className="doc-card__title">{DOC_TYPE_LABELS[docType]}</div>
-              <div className="doc-card__status">{isComplete ? "완료" : "작성 필요"}</div>
+              <div className="doc-card__status">{label}</div>
             </Link>
           );
         })}

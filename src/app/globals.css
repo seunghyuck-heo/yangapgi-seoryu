@@ -276,6 +276,8 @@ input[type="password"]::placeholder {
   width: 40px;
   height: 40px;
   border-radius: 50%;
+  border: none;
+  padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -285,6 +287,39 @@ input[type="password"]::placeholder {
 
 .app-header__action:active {
   transform: translateY(1px);
+}
+
+.app-header__search {
+  flex: 1;
+  height: 44px;
+}
+
+/* 환자 보기 빈 상태 */
+.patients-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 14px;
+  padding: 72px 28px;
+}
+
+.patients-empty__icon {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  background: var(--bg-soft);
+}
+
+.patients-empty__text {
+  font-size: 12.5px;
+  color: var(--muted);
+  line-height: 1.6;
+  max-width: 280px;
 }
 
 /* 설정 로그인 화면의 자물쇠 헤더 */
@@ -1197,6 +1232,16 @@ input[type="password"]::placeholder {
 
 .doc-card--complete .doc-card__status {
   color: var(--success);
+}
+
+/* 진행중(저장됐지만 미완료) */
+.doc-card--progress .doc-card__icon {
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+
+.doc-card--progress .doc-card__status {
+  color: var(--warning);
 }
 
 /* ---------- Document editor / sheet ---------- */
