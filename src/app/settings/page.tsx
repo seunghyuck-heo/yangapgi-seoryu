@@ -24,6 +24,16 @@ export default function SettingsPage() {
   const [draftName, setDraftName] = useState("");
   const [saving, setSaving] = useState(false);
 
+  // OAuth 콜백에서 넘어온 오류를 화면에 표시
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const autherror = params.get("autherror");
+    if (autherror) {
+      setError(`구글 로그인 실패: ${autherror}`);
+      window.history.replaceState({}, "", "/settings");
+    }
+  }, []);
+
   useEffect(() => {
     if (!user) return;
     (async () => {
