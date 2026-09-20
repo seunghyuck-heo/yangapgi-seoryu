@@ -89,7 +89,7 @@ export default function CustomersPage() {
             </div>
             <button
               type="button"
-              className="app-header__action"
+              className="search-close"
               aria-label="닫기"
               onClick={() => {
                 setSearchMode(false);
