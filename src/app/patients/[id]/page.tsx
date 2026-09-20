@@ -49,7 +49,7 @@ export default function PatientDetailPage({ params }: PatientDetailPageProps) {
     <div className="patient-detail-page">
       <div className="doc-page__toolbar no-print">
         <button type="button" className="doc-page__back" onClick={() => router.push("/patients")}>
-          ← 목록으로
+          ← 환자 목록
         </button>
       </div>
       <h1>{patient.name}</h1>

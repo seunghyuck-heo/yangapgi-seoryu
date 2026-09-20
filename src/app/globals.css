@@ -1379,7 +1379,7 @@ input[type="password"]::placeholder {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  margin-top: 16px;
+  margin-top: 2px;
 }
 .doc-row {
   display: grid;
