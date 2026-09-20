@@ -7,6 +7,9 @@ import BottomTabs from "@/components/BottomTabs";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useUser } from "@/lib/supabase/useUser";
 
+// 설정 재진입 시 이름 플래시 방지용 클라이언트 캐시
+let cachedProfileName: string | null = null;
+
 export default function SettingsPage() {
   const router = useRouter();
   const { user, loading } = useUser();
@@ -20,7 +23,8 @@ export default function SettingsPage() {
   const [busy, setBusy] = useState(false);
 
   // 로그인 상태: 프로필 이름 + 편집
-  const [profileName, setProfileName] = useState("");
+  const [profileName, setProfileName] = useState(cachedProfileName ?? "");
+  const [profileLoaded, setProfileLoaded] = useState(cachedProfileName != null);
   const [editing, setEditing] = useState(false);
   const [draftName, setDraftName] = useState("");
   const [saving, setSaving] = useState(false);
@@ -40,7 +44,10 @@ export default function SettingsPage() {
     (async () => {
       const supabase = getSupabaseBrowserClient();
       const { data } = await supabase.from("profiles").select("name").eq("id", user.id).maybeSingle();
-      setProfileName(data?.name ?? (user.user_metadata?.name as string) ?? "");
+      const name = data?.name ?? (user.user_metadata?.name as string) ?? "";
+      cachedProfileName = name;
+      setProfileName(name);
+      setProfileLoaded(true);
     })();
   }, [user]);
 
@@ -106,6 +113,7 @@ export default function SettingsPage() {
       const supabase = getSupabaseBrowserClient();
       const name = draftName.trim();
       await supabase.from("profiles").upsert({ id: user.id, name, updated_at: new Date().toISOString() });
+      cachedProfileName = name;
       setProfileName(name);
       setEditing(false);
     } finally {
@@ -152,8 +160,10 @@ export default function SettingsPage() {
                       if (e.key === "Enter") saveName();
                     }}
                   />
-                ) : (
+                ) : profileLoaded ? (
                   <div className="profile-card__name">{displayName}</div>
+                ) : (
+                  <div className="profile-card__name profile-card__name--skeleton" aria-hidden>&nbsp;</div>
                 )}
                 <div className="profile-card__email">{user.email}</div>
               </div>
