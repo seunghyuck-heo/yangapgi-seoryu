@@ -997,6 +997,15 @@ input[type="password"]::placeholder {
   padding: 8px 0 4px;
 }
 
+/* 환자 이름 확인 팝업 타이틀: 크고 진하게, 위아래 여백 */
+.sheet__title--name {
+  color: var(--ink);
+  font-size: 20px;
+  font-weight: 800;
+  margin: 8px 0 14px;
+  padding: 0;
+}
+
 .sheet__title--id {
   font-size: 17px;
   color: var(--ink);
@@ -1254,6 +1263,21 @@ input[type="password"]::placeholder {
 .patient-list__name {
   font-weight: 700;
   font-size: 15px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.patient-list__rename {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--brand-dark);
+  background: var(--brand-soft);
+  border: none;
+  border-radius: 999px;
 }
 
 .patient-list__phone {

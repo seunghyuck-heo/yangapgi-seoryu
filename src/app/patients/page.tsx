@@ -14,6 +14,8 @@ export default function PatientsPage() {
   const [editMode, setEditMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
+  const [renameTarget, setRenameTarget] = useState<{ id: string; value: string } | null>(null);
+  const [renameSaving, setRenameSaving] = useState(false);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   function loadPatients() {
@@ -71,6 +73,24 @@ export default function PatientsPage() {
   function exitEdit() {
     setEditMode(false);
     setSelected(new Set());
+  }
+
+  async function saveRename() {
+    if (!renameTarget) return;
+    const name = renameTarget.value.trim();
+    if (!name) return;
+    setRenameSaving(true);
+    try {
+      await fetch(`/api/patients/${renameTarget.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      await loadPatients();
+      setRenameTarget(null);
+    } finally {
+      setRenameSaving(false);
+    }
   }
 
   async function handleDelete() {
@@ -189,7 +209,22 @@ export default function PatientsPage() {
                       <path d="M4 21c0-3.3 3.6-6 8-6s8 2.7 8 6" />
                     </svg>
                   </div>
-                  <div className="patient-list__name">{patient.name}</div>
+                  <div className="patient-list__name">
+                    {patient.name}
+                    {!editMode && patient.name === "새 환자" && (
+                      <button
+                        type="button"
+                        className="patient-list__rename"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setRenameTarget({ id: patient.id, value: "" });
+                        }}
+                      >
+                        이름 입력하기
+                      </button>
+                    )}
+                  </div>
                   <div className={`patient-list__progress ${allDone ? "patient-list__progress--done" : ""}`}>
                     {done} / {total} {allDone ? "완료" : ""}
                   </div>
@@ -231,6 +266,32 @@ export default function PatientsPage() {
           >
             {deleting ? "삭제 중..." : `삭제하기${selected.size > 0 ? ` (${selected.size})` : ""}`}
           </button>
+        </div>
+      )}
+
+      {renameTarget && (
+        <div className="sheet-overlay sheet-overlay--center" onClick={() => setRenameTarget(null)}>
+          <div className="sheet sheet--center" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet__title sheet__title--name">환자 이름 입력</div>
+            <input
+              type="text"
+              value={renameTarget.value}
+              placeholder="환자 이름"
+              autoFocus
+              onChange={(e) => setRenameTarget((prev) => (prev ? { ...prev, value: e.target.value } : prev))}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") saveRename();
+              }}
+            />
+            <div className="field-popup__actions">
+              <button type="button" onClick={() => setRenameTarget(null)}>
+                취소
+              </button>
+              <button type="button" className="primary" onClick={saveRename} disabled={renameSaving}>
+                {renameSaving ? "저장 중..." : "저장"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

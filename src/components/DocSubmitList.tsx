@@ -87,7 +87,7 @@ export default function DocSubmitList({
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ocrBusy, setOcrBusy] = useState(false);
-  const [nameSheet, setNameSheet] = useState<{ value: string } | null>(null);
+  const [nameSheet, setNameSheet] = useState<{ value: string; path: string } | null>(null);
   const [nameSaving, setNameSaving] = useState(false);
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
   const galleryInputRef = useRef<HTMLInputElement | null>(null);
@@ -123,17 +123,9 @@ export default function DocSubmitList({
           setError(uploadJson.error || "업로드에 실패했습니다");
           return;
         }
-        const docRes = await fetch(`/api/documents/${patientId}/id_card`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ file_path: uploadJson.path, status: "completed" }),
-        });
-        if (!docRes.ok) {
-          const docJson = await docRes.json();
-          setError(docJson.error || "저장에 실패했습니다");
-          return;
-        }
-        void runIdOcr(dataUrl);
+        // 신분증 문서 저장은 이름 확인 팝업에서 '확인'을 눌러야 실제로 이뤄진다.
+        // (취소하면 저장되지 않아 환자 보기에 나타나지 않음)
+        void runIdOcr(dataUrl, uploadJson.path);
       } catch (err) {
         setError((err as Error).message);
       } finally {
@@ -145,7 +137,7 @@ export default function DocSubmitList({
   }
 
   // 신분증 이미지에서 이름 추정 → 확인/수정 시트 (완전 브라우저 처리, 외부 전송 없음)
-  async function runIdOcr(dataUrl: string) {
+  async function runIdOcr(dataUrl: string, path: string) {
     if (!patientId || preview) return;
     setOcrBusy(true);
     let guess = "";
@@ -158,23 +150,32 @@ export default function DocSubmitList({
     } finally {
       setOcrBusy(false);
     }
-    setNameSheet({ value: guess });
+    setNameSheet({ value: guess, path });
   }
 
+  // 확인: 이 시점에 신분증 문서를 실제로 저장(등록)하고, 이름이 있으면 함께 저장
   async function saveName() {
     if (!nameSheet || !patientId) return;
-    const name = nameSheet.value.trim();
-    if (!name) {
-      setNameSheet(null);
-      return;
-    }
     setNameSaving(true);
     try {
-      await fetch(`/api/patients/${patientId}`, {
-        method: "PATCH",
+      const docRes = await fetch(`/api/documents/${patientId}/id_card`, {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ file_path: nameSheet.path, status: "completed" }),
       });
+      if (!docRes.ok) {
+        const docJson = await docRes.json();
+        setError(docJson.error || "저장에 실패했습니다");
+        return;
+      }
+      const name = nameSheet.value.trim();
+      if (name) {
+        await fetch(`/api/patients/${patientId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name }),
+        });
+      }
       setNameSheet(null);
     } finally {
       setNameSaving(false);
@@ -299,7 +300,7 @@ export default function DocSubmitList({
       {nameSheet && (
         <div className="sheet-overlay sheet-overlay--center">
           <div className="sheet sheet--center" onClick={(e) => e.stopPropagation()}>
-            <div className="sheet__title">환자 이름 확인</div>
+            <div className="sheet__title sheet__title--name">환자 이름 확인</div>
             <p style={{ textAlign: "center", color: "var(--ink-soft)", fontSize: 13, marginTop: -4 }}>
               인식된 이름이 맞는지 확인하고, 다르면 고쳐 주세요.
             </p>
@@ -308,14 +309,14 @@ export default function DocSubmitList({
               value={nameSheet.value}
               placeholder="환자 이름"
               autoFocus
-              onChange={(e) => setNameSheet({ value: e.target.value })}
+              onChange={(e) => setNameSheet((prev) => (prev ? { ...prev, value: e.target.value } : prev))}
               onKeyDown={(e) => {
                 if (e.key === "Enter") saveName();
               }}
             />
             <div className="field-popup__actions">
               <button type="button" onClick={() => setNameSheet(null)}>
-                건너뛰기
+                취소
               </button>
               <button type="button" className="primary" onClick={saveName} disabled={nameSaving}>
                 {nameSaving ? "저장 중..." : "확인"}
