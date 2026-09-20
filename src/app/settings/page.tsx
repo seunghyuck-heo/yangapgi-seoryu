@@ -189,7 +189,7 @@ export default function SettingsPage() {
                   {info}
                 </div>
               )}
-              <button type="submit" className="primary" disabled={busy} style={{ padding: 16, fontSize: 16, fontWeight: 700 }}>
+              <button type="submit" className="primary" disabled={busy} style={{ padding: 16, fontSize: 16, fontWeight: 700, borderRadius: 999 }}>
                 {busy ? "처리 중..." : authMode === "login" ? "로그인" : "계정 만들기"}
               </button>
 

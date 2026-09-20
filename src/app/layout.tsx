@@ -33,7 +33,7 @@ export const viewport = {
   maximumScale: 1,
   viewportFit: "cover" as const,
   interactiveWidget: "resizes-content" as const,
-  themeColor: "#2f5fdd",
+  themeColor: "#eef1f6",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -390,7 +390,7 @@ input[type="password"]::placeholder {
   color: #fff;
   background: var(--danger);
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: 999px;
 }
 
 .logout-btn:hover:not(:disabled) {

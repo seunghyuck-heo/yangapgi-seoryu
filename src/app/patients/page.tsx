@@ -94,9 +94,7 @@ export default function PatientsPage() {
       </header>
 
       <div className="tab-page__body">
-        {loading ? (
-          <p className="muted-text">불러오는 중...</p>
-        ) : visible.length === 0 ? (
+        {loading ? null : visible.length === 0 ? (
           <div className="patients-empty">
             <div className="patients-empty__icon" aria-hidden>
               <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
