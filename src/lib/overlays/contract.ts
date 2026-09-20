@@ -27,8 +27,8 @@ export const contractOverlay: OverlayDoc = {
     { key: "device_id", type: "text", x: 37, y: 19.9, w: 26, h: 1.4, label: "기기관리번호", align: "left" },
 
     // 개인정보 수집·이용 동의 체크박스
-    { key: "consent_yes", type: "checkbox", x: 71.15, y: 87.2, w: 4, h: 1.6, label: "개인정보 수집·이용 동의", group: "consent" },
-    { key: "consent_no", type: "checkbox", x: 80.76, y: 87.2, w: 4, h: 1.6, label: "동의하지 않음", group: "consent" },
+    { key: "consent_yes", type: "checkbox", x: 73.72, y: 88.58, w: 2.6, h: 1.0, label: "개인정보 수집·이용 동의", group: "consent" },
+    { key: "consent_no", type: "checkbox", x: 82.47, y: 88.58, w: 2.6, h: 1.0, label: "동의하지 않음", group: "consent" },
 
     // 을(환자) — 작성일 (20 __년 __월 __일)  우측 상단
     { key: "sign_year", type: "text", x: 80.6, y: 90.7, w: 5, h: 1.4, label: "작성일", dateGroup: "sign", datePart: "y" },
