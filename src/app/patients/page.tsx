@@ -143,13 +143,13 @@ export default function PatientsPage() {
           </div>
         ) : (
           <div className="app-header__row">
-            <h1 className="app-header__title" style={{ fontFamily: "var(--font-body)", fontWeight: 700 }}>
+            <h1 className="app-header__title" style={{ fontFamily: "var(--font-body)", fontWeight: 800 }}>
               환자 보기
             </h1>
             <div className="app-header__actions">
               <button
                 type="button"
-                className={`app-header__action ${editMode ? "app-header__action--active" : ""}`}
+                className="app-header__action"
                 aria-label="편집"
                 onClick={() => (editMode ? exitEdit() : setEditMode(true))}
               >

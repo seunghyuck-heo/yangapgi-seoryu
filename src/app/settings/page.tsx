@@ -121,7 +121,7 @@ export default function SettingsPage() {
   return (
     <div className="tab-page">
       <header className="app-header">
-        <h1 className="app-header__title" style={{ fontFamily: "var(--font-body)", fontWeight: 700 }}>
+        <h1 className="app-header__title" style={{ fontFamily: "var(--font-body)", fontWeight: 800 }}>
           설정
         </h1>
       </header>
