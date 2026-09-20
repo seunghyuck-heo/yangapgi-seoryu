@@ -30,7 +30,7 @@ export async function POST(req: Request) {
     "이 이미지는 대한민국 신분증(주민등록증/운전면허증 등)입니다. 신분증에 적힌 사람의 성명(이름)만 한글로 정확히 추출하세요. 설명이나 라벨 없이 이름만 답하세요. 이름을 찾을 수 없으면 빈 문자열로만 답하세요.";
 
   try {
-    const model = "gemini-2.0-flash";
+    const model = process.env.GEMINI_MODEL || "gemini-3.6-flash";
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
     const res = await fetch(url, {
       method: "POST",
