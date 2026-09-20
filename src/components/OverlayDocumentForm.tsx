@@ -266,7 +266,8 @@ export default function OverlayDocumentForm({
       const str = typeof value === "string" ? value : "";
       if (str.trim()) {
         filled = true;
-        const display = (field.prefix ?? "") + formatBoxPattern(str, field.dashPattern);
+        const docPrefix = field.prefix && !field.hidePrefixOnDoc ? field.prefix : "";
+        const display = docPrefix + formatBoxPattern(str, field.dashPattern);
         content = (
           <span
             className="odoc-hotspot__text"

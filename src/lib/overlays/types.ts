@@ -30,6 +30,8 @@ export interface OverlayField {
   dashPattern?: number[];
   /** dashPattern과 함께 문서에 고정 표시할 접두어 (예: "010-") */
   prefix?: string;
+  /** 원본 서식에 이미 접두어가 인쇄된 경우: 팝업엔 접두어 표시, 문서엔 접두어 숨김 */
+  hidePrefixOnDoc?: boolean;
 }
 
 export interface OverlayDoc {
