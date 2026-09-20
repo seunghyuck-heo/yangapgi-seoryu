@@ -1041,7 +1041,7 @@ input[type="password"]::placeholder {
 
 .odoc-hotspot__check {
   margin: auto; /* 히트영역 정중앙 */
-  height: 130%;
+  height: 95%;
   width: auto;
   aspect-ratio: 1 / 1;
   color: #111;
