@@ -362,9 +362,15 @@ input[type="password"]::placeholder {
   box-shadow: var(--shadow-card);
 }
 .search-close:hover:not(:disabled),
-.search-close:focus {
+.search-close:focus,
+.search-close:focus-visible,
+.search-close:active {
   background: var(--paper);
   color: var(--ink);
+  border-color: var(--border);
+  outline: none;
+  box-shadow: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* (구) 검색바: 백키를 입력창 안쪽에 두고 좌우 꽉 채움 */
