@@ -30,7 +30,8 @@ export async function POST(req: Request) {
     "이 대한민국 신분증(주민등록증/운전면허증 등) 이미지에서 두 가지를 찾아 JSON으로만 답하세요. " +
     '형식: {"name":"홍길동","box":[ymin,xmin,ymax,xmax]} . ' +
     "name = 신분증에 적힌 사람의 성명(한글). 못 찾으면 빈 문자열. " +
-    "box = 증명사진(얼굴 사진) 영역의 경계 상자를 0~1000으로 정규화한 정수 좌표. 사진을 못 찾으면 null.";
+    "box = 증명사진 속 사람의 얼굴(머리~턱, face) 영역만 딱 맞게 감싼 경계 상자를 0~1000으로 정규화한 정수 좌표. " +
+    "여백이나 신분증 배경 말고 얼굴에 최대한 밀착. 얼굴을 못 찾으면 null.";
 
   try {
     const model = process.env.GEMINI_MODEL || "gemini-3.6-flash";

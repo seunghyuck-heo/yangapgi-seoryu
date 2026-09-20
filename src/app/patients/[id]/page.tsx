@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState, use } from "react";
 import { PatientWithDocuments } from "@/lib/db/types";
 import { DOC_TYPE_LABELS, DOC_TYPE_ORDER } from "@/lib/templates/types";
@@ -21,6 +22,7 @@ function hasFormData(fd: Record<string, unknown> | null | undefined): boolean {
 }
 
 export default function PatientDetailPage({ params }: PatientDetailPageProps) {
+  const router = useRouter();
   const { id } = use(params);
   const [patient, setPatient] = useState<PatientWithDocuments | null>(null);
   const [loading, setLoading] = useState(true);
@@ -45,9 +47,13 @@ export default function PatientDetailPage({ params }: PatientDetailPageProps) {
 
   return (
     <div className="patient-detail-page">
-      <Link href="/patients">← 환자 목록</Link>
+      <div className="doc-page__toolbar no-print">
+        <button type="button" className="doc-page__back" onClick={() => router.push("/patients")}>
+          ← 목록으로
+        </button>
+      </div>
       <h1>{patient.name}</h1>
-      <p className="patient-detail-page__meta">{patient.phone || "연락처 미등록"}</p>
+      {patient.phone ? <p className="patient-detail-page__meta">{patient.phone}</p> : null}
 
       <ul className="doc-row-list">
         {DOC_TYPE_ORDER.map((docType) => {

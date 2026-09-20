@@ -33,7 +33,7 @@ const ROWS: RowConfig[] = [
 const MAX_DIMENSION = 1800;
 const JPEG_QUALITY = 0.85;
 
-// Gemini box[ymin,xmin,ymax,xmax](0~1000)로 얼굴 사진 영역을 잘라 jpeg dataURL 반환
+// Gemini 얼굴 box[ymin,xmin,ymax,xmax](0~1000) 중심으로 정사각형 크롭 → 원형 아바타에 얼굴이 꽉 차게
 function cropFace(dataUrl: string, box: number[]): Promise<string | null> {
   return new Promise((resolve) => {
     const img = new Image();
@@ -42,31 +42,35 @@ function cropFace(dataUrl: string, box: number[]): Promise<string | null> {
       const [ymin, xmin, ymax, xmax] = box;
       const W = img.naturalWidth;
       const H = img.naturalHeight;
-      // 약간의 여백(padding)
-      const pad = 0.06;
-      let x0 = (Math.min(xmin, xmax) / 1000 - pad) * W;
-      let y0 = (Math.min(ymin, ymax) / 1000 - pad) * H;
-      let x1 = (Math.max(xmin, xmax) / 1000 + pad) * W;
-      let y1 = (Math.max(ymin, ymax) / 1000 + pad) * H;
-      x0 = Math.max(0, x0);
-      y0 = Math.max(0, y0);
-      x1 = Math.min(W, x1);
-      y1 = Math.min(H, y1);
-      const cw = Math.round(x1 - x0);
-      const ch = Math.round(y1 - y0);
-      if (cw < 16 || ch < 16) {
+      const bx0 = (Math.min(xmin, xmax) / 1000) * W;
+      const by0 = (Math.min(ymin, ymax) / 1000) * H;
+      const bx1 = (Math.max(xmin, xmax) / 1000) * W;
+      const by1 = (Math.max(ymin, ymax) / 1000) * H;
+      const bw = bx1 - bx0;
+      const bh = by1 - by0;
+      if (bw < 8 || bh < 8) {
         resolve(null);
         return;
       }
+      // 얼굴 중심 기준 정사각형(얼굴 크기 + 약간 여유)
+      const cx = (bx0 + bx1) / 2;
+      const cy = (by0 + by1) / 2;
+      let side = Math.max(bw, bh) * 1.25;
+      side = Math.min(side, W, H);
+      let sx = cx - side / 2;
+      let sy = cy - side / 2;
+      sx = Math.max(0, Math.min(sx, W - side));
+      sy = Math.max(0, Math.min(sy, H - side));
+      const out = 320; // 아바타용 출력 크기
       const canvas = document.createElement("canvas");
-      canvas.width = cw;
-      canvas.height = ch;
+      canvas.width = out;
+      canvas.height = out;
       const ctx = canvas.getContext("2d");
       if (!ctx) {
         resolve(null);
         return;
       }
-      ctx.drawImage(img, x0, y0, cw, ch, 0, 0, cw, ch);
+      ctx.drawImage(img, sx, sy, side, side, 0, 0, out, out);
       resolve(canvas.toDataURL("image/jpeg", 0.9));
     };
     img.src = dataUrl;
