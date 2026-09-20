@@ -1879,7 +1879,8 @@ input[type="password"]::placeholder {
   backdrop-filter: blur(6px);
   animation: gotop-in 0.15s ease;
 }
-.go-top-btn:active {
+/* 전역 button:active(translateY만)보다 우선하도록 특이도 상향 → 탭 시 중앙 고정 */
+.go-top-btn:active:not(:disabled) {
   transform: translateX(-50%) translateY(1px);
 }
 @keyframes gotop-in {
