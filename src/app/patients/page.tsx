@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import BottomTabs from "@/components/BottomTabs";
+import BottomTabs, { PATIENTS_CHANGED_EVENT } from "@/components/BottomTabs";
 import { PatientWithDocuments } from "@/lib/db/types";
 import { DOC_TYPE_ORDER } from "@/lib/templates/types";
 
@@ -103,6 +103,11 @@ export default function PatientsPage() {
         [...selected].map((id) => fetch(`/api/patients/${id}`, { method: "DELETE" }))
       );
       await loadPatients();
+      try {
+        window.dispatchEvent(new Event(PATIENTS_CHANGED_EVENT));
+      } catch {
+        // 무시
+      }
       exitEdit();
     } finally {
       setDeleting(false);

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DocType } from "@/lib/templates/types";
 import { DOC_ICON_STYLES } from "./docIcons";
+import { PATIENTS_CHANGED_EVENT } from "./BottomTabs";
 
 interface DocSubmitListProps {
   /** null이면 아직 폴더 없음 — 목록은 즉시 표시, 저장 행동 시 ensurePatientId로 생성 */
@@ -295,6 +296,12 @@ export default function DocSubmitList({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ name }),
         });
+      }
+      // 환자 보기 탭 배지 즉시 갱신
+      try {
+        window.dispatchEvent(new Event(PATIENTS_CHANGED_EVENT));
+      } catch {
+        // 무시
       }
       setNameSheet(null);
     } finally {

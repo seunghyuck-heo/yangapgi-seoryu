@@ -44,6 +44,8 @@ const TABS = [
 
 // 탭 이동 시 배지가 0→N으로 깜빡이지 않도록 마지막 값을 모듈에 보관
 let cachedInProgress = 0;
+// 환자 목록 변경(신분증 확인/삭제 등)을 배지에 즉시 반영하기 위한 이벤트명
+export const PATIENTS_CHANGED_EVENT = "patients-changed";
 
 export default function BottomTabs() {
   const pathname = usePathname();
@@ -51,12 +53,13 @@ export default function BottomTabs() {
 
   // 진행중(작성 미완료) 환자 수 → 환자 보기 탭 배지 (내용 없는 빈 폴더는 제외)
   useEffect(() => {
-    let ignore = false;
-    fetch("/api/patients")
-      .then(async (res) => {
+    let cancelled = false;
+    async function refresh() {
+      try {
+        const res = await fetch("/api/patients");
         if (!res.ok) return;
         const json = await res.json();
-        if (ignore) return;
+        if (cancelled) return;
         const patients = (json.patients ?? []) as PatientWithDocuments[];
         const count = patients.filter((p) => {
           if (p.documents.length === 0) return false; // 빈 폴더 제외
@@ -67,10 +70,16 @@ export default function BottomTabs() {
         }).length;
         cachedInProgress = count;
         setInProgress(count);
-      })
-      .catch(() => {});
+      } catch {
+        // 무시
+      }
+    }
+    refresh();
+    const onChanged = () => refresh();
+    window.addEventListener(PATIENTS_CHANGED_EVENT, onChanged);
     return () => {
-      ignore = true;
+      cancelled = true;
+      window.removeEventListener(PATIENTS_CHANGED_EVENT, onChanged);
     };
   }, [pathname]);
 
