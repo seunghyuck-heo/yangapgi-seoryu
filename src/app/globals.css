@@ -1589,10 +1589,16 @@ input[type="password"]::placeholder {
   max-width: 760px;
   width: 100%;
   margin: 0 auto;
-  padding: 28px 20px 72px;
+  padding: 0 20px 72px;
   display: flex;
   flex-direction: column;
   gap: 14px;
+}
+
+/* 백키 툴바를 고객 리스트 화면과 동일하게 풀-폭·왼쪽 끝 정렬 */
+.patient-detail-page .doc-page__toolbar {
+  margin: 0 -20px;
+  padding: 10px 0;
 }
 
 .patient-detail-page > a {
