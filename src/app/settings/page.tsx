@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import BottomTabs from "@/components/BottomTabs";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useUser } from "@/lib/supabase/useUser";
@@ -167,7 +168,12 @@ export default function SettingsPage() {
               )}
             </div>
 
-            <button type="button" className="logout-btn" onClick={handleLogout}>
+            <Link href="/customers" className="settings-menu-item">
+              <span>양압기 환자 리스트</span>
+              <span className="settings-menu-item__chev" aria-hidden>›</span>
+            </Link>
+
+            <button type="button" className="logout-btn logout-btn--bottom" onClick={handleLogout}>
               로그아웃
             </button>
           </>
