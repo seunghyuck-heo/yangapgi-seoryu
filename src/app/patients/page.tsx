@@ -6,11 +6,15 @@ import BottomTabs, { PATIENTS_CHANGED_EVENT } from "@/components/BottomTabs";
 import { PatientWithDocuments } from "@/lib/db/types";
 import { DOC_TYPE_ORDER } from "@/lib/templates/types";
 
+// 탭 전환/재진입 시 즉시 표시하기 위한 클라이언트 캐시 (stale-while-revalidate)
+let patientsCache: PatientWithDocuments[] | null = null;
+const PATIENTS_CACHE_KEY = "patients_cache_v1";
+
 export default function PatientsPage() {
-  const [patients, setPatients] = useState<PatientWithDocuments[]>([]);
+  const [patients, setPatients] = useState<PatientWithDocuments[]>(patientsCache ?? []);
   const [search, setSearch] = useState("");
   const [searchMode, setSearchMode] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(patientsCache == null);
   const [editMode, setEditMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
@@ -18,25 +22,56 @@ export default function PatientsPage() {
   const [renameSaving, setRenameSaving] = useState(false);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
+  function persist(list: PatientWithDocuments[]) {
+    patientsCache = list;
+    try {
+      sessionStorage.setItem(PATIENTS_CACHE_KEY, JSON.stringify(list));
+    } catch {
+      // 저장 실패 무시
+    }
+  }
+
+  // 서버에서 최신 목록을 받아 화면·캐시 갱신. 실패해도 기존 목록 유지.
   function loadPatients() {
     return fetch("/api/patients")
       .then(async (res) => {
+        if (!res.ok) return;
         const json = await res.json();
-        setPatients(res.ok ? json.patients : []);
+        setPatients(json.patients);
+        persist(json.patients);
       })
-      .catch(() => setPatients([]));
+      .catch(() => {
+        // 네트워크 오류 시 캐시 유지
+      });
   }
 
   useEffect(() => {
+    // 1) 모듈 캐시가 없으면 세션 캐시로 즉시 표시
+    if (patientsCache == null) {
+      try {
+        const s = sessionStorage.getItem(PATIENTS_CACHE_KEY);
+        if (s) {
+          const list = JSON.parse(s) as PatientWithDocuments[];
+          patientsCache = list;
+          setPatients(list);
+          setLoading(false);
+        }
+      } catch {
+        // 무시
+      }
+    }
+    // 2) 항상 백그라운드로 최신화 (체감상 즉시 뜨고, 데이터는 조용히 갱신)
     let ignore = false;
     fetch("/api/patients")
       .then(async (res) => {
+        if (!res.ok) return;
         const json = await res.json();
         if (ignore) return;
-        setPatients(res.ok ? json.patients : []);
+        setPatients(json.patients);
+        persist(json.patients);
       })
       .catch(() => {
-        if (!ignore) setPatients([]);
+        // 캐시 유지
       })
       .finally(() => {
         if (!ignore) setLoading(false);
@@ -44,6 +79,13 @@ export default function PatientsPage() {
     return () => {
       ignore = true;
     };
+  }, []);
+
+  // 서류 완료 등으로 목록이 바뀌면 백그라운드 갱신
+  useEffect(() => {
+    const onChanged = () => loadPatients();
+    window.addEventListener(PATIENTS_CHANGED_EVENT, onChanged);
+    return () => window.removeEventListener(PATIENTS_CHANGED_EVENT, onChanged);
   }, []);
 
   useEffect(() => {
