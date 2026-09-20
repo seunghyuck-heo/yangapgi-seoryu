@@ -33,21 +33,6 @@ const ROWS: RowConfig[] = [
 const MAX_DIMENSION = 1800;
 const JPEG_QUALITY = 0.85;
 
-// OCR 결과 텍스트에서 한국 이름(2~4자) 추정 (best-effort)
-function guessKoreanName(text: string): string {
-  const bad = new Set([
-    "주민등록증", "운전면허증", "자동차운전면허증", "대한민국", "성명", "주소", "이름", "발급",
-  ]);
-  const lines = text
-    .split(/\n/)
-    .map((l) => l.replace(/\s/g, "").trim())
-    .filter(Boolean);
-  for (const l of lines) if (/^[가-힣]{2,4}$/.test(l) && !bad.has(l)) return l;
-  const toks = text.replace(/[^가-힣]/g, " ").match(/[가-힣]{2,4}/g) || [];
-  for (const t of toks) if (!bad.has(t)) return t;
-  return "";
-}
-
 function resizeImageFile(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -150,11 +135,17 @@ export default function DocSubmitList({
     setOcrBusy(true);
     let guess = "";
     try {
-      const Tesseract = (await import("tesseract.js")).default;
-      const { data } = await Tesseract.recognize(dataUrl, "kor");
-      guess = guessKoreanName(data.text || "");
+      const res = await fetch("/api/ocr-name", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dataUrl }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        guess = typeof json.name === "string" ? json.name : "";
+      }
     } catch {
-      // OCR 실패해도 이름은 직접 입력 가능
+      // 실패해도 이름은 직접 입력 가능
     } finally {
       setOcrBusy(false);
     }
@@ -303,7 +294,7 @@ export default function DocSubmitList({
           <div className="sheet sheet--center">
             <div className="sheet__title">신분증에서 이름 인식 중…</div>
             <p style={{ textAlign: "center", color: "var(--ink-soft)", fontSize: 13, lineHeight: 1.6 }}>
-              사진은 휴대폰 안에서만 처리되며 외부로 전송되지 않아요.
+              AI가 이름을 자동으로 읽고 있어요. 잠시만 기다려 주세요.
             </p>
           </div>
         </div>

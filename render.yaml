@@ -20,3 +20,6 @@ services:
         sync: false
       - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
         sync: false
+      # 신분증 이름 자동 인식(Google Gemini 무료 등급) — 대시보드에서 값 입력
+      - key: GEMINI_API_KEY
+        sync: false

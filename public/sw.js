@@ -1,5 +1,5 @@
 // 양압기 서류계약 PWA 서비스워커 — 온라인이면 항상 최신(네트워크 우선), 오프라인일 때만 캐시 열람
-const VERSION = "v18";
+const VERSION = "v19";
 const RUNTIME_CACHE = `runtime-${VERSION}`;
 
 // 설치 시 최소 셸만 캐시(오프라인 대비)
