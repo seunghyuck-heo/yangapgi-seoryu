@@ -341,7 +341,8 @@ input[type="password"]::placeholder {
   background: transparent;
   box-shadow: none;
   outline: none;
-  font-size: 18px;
+  font-size: 15px;
+  line-height: 40px;
   caret-color: var(--brand);
   padding: 0;
   -webkit-tap-highlight-color: transparent;
