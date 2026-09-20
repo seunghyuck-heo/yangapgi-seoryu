@@ -569,7 +569,6 @@ input[type="password"]::placeholder {
   font-weight: 700;
   line-height: 18px;
   text-align: center;
-  box-shadow: 0 0 0 2px var(--paper);
 }
 
 .bottom-tabs__label {

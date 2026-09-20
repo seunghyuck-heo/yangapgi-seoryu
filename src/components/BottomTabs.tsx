@@ -42,11 +42,14 @@ const TABS = [
   { href: "/settings", label: "설정", icon: ICONS.settings },
 ];
 
+// 탭 이동 시 배지가 0→N으로 깜빡이지 않도록 마지막 값을 모듈에 보관
+let cachedInProgress = 0;
+
 export default function BottomTabs() {
   const pathname = usePathname();
-  const [inProgress, setInProgress] = useState(0);
+  const [inProgress, setInProgress] = useState(cachedInProgress);
 
-  // 진행중(작성 미완료) 환자 수 → 환자 보기 탭 배지
+  // 진행중(작성 미완료) 환자 수 → 환자 보기 탭 배지 (내용 없는 빈 폴더는 제외)
   useEffect(() => {
     let ignore = false;
     fetch("/api/patients")
@@ -56,11 +59,13 @@ export default function BottomTabs() {
         if (ignore) return;
         const patients = (json.patients ?? []) as PatientWithDocuments[];
         const count = patients.filter((p) => {
+          if (p.documents.length === 0) return false; // 빈 폴더 제외
           const done = DOC_TYPE_ORDER.filter((t) =>
             p.documents.some((d) => d.doc_type === t && d.status === "completed")
           ).length;
           return done < DOC_TYPE_ORDER.length;
         }).length;
+        cachedInProgress = count;
         setInProgress(count);
       })
       .catch(() => {});

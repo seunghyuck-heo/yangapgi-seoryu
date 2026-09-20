@@ -52,10 +52,12 @@ export default function PatientsPage() {
     DOC_TYPE_ORDER.filter((t) => documents.some((d) => d.doc_type === t && d.status === "completed"))
       .length;
 
+  // 내용(문서)이 없는 빈 폴더는 목록에서 숨김 (서식 제출 시작용 임시 폴더 등)
+  const realPatients = patients.filter((p) => p.documents.length > 0);
   const q = search.trim();
   const visible = q
-    ? patients.filter((p) => p.name.toLowerCase().includes(q.toLowerCase()))
-    : patients;
+    ? realPatients.filter((p) => p.name.toLowerCase().includes(q.toLowerCase()))
+    : realPatients;
 
   function toggleSelect(id: string) {
     setSelected((prev) => {
