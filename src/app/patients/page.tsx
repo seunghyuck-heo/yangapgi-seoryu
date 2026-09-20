@@ -149,7 +149,7 @@ export default function PatientsPage() {
                 setSearch("");
               }}
             >
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+              <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.8} strokeLinecap="round" strokeLinejoin="round">
                 <path d="M4 4 20 20" />
                 <path d="M20 4 4 20" />
               </svg>
