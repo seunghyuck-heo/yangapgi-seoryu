@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import BottomTabs from "@/components/BottomTabs";
@@ -28,6 +28,26 @@ export default function SettingsPage() {
   const [editing, setEditing] = useState(false);
   const [draftName, setDraftName] = useState("");
   const [saving, setSaving] = useState(false);
+  const nameOverlayRef = useRef<HTMLDivElement | null>(null);
+
+  // 키보드가 올라오면 중앙 팝업을 보이는 영역 기준으로 위로, 내려가면 다시 중앙
+  useEffect(() => {
+    if (!editing) return;
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const sync = () => {
+      const kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      if (nameOverlayRef.current) nameOverlayRef.current.style.paddingBottom = `${kb}px`;
+    };
+    sync();
+    vv.addEventListener("resize", sync);
+    vv.addEventListener("scroll", sync);
+    return () => {
+      vv.removeEventListener("resize", sync);
+      vv.removeEventListener("scroll", sync);
+      if (nameOverlayRef.current) nameOverlayRef.current.style.paddingBottom = "";
+    };
+  }, [editing]);
 
   // OAuth 콜백에서 넘어온 오류를 화면에 표시
   useEffect(() => {
@@ -149,33 +169,16 @@ export default function SettingsPage() {
                 </svg>
               </div>
               <div className="profile-card__main">
-                {editing ? (
-                  <input
-                    type="text"
-                    value={draftName}
-                    onChange={(e) => setDraftName(e.target.value)}
-                    placeholder="이름"
-                    autoFocus
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") saveName();
-                    }}
-                  />
-                ) : profileLoaded ? (
+                {profileLoaded ? (
                   <div className="profile-card__name">{displayName}</div>
                 ) : (
                   <div className="profile-card__name profile-card__name--skeleton" aria-hidden>&nbsp;</div>
                 )}
                 <div className="profile-card__email">{user.email}</div>
               </div>
-              {editing ? (
-                <button type="button" className="profile-card__btn primary" onClick={saveName} disabled={saving}>
-                  {saving ? "저장 중" : "저장"}
-                </button>
-              ) : (
-                <button type="button" className="profile-card__btn" onClick={startEdit}>
-                  편집
-                </button>
-              )}
+              <button type="button" className="profile-card__btn" onClick={startEdit}>
+                이름변경
+              </button>
             </div>
 
             <Link href="/customers" className="settings-menu-item">
@@ -238,6 +241,37 @@ export default function SettingsPage() {
           </section>
         )}
       </div>
+
+      {editing && (
+        <div
+          className="sheet-overlay sheet-overlay--center"
+          ref={nameOverlayRef}
+          onClick={() => setEditing(false)}
+        >
+          <div className="sheet sheet--center" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet__title sheet__title--name">이름변경</div>
+            <input
+              type="text"
+              className="name-edit-input"
+              value={draftName}
+              placeholder="이름"
+              autoFocus
+              onChange={(e) => setDraftName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") saveName();
+              }}
+            />
+            <div className="field-popup__actions">
+              <button type="button" onClick={() => setEditing(false)}>
+                취소
+              </button>
+              <button type="button" className="primary" onClick={saveName} disabled={saving}>
+                {saving ? "저장 중..." : "확인"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <BottomTabs />
     </div>

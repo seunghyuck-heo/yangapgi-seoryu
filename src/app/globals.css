@@ -1171,6 +1171,25 @@ input[type="password"]::placeholder {
   padding: 0;
 }
 
+/* 이름변경 팝업: 밑줄(라인) 입력창 */
+.name-edit-input {
+  width: 100%;
+  border: none;
+  border-bottom: 2px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  padding: 10px 2px;
+  margin: 2px 0 18px;
+  font-size: 18px;
+  font-weight: 600;
+  text-align: center;
+  color: var(--ink);
+}
+.name-edit-input:focus {
+  outline: none;
+  border-bottom-color: var(--brand);
+}
+
 .sheet__option {
   width: 100%;
   padding: 16px;
