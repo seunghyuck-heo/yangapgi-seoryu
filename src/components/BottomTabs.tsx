@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { DOC_TYPE_ORDER } from "@/lib/templates/types";
 import type { PatientWithDocuments } from "@/lib/db/types";
 import { isRegisteredPatient } from "@/lib/patientStatus";
 
@@ -62,13 +61,8 @@ export default function BottomTabs() {
         const json = await res.json();
         if (cancelled) return;
         const patients = (json.patients ?? []) as PatientWithDocuments[];
-        const count = patients.filter((p) => {
-          if (!isRegisteredPatient(p)) return false; // 신분증+이름 전엔 카운팅 안 함
-          const done = DOC_TYPE_ORDER.filter((t) =>
-            p.documents.some((d) => d.doc_type === t && d.status === "completed")
-          ).length;
-          return done < DOC_TYPE_ORDER.length;
-        }).length;
+        // 신분증+이름이 등록된 환자 총원(서류 완료자 포함)
+        const count = patients.filter(isRegisteredPatient).length;
         cachedInProgress = count;
         setInProgress(count);
       } catch {

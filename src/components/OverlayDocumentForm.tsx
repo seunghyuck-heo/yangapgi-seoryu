@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { OverlayDoc, OverlayField } from "@/lib/overlays/types";
 import ZoomableDocument from "./ZoomableDocument";
@@ -15,6 +15,14 @@ interface OverlayDocumentFormProps {
   initialStatus: "draft" | "completed";
   backHref: string;
   preview?: boolean;
+  /** PDF 묶음 뷰어 등에 자체 chrome 없이 문서만 임베드 */
+  embedded?: boolean;
+  /** 편집 모드: 편집 가능한 칸을 초록 반투명으로 표시 */
+  editMode?: boolean;
+}
+
+export interface OverlayDocumentFormHandle {
+  save: () => Promise<boolean>;
 }
 
 function formatBoxPattern(raw: string, pattern: number[]): string {
@@ -32,16 +40,21 @@ function formatBoxPattern(raw: string, pattern: number[]): string {
   return out;
 }
 
-export default function OverlayDocumentForm({
-  overlay,
-  docType,
-  patientId,
-  initialFormData,
-  initialSignedUrls,
-  initialStatus,
-  backHref,
-  preview = false,
-}: OverlayDocumentFormProps) {
+function OverlayDocumentFormInner(
+  {
+    overlay,
+    docType,
+    patientId,
+    initialFormData,
+    initialSignedUrls,
+    initialStatus,
+    backHref,
+    preview = false,
+    embedded = false,
+    editMode = false,
+  }: OverlayDocumentFormProps,
+  ref: React.ForwardedRef<OverlayDocumentFormHandle>
+) {
   const router = useRouter();
   const [values, setValues] = useState<Record<string, unknown>>({ ...initialFormData });
   const [sigUrls, setSigUrls] = useState<Record<string, string>>(() => {
@@ -87,6 +100,27 @@ export default function OverlayDocumentForm({
   }, [openField]);
 
   const aspectRatio = overlay.width / overlay.height;
+
+  // 임베드(뷰어) 편집 저장 핸들: 현재 값을 완료 상태로 저장
+  useImperativeHandle(
+    ref,
+    () => ({
+      async save() {
+        if (preview) return true;
+        try {
+          const res = await fetch(`/api/documents/${patientId}/${docType}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ form_data: values, status: "completed" }),
+          });
+          return res.ok;
+        } catch {
+          return false;
+        }
+      },
+    }),
+    [values, patientId, docType, preview]
+  );
 
   // 고정 체크(항상 동의) + 오늘 날짜 자동 입력 초기화
   useEffect(() => {
@@ -407,11 +441,12 @@ export default function OverlayDocumentForm({
       }
     }
 
+    const editable = editMode && !field.fixedChecked && !field.autoToday;
     return (
       <div
         key={field.key}
         data-field={field.key}
-        className={`odoc-hotspot ${filled ? "odoc-hotspot--filled" : "odoc-hotspot--empty"}`}
+        className={`odoc-hotspot ${filled ? "odoc-hotspot--filled" : "odoc-hotspot--empty"}${editable ? " odoc-hotspot--editable" : ""}`}
         style={style}
       >
         {content}
@@ -420,15 +455,17 @@ export default function OverlayDocumentForm({
   }
 
   return (
-    <div className="doc-page">
-      <div className="doc-page__toolbar no-print">
-        <button type="button" className="doc-page__back" onClick={handleBack}>
-          ← 목록으로
-        </button>
-        <button type="button" onClick={() => window.print()}>
-          인쇄 (A4)
-        </button>
-      </div>
+    <div className={embedded ? "odoc-embedded" : "doc-page"}>
+      {!embedded && (
+        <div className="doc-page__toolbar no-print">
+          <button type="button" className="doc-page__back" onClick={handleBack}>
+            ← 목록으로
+          </button>
+          <button type="button" onClick={() => window.print()}>
+            인쇄 (A4)
+          </button>
+        </div>
+      )}
 
       {error && <div className="error-banner no-print">{error}</div>}
       {toast && <div className="toast no-print">{toast}</div>}
@@ -439,19 +476,21 @@ export default function OverlayDocumentForm({
         {overlay.fields.map((f) => renderFieldOverlay(f))}
       </ZoomableDocument>
 
-      <div className="action-bar no-print">
-        <button type="button" onClick={() => handleSubmit("draft")} disabled={saving}>
-          임시저장
-        </button>
-        <button
-          type="button"
-          className="primary"
-          onClick={() => handleSubmit("completed")}
-          disabled={saving}
-        >
-          {saving ? "저장 중..." : "작성 완료"}
-        </button>
-      </div>
+      {!embedded && (
+        <div className="action-bar no-print">
+          <button type="button" onClick={() => handleSubmit("draft")} disabled={saving}>
+            임시저장
+          </button>
+          <button
+            type="button"
+            className="primary"
+            onClick={() => handleSubmit("completed")}
+            disabled={saving}
+          >
+            {saving ? "저장 중..." : "작성 완료"}
+          </button>
+        </div>
+      )}
 
       {/* 숨긴 날짜 입력: 파란 날짜 칸 탭 시 네이티브 캘린더 바로 호출 */}
       <input
@@ -547,3 +586,6 @@ export default function OverlayDocumentForm({
     </div>
   );
 }
+
+const OverlayDocumentForm = forwardRef(OverlayDocumentFormInner);
+export default OverlayDocumentForm;

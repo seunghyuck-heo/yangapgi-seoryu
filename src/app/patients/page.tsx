@@ -247,7 +247,9 @@ export default function PatientsPage() {
             </p>
           </div>
         ) : (
-          <ul className="patient-list">
+          <>
+            {!q && <p className="patient-list__count">총 {realPatients.length}명</p>}
+            <ul className="patient-list">
             {visible.map((patient) => {
               const done = completeCount(patient.documents);
               const total = DOC_TYPE_ORDER.length;
@@ -319,7 +321,8 @@ export default function PatientsPage() {
                 </li>
               );
             })}
-          </ul>
+            </ul>
+          </>
         )}
       </div>
 
