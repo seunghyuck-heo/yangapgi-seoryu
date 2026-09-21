@@ -312,7 +312,7 @@ function OverlayDocumentFormInner(
       const res = await fetch(`/api/documents/${patientId}/${docType}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ form_data: values, status: "completed" }),
+        body: JSON.stringify({ form_data: values, status: isCompleted ? "completed" : "draft" }),
       });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
@@ -510,7 +510,7 @@ function OverlayDocumentFormInner(
             ← 목록으로
           </button>
           <div className="doc-page__toolbar-right">
-            {isCompleted && !localEdit && (
+            {!localEdit && (
               <button type="button" className="doc-page__edit" onClick={() => setLocalEdit(true)}>
                 수정
               </button>
