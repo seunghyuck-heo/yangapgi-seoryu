@@ -73,6 +73,7 @@ function OverlayDocumentFormInner(
   const [toast, setToast] = useState<string | null>(null);
   const [localEdit, setLocalEdit] = useState(false); // 완료 서류 화면에서 '수정' 눌렀을 때
   const [confirmSave, setConfirmSave] = useState(false);
+  const [pdfPromptOpen, setPdfPromptOpen] = useState(false); // 저장 후 PDF도 업데이트할지
   const popupRef = useRef<HTMLDivElement | null>(null);
 
   const isCompleted = initialStatus === "completed";
@@ -321,7 +322,7 @@ function OverlayDocumentFormInner(
       }
       setConfirmSave(false);
       setLocalEdit(false);
-      showToast("수정사항이 반영되었습니다.");
+      setPdfPromptOpen(true);
     } finally {
       setSaving(false);
     }
@@ -662,6 +663,33 @@ function OverlayDocumentFormInner(
               </button>
               <button type="button" className="primary" onClick={saveEdits} disabled={saving}>
                 {saving ? "반영 중..." : "반영하기"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 저장 후: PDF로도 다시 저장할지 */}
+      {pdfPromptOpen && (
+        <div className="sheet-overlay sheet-overlay--center" onClick={() => setPdfPromptOpen(false)}>
+          <div className="sheet sheet--center" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet__title sheet__title--name">PDF 다시 저장</div>
+            <p style={{ textAlign: "center", color: "var(--ink-soft)", fontSize: 14, margin: "-4px 0 16px" }}>
+              수정한 내용을 PDF로도 다시 저장하시겠습니까?
+            </p>
+            <div className="field-popup__actions">
+              <button type="button" onClick={() => setPdfPromptOpen(false)}>
+                아니오
+              </button>
+              <button
+                type="button"
+                className="primary"
+                onClick={() => {
+                  setPdfPromptOpen(false);
+                  router.push(`/patients/${patientId}?pdf=1`);
+                }}
+              >
+                예, PDF 업데이트
               </button>
             </div>
           </div>

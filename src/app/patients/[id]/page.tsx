@@ -31,6 +31,7 @@ export default function PatientDetailPage({ params }: PatientDetailPageProps) {
   const [showBundle, setShowBundle] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pdfAutoRef = useRef(false);
 
   function showToast(msg: string) {
     setToast(msg);
@@ -63,6 +64,22 @@ export default function PatientDetailPage({ params }: PatientDetailPageProps) {
       })
       .finally(() => setLoading(false));
   }, [id]);
+
+  // 서류 수정 후 "예, PDF 업데이트"로 넘어온 경우(?pdf=1) → PDF 묶음 자동 열기
+  useEffect(() => {
+    if (!patient || pdfAutoRef.current) return;
+    try {
+      const sp = new URLSearchParams(window.location.search);
+      if (sp.get("pdf") === "1") {
+        pdfAutoRef.current = true;
+        handleOpenBundle();
+        window.history.replaceState({}, "", `/patients/${id}`);
+      }
+    } catch {
+      // 무시
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [patient]);
 
   if (loading) return <p className="patient-detail-page">불러오는 중...</p>;
   if (error) return <p className="patient-detail-page error-banner">{error}</p>;
