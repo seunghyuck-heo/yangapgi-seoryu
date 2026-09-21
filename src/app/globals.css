@@ -1859,6 +1859,17 @@ input[type="password"]::placeholder {
   font-weight: 600;
 }
 
+/* 툴바 우측: 수정 + 인쇄 그룹 */
+.doc-page__toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.doc-page__edit {
+  font-weight: 700;
+  color: var(--brand-dark);
+}
+
 /* 맨 위로(go to top) 버튼 — 하단 중앙 원형 */
 .go-top-btn {
   position: fixed;

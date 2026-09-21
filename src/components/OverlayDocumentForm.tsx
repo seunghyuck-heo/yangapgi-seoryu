@@ -71,7 +71,12 @@ function OverlayDocumentFormInner(
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [localEdit, setLocalEdit] = useState(false); // 완료 서류 화면에서 '수정' 눌렀을 때
+  const [confirmSave, setConfirmSave] = useState(false);
   const popupRef = useRef<HTMLDivElement | null>(null);
+
+  const isCompleted = initialStatus === "completed";
+  const highlightEdit = editMode || localEdit; // 편집 가능 칸 초록 표시
   const dateInputRef = useRef<HTMLInputElement | null>(null);
   const dateGroupRef = useRef<string | null>(null);
 
@@ -160,6 +165,8 @@ function OverlayDocumentFormInner(
   function handleTapField(key: string) {
     const field = fieldByKey.get(key);
     if (!field) return;
+    // 완료된 서류는 '수정' 모드에서만 편집 가능(보기 모드에선 탭 무시)
+    if (!embedded && isCompleted && !localEdit) return;
     // 고정 체크·오늘날짜 자동 필드는 편집 불가
     if (field.fixedChecked || field.autoToday) return;
 
@@ -277,6 +284,47 @@ function OverlayDocumentFormInner(
   function showToast(msg: string) {
     setToast(msg);
     window.setTimeout(() => setToast(null), 2200);
+  }
+
+  // '수정' 취소: 값·서명을 처음 상태로 되돌리고 편집 모드 종료
+  function cancelEdits() {
+    setValues({ ...initialFormData });
+    const map: Record<string, string> = {};
+    for (const f of overlay.fields) {
+      if (f.type !== "signature") continue;
+      const path = initialFormData[f.key];
+      if (typeof path === "string" && initialSignedUrls[path]) map[f.key] = initialSignedUrls[path];
+    }
+    setSigUrls(map);
+    setLocalEdit(false);
+  }
+
+  // '완료' 확인 팝업에서 반영: 완료 상태로 저장하고 편집 모드 종료(화면 유지)
+  async function saveEdits() {
+    if (!allFilled()) {
+      setConfirmSave(false);
+      showToast("빈 칸을 모두 채우세요.");
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/documents/${patientId}/${docType}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ form_data: values, status: "completed" }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        setError(json.error || "저장 실패");
+        return;
+      }
+      setConfirmSave(false);
+      setLocalEdit(false);
+      showToast("수정사항이 반영되었습니다.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   // 편집 대상(텍스트·서명) 칸이 모두 채워졌는지
@@ -441,7 +489,7 @@ function OverlayDocumentFormInner(
       }
     }
 
-    const editable = editMode && !field.fixedChecked && !field.autoToday;
+    const editable = highlightEdit && !field.fixedChecked && !field.autoToday;
     return (
       <div
         key={field.key}
@@ -461,9 +509,16 @@ function OverlayDocumentFormInner(
           <button type="button" className="doc-page__back" onClick={handleBack}>
             ← 목록으로
           </button>
-          <button type="button" onClick={() => window.print()}>
-            인쇄 (A4)
-          </button>
+          <div className="doc-page__toolbar-right">
+            {isCompleted && !localEdit && (
+              <button type="button" className="doc-page__edit" onClick={() => setLocalEdit(true)}>
+                수정
+              </button>
+            )}
+            <button type="button" onClick={() => window.print()}>
+              인쇄 (A4)
+            </button>
+          </div>
         </div>
       )}
 
@@ -476,7 +531,18 @@ function OverlayDocumentFormInner(
         {overlay.fields.map((f) => renderFieldOverlay(f))}
       </ZoomableDocument>
 
-      {!embedded && (
+      {!embedded && localEdit && (
+        <div className="action-bar no-print">
+          <button type="button" onClick={cancelEdits} disabled={saving}>
+            취소
+          </button>
+          <button type="button" className="primary" onClick={() => setConfirmSave(true)} disabled={saving}>
+            완료
+          </button>
+        </div>
+      )}
+
+      {!embedded && !localEdit && !isCompleted && (
         <div className="action-bar no-print">
           <button type="button" onClick={() => handleSubmit("draft")} disabled={saving}>
             임시저장
@@ -578,6 +644,26 @@ function OverlayDocumentFormInner(
             <div className="field-popup__actions">
               <button type="button" onClick={() => setOpenField(null)}>
                 닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 수정 완료 확인 팝업 */}
+      {confirmSave && (
+        <div className="sheet-overlay sheet-overlay--center" onClick={() => !saving && setConfirmSave(false)}>
+          <div className="sheet sheet--center" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet__title sheet__title--name">수정사항 반영</div>
+            <p style={{ textAlign: "center", color: "var(--ink-soft)", fontSize: 14, margin: "-4px 0 16px" }}>
+              수정사항을 반영하시겠습니까?
+            </p>
+            <div className="field-popup__actions">
+              <button type="button" onClick={() => setConfirmSave(false)} disabled={saving}>
+                취소
+              </button>
+              <button type="button" className="primary" onClick={saveEdits} disabled={saving}>
+                {saving ? "반영 중..." : "반영하기"}
               </button>
             </div>
           </div>
