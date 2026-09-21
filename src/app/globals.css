@@ -1868,6 +1868,15 @@ input[type="password"]::placeholder {
 /* 수정·인쇄 모두 '목록으로'와 동일한 굵기(600) */
 .doc-page__toolbar-right button {
   font-weight: 600;
+  color: var(--ink);
+}
+/* 탭/호버/포커스해도 파란색으로 변하지 않게 고정 */
+.doc-page__toolbar-right button:hover:not(:disabled),
+.doc-page__toolbar-right button:focus,
+.doc-page__toolbar-right button:focus-visible,
+.doc-page__toolbar-right button:active:not(:disabled) {
+  color: var(--ink);
+  border-color: var(--border-strong);
 }
 /* 수정 폰트색을 '목록으로'와 동일(기본 잉크색) */
 .doc-page__edit {
@@ -2437,21 +2446,25 @@ input[type="password"]::placeholder {
 
   /* 스테이지를 이미지 크기에 맞춰 감싸서(hotspot % 기준 유지),
      이미지가 A4 한 장(≈190×275mm) 안에 비율 유지로 들어가게 함 */
+  /* 명시적 폭을 줘서 container-type(cqw)로 인해 폭이 0으로 붕괴 → 오른쪽 잘림 방지.
+     이미지가 A4 내용폭(190mm)에 맞춰 비율 유지로 들어간다 (aspect≈0.707 → 높이 ≈269mm) */
   .zoomdoc__stage {
     position: relative !important;
-    display: inline-block !important;
+    display: block !important;
     transform: none !important;
-    width: auto !important;
+    width: 190mm !important;
+    max-width: 190mm !important;
     height: auto !important;
     aspect-ratio: auto !important;
+    margin: 0 auto !important;
     vertical-align: top !important;
   }
 
   .odoc-image {
-    width: auto !important;
+    width: 100% !important;
     height: auto !important;
-    max-width: 190mm !important;
-    max-height: 275mm !important;
+    max-width: none !important;
+    max-height: none !important;
     object-fit: unset !important;
   }
 
