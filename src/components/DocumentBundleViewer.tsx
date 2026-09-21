@@ -33,8 +33,70 @@ export default function DocumentBundleViewer({
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pagesRef = useRef<HTMLDivElement | null>(null);
+  const zoomRef = useRef<HTMLDivElement | null>(null);
 
   const fileBase = `${patientName || "환자"}_양압기서류`;
+
+  // 두 손가락 핀치 줌 (세로 스크롤은 네이티브 유지, zoom CSS로 확대/축소)
+  useEffect(() => {
+    const el = pagesRef.current;
+    const content = zoomRef.current;
+    if (!el || !content) return;
+    const pts = new Map<number, { x: number; y: number }>();
+    let startDist = 0;
+    let startZoom = 1;
+    let curZoom = 1;
+    const mid = { x: 0, y: 0 };
+    const dist = (a: { x: number; y: number }, b: { x: number; y: number }) =>
+      Math.hypot(a.x - b.x, a.y - b.y);
+
+    const onDown = (e: PointerEvent) => {
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pts.size === 2) {
+        const [a, b] = [...pts.values()];
+        startDist = dist(a, b) || 1;
+        startZoom = curZoom;
+        const r = el.getBoundingClientRect();
+        mid.x = (a.x + b.x) / 2 - r.left;
+        mid.y = (a.y + b.y) / 2 - r.top;
+      }
+    };
+    const onMove = (e: PointerEvent) => {
+      if (!pts.has(e.pointerId)) return;
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pts.size >= 2) {
+        e.preventDefault();
+        const [a, b] = [...pts.values()];
+        const d = dist(a, b);
+        const nz = Math.min(5, Math.max(1, startZoom * (d / startDist)));
+        const ratio = nz / curZoom;
+        const sl = el.scrollLeft;
+        const st = el.scrollTop;
+        (content.style as unknown as { zoom: string }).zoom = String(nz);
+        el.scrollLeft = (sl + mid.x) * ratio - mid.x;
+        el.scrollTop = (st + mid.y) * ratio - mid.y;
+        curZoom = nz;
+      }
+    };
+    const onUp = (e: PointerEvent) => {
+      pts.delete(e.pointerId);
+      if (curZoom <= 1.01) {
+        (content.style as unknown as { zoom: string }).zoom = "1";
+        curZoom = 1;
+      }
+    };
+    el.addEventListener("pointerdown", onDown);
+    el.addEventListener("pointermove", onMove, { passive: false });
+    el.addEventListener("pointerup", onUp);
+    el.addEventListener("pointercancel", onUp);
+    return () => {
+      el.removeEventListener("pointerdown", onDown);
+      el.removeEventListener("pointermove", onMove);
+      el.removeEventListener("pointerup", onUp);
+      el.removeEventListener("pointercancel", onUp);
+    };
+  }, [pages.length]);
 
   function showToast(msg: string) {
     setToast(msg);
@@ -155,13 +217,15 @@ export default function DocumentBundleViewer({
         <span style={{ width: 40 }} aria-hidden />
       </div>
 
-      <div className="bundle-viewer__pages">
+      <div className="bundle-viewer__pages" ref={pagesRef}>
         {loading && <p className="bundle-viewer__msg no-print">서류를 준비하는 중...</p>}
         {error && <p className="bundle-viewer__msg no-print">{error}</p>}
-        {pages.map((p) => (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img key={p.docType} className="bundle-page" src={p.dataUrl} alt={p.label} />
-        ))}
+        <div className="bundle-viewer__zoom" ref={zoomRef}>
+          {pages.map((p) => (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img key={p.docType} className="bundle-page" src={p.dataUrl} alt={p.label} />
+          ))}
+        </div>
       </div>
 
       {!loading && !error && (
