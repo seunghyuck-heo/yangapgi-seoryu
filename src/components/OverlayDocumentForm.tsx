@@ -510,11 +510,9 @@ function OverlayDocumentFormInner(
             ← 목록으로
           </button>
           <div className="doc-page__toolbar-right">
-            {!localEdit && (
-              <button type="button" className="doc-page__edit" onClick={() => setLocalEdit(true)}>
-                수정
-              </button>
-            )}
+            <button type="button" className="doc-page__edit" onClick={() => setLocalEdit(true)}>
+              수정
+            </button>
             <button type="button" onClick={() => window.print()}>
               인쇄 (A4)
             </button>
