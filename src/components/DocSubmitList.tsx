@@ -113,6 +113,46 @@ function cropFace(dataUrl: string, box: number[]): Promise<string | null> {
   });
 }
 
+// Gemini card box[ymin,xmin,ymax,xmax](0~1000) 영역으로 신분증만 잘라내 배경 제거
+function cropBox(dataUrl: string, box: number[], margin = 0.015): Promise<string | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onerror = () => resolve(null);
+    img.onload = () => {
+      const [ymin, xmin, ymax, xmax] = box;
+      const W = img.naturalWidth;
+      const H = img.naturalHeight;
+      let x0 = (Math.min(xmin, xmax) / 1000) * W;
+      let y0 = (Math.min(ymin, ymax) / 1000) * H;
+      let x1 = (Math.max(xmin, xmax) / 1000) * W;
+      let y1 = (Math.max(ymin, ymax) / 1000) * H;
+      const mw = (x1 - x0) * margin;
+      const mh = (y1 - y0) * margin;
+      x0 = Math.max(0, x0 - mw);
+      y0 = Math.max(0, y0 - mh);
+      x1 = Math.min(W, x1 + mw);
+      y1 = Math.min(H, y1 + mh);
+      const w = x1 - x0;
+      const h = y1 - y0;
+      if (w < 20 || h < 20) {
+        resolve(null);
+        return;
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(w);
+      canvas.height = Math.round(h);
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        resolve(null);
+        return;
+      }
+      ctx.drawImage(img, x0, y0, w, h, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL("image/jpeg", 0.92));
+    };
+    img.src = dataUrl;
+  });
+}
+
 function resizeImageFile(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -215,6 +255,7 @@ export default function DocSubmitList({
     setOcrBusy(true);
     let guess = "";
     let box: number[] | null = null;
+    let card: number[] | null = null;
     let rotation = 0;
     let birth6 = "";
     try {
@@ -227,6 +268,7 @@ export default function DocSubmitList({
         const json = await res.json();
         guess = typeof json.name === "string" ? json.name : "";
         box = Array.isArray(json.box) ? json.box : null;
+        card = Array.isArray(json.card) ? json.card : null;
         rotation = typeof json.rotation === "number" ? json.rotation : 0;
         birth6 = typeof json.birth6 === "string" ? json.birth6 : "";
       }
@@ -267,18 +309,23 @@ export default function DocSubmitList({
       }
     }
 
-    // 신분증 원본도 정위치로 회전해 저장(같은 경로 덮어쓰기)
-    if (rotation) {
-      try {
-        const uprightFull = await rotateDataUrl(dataUrl, rotation);
+    // 신분증만 남기고 배경 제거(카드 영역 크롭) + 정위치 회전해 저장(같은 경로 덮어쓰기)
+    try {
+      let full = dataUrl;
+      if (card) {
+        const cropped = await cropBox(dataUrl, card);
+        if (cropped) full = cropped;
+      }
+      if (rotation) full = await rotateDataUrl(full, rotation);
+      if (full !== dataUrl) {
         await fetch("/api/uploads", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ patientId: pid, docType: "id_card", kind: "id_card", dataUrl: uprightFull }),
+          body: JSON.stringify({ patientId: pid, docType: "id_card", kind: "id_card", dataUrl: full }),
         });
-      } catch {
-        // 실패해도 진행
       }
+    } catch {
+      // 실패해도 진행
     }
 
     setOcrBusy(false);
