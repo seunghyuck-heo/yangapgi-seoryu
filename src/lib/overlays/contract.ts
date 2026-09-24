@@ -26,6 +26,9 @@ export const contractOverlay: OverlayDoc = {
     // 기기관리번호 (값 칸 좌측 정렬)
     { key: "device_id", type: "text", x: 37, y: 19.9, w: 26, h: 1.4, label: "기기관리번호", align: "left" },
 
+    // 양압기 종류/모델명 — "Prisma Smart / Smart Max" 항목 앞에 ( ) 체크(누르면 (O))
+    { key: "model_check", type: "checkbox", x: 63.4, y: 21.6, w: 3.4, h: 1.6, label: "모델 확인", parenMark: true },
+
     // 개인정보 수집·이용 동의 체크박스
     { key: "consent_yes", type: "checkbox", x: 73.72, y: 88.58, w: 2.6, h: 1.0, label: "개인정보 수집·이용 동의", fixedChecked: true },
 

@@ -1048,6 +1048,20 @@ input[type="password"]::placeholder {
   pointer-events: none;
 }
 
+/* ( ) / (O) 텍스트 마크 (모델 선택 등) */
+.odoc-hotspot__paren {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #12203f;
+  font-weight: 700;
+  white-space: nowrap;
+  line-height: 1;
+  transform: translateY(0.04em);
+}
+
 .odoc-hotspot__check {
   margin: auto; /* 히트영역 정중앙 */
   height: 95%;

@@ -34,6 +34,8 @@ export interface OverlayField {
   hidePrefixOnDoc?: boolean;
   /** 체크박스: 항상 체크됨(편집 불가) */
   fixedChecked?: boolean;
+  /** 체크박스를 ( ) / (O) 텍스트 마크로 표시 (체크 전 "( )", 체크 시 "(O)") */
+  parenMark?: boolean;
   /** 날짜: 오늘 날짜 자동 입력(편집 불가). 같은 dateGroup에 지정 */
   autoToday?: boolean;
 }

@@ -215,7 +215,11 @@ export async function renderOverlayPage(
     }
 
     if (field.type === "checkbox") {
-      if (raw === true || field.fixedChecked) drawCheck(ctx, bx, by, bw, bh);
+      if (field.parenMark) {
+        drawText(ctx, raw === true ? "(O)" : "( )", bx, by, bw, bh, fontPx, "center");
+      } else if (raw === true || field.fixedChecked) {
+        drawCheck(ctx, bx, by, bw, bh);
+      }
       continue;
     }
 

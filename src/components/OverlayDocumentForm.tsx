@@ -388,7 +388,17 @@ function OverlayDocumentFormInner(
         );
       }
     } else if (field.type === "checkbox") {
-      if (value || field.fixedChecked) {
+      if (field.parenMark) {
+        filled = true;
+        content = (
+          <span
+            className="odoc-hotspot__paren"
+            style={{ fontSize: `${field.fontPct ?? 1.4}cqw` }}
+          >
+            {value ? "(O)" : "( )"}
+          </span>
+        );
+      } else if (value || field.fixedChecked) {
         filled = true;
         content = (
           <svg
