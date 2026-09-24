@@ -29,17 +29,17 @@ export const contractOverlay: OverlayDoc = {
     // 양압기 종류/모델명 — 인쇄된 "Prisma Smart / Smart Max"를 가리고
     // "( ) Prisma Smart   ( ) Smart Max"로 재배치(각 앞에 선택 체크, 하나만).
     { key: "model_cover", type: "text", x: 65.8, y: 21.9, w: 31.5, h: 1.6, cover: true },
-    { key: "model_prisma", type: "checkbox", x: 66.0, y: 21.55, w: 3.4, h: 1.7, label: "Prisma Smart", parenMark: true, group: "device_model" },
+    { key: "model_prisma", type: "checkbox", x: 66.0, y: 21.55, w: 3.4, h: 1.7, label: "Prisma Smart", parenMark: true, group: "device_model", requiredGroup: true },
     { key: "model_prisma_lbl", type: "text", x: 69.4, y: 21.55, w: 14, h: 1.7, staticText: "Prisma Smart", align: "left", fontPct: 1.55 },
-    { key: "model_smartmax", type: "checkbox", x: 82.3, y: 21.55, w: 3.4, h: 1.7, label: "Smart Max", parenMark: true, group: "device_model" },
+    { key: "model_smartmax", type: "checkbox", x: 82.3, y: 21.55, w: 3.4, h: 1.7, label: "Smart Max", parenMark: true, group: "device_model", requiredGroup: true },
     { key: "model_smartmax_lbl", type: "text", x: 85.7, y: 21.55, w: 12, h: 1.7, staticText: "Smart Max", align: "left", fontPct: 1.55 },
 
     // 본인부담금 — 인쇄된 "순응전 44,500원  순응후 17,800원"을 가리고
     // "( ) 순응전 44,500원   ( ) 순응후 17,800원"로 재배치(각 앞 선택 체크, 하나만).
     { key: "copay_cover", type: "text", x: 65.9, y: 24.0, w: 22.7, h: 1.55, cover: true },
-    { key: "copay_pre", type: "checkbox", x: 65.9, y: 24.05, w: 2.9, h: 1.6, label: "순응전", parenMark: true, group: "copay" },
+    { key: "copay_pre", type: "checkbox", x: 65.9, y: 24.05, w: 2.9, h: 1.6, label: "순응전", parenMark: true, group: "copay", requiredGroup: true },
     { key: "copay_pre_lbl", type: "text", x: 68.7, y: 24.05, w: 11, h: 1.6, staticText: "순응전 44,500원", align: "left", fontPct: 1.15 },
-    { key: "copay_post", type: "checkbox", x: 77.9, y: 24.05, w: 2.9, h: 1.6, label: "순응후", parenMark: true, group: "copay" },
+    { key: "copay_post", type: "checkbox", x: 77.9, y: 24.05, w: 2.9, h: 1.6, label: "순응후", parenMark: true, group: "copay", requiredGroup: true },
     { key: "copay_post_lbl", type: "text", x: 80.7, y: 24.05, w: 11, h: 1.6, staticText: "순응후 17,800원", align: "left", fontPct: 1.15 },
 
     // 개인정보 수집·이용 동의 체크박스

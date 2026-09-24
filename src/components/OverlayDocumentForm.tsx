@@ -413,7 +413,13 @@ function OverlayDocumentFormInner(
   // 편집 대상(텍스트·서명) 칸이 모두 채워졌는지
   function allFilled(): boolean {
     return overlay.fields.every((f) => {
-      if (f.type === "checkbox") return true; // 체크박스는 필수 아님(양자택일 포함)
+      if (f.type === "checkbox") {
+        // 필수 선택 그룹: 같은 group에서 하나라도 선택돼야 완료 가능
+        if (f.requiredGroup && f.group) {
+          return overlay.fields.some((g) => g.group === f.group && values[g.key] === true);
+        }
+        return true; // 그 외 체크박스는 필수 아님
+      }
       if (f.cover || f.staticText) return true; // 가림 박스·표시용 라벨은 입력 대상 아님
       if (f.optional) return true; // 선택 입력 항목(예: 자택 전화)
       if (f.requiredIf && values[f.requiredIf] !== true) return true; // 조건부 필수(예: 카드 선택 시에만)

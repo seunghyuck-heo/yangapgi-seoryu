@@ -46,6 +46,8 @@ export interface OverlayField {
   optional?: boolean;
   /** 지정한 체크박스 key가 체크됐을 때만 필수. 아니면 선택(빈 칸 허용) */
   requiredIf?: string;
+  /** 필수 선택 그룹(양자택일): 같은 group에서 하나도 선택 안 되면 작성완료 불가 */
+  requiredGroup?: boolean;
   /** 날짜: 오늘 날짜 자동 입력(편집 불가). 같은 dateGroup에 지정 */
   autoToday?: boolean;
   /** autoToday에 더할 연수(예: 5 → 오늘+5년). 위임 종료일 등에 사용 */
