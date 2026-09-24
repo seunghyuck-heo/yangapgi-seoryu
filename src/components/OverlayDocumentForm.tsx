@@ -563,7 +563,7 @@ function OverlayDocumentFormInner(
           cells.push(<span key={`g${si}`} style={{ flexGrow: 12, flexBasis: 0 }} />);
       });
       content = (
-        <span className="odoc-hotspot__boxes" style={{ fontSize: `${field.fontPct ?? 1.4}cqw` }}>
+        <span className="odoc-hotspot__boxes" style={{ fontSize: `${(field.fontPct ?? 1.4) * 1.1}cqw` }}>
           {cells}
         </span>
       );
@@ -578,7 +578,7 @@ function OverlayDocumentFormInner(
           <span
             className="odoc-hotspot__text"
             style={{
-              fontSize: `${field.fontPct ?? 1.4}cqw`,
+              fontSize: `${(field.fontPct ?? 1.4) * 1.1}cqw`,
               justifyContent:
                 field.align === "left"
                   ? "flex-start"
@@ -596,7 +596,7 @@ function OverlayDocumentFormInner(
       const str = typeof value === "string" ? value : "";
       if (str.trim()) filled = true;
       content = (
-        <span className="odoc-hotspot__boxes" style={{ fontSize: `${field.fontPct ?? 1.4}cqw` }}>
+        <span className="odoc-hotspot__boxes" style={{ fontSize: `${(field.fontPct ?? 1.4) * 1.1}cqw` }}>
           {Array.from({ length: field.boxes }).map((_, i) => (
             <span key={i} className="odoc-hotspot__boxcell">
               {str[i] ?? ""}
@@ -611,7 +611,7 @@ function OverlayDocumentFormInner(
           <span
             className="odoc-hotspot__text"
             style={{
-              fontSize: `${field.fontPct ?? 1.4}cqw`,
+              fontSize: `${(field.fontPct ?? 1.4) * 1.1}cqw`,
               justifyContent:
                 field.align === "left"
                   ? "flex-start"

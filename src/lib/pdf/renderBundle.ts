@@ -208,6 +208,7 @@ export async function renderOverlayPage(
     const bw = (field.w / 100) * W;
     const bh = (field.h / 100) * H;
     const fontPx = (field.fontPct ?? 1.4) * cqw;
+    const inputFontPx = fontPx * 1.1; // 입력 텍스트만 10% 확대(라벨/괄호 제외)
     const raw = values[field.key];
 
     // 인쇄 글자 가림 박스
@@ -262,7 +263,7 @@ export async function renderOverlayPage(
         }
         if (si < field.boxPattern!.length - 1) cursor += (12 / total) * bw;
       });
-      drawCells(ctx, chars, lefts, widths, by, bh, fontPx);
+      drawCells(ctx, chars, lefts, widths, by, bh, inputFontPx);
       continue;
     }
 
@@ -275,7 +276,7 @@ export async function renderOverlayPage(
       const lefts = Array.from({ length: n }, (_, i) => bx + i * cw);
       const widths = Array.from({ length: n }, () => cw);
       const chars = Array.from({ length: n }, (_, i) => str[i] ?? "");
-      drawCells(ctx, chars, lefts, widths, by, bh, fontPx);
+      drawCells(ctx, chars, lefts, widths, by, bh, inputFontPx);
       continue;
     }
 
@@ -285,7 +286,7 @@ export async function renderOverlayPage(
       if (!str.trim()) continue;
       const docPrefix = field.prefix && !field.hidePrefixOnDoc ? field.prefix : "";
       const display = docPrefix + formatBoxPattern(str, field.dashPattern);
-      drawText(ctx, display, bx, by, bw, bh, fontPx, field.align);
+      drawText(ctx, display, bx, by, bw, bh, inputFontPx, field.align);
       continue;
     }
 
@@ -295,7 +296,7 @@ export async function renderOverlayPage(
       : typeof raw === "string" && raw.trim()
         ? raw
         : null;
-    if (val) drawText(ctx, val, bx, by, bw, bh, fontPx, field.align);
+    if (val) drawText(ctx, val, bx, by, bw, bh, inputFontPx, field.align);
   }
 
   return canvas;
