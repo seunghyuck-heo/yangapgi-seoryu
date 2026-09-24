@@ -34,6 +34,14 @@ export const contractOverlay: OverlayDoc = {
     { key: "model_smartmax", type: "checkbox", x: 82.3, y: 21.55, w: 3.4, h: 1.7, label: "Smart Max", parenMark: true, group: "device_model" },
     { key: "model_smartmax_lbl", type: "text", x: 85.7, y: 21.55, w: 12, h: 1.7, staticText: "Smart Max", align: "left", fontPct: 1.55 },
 
+    // 본인부담금 — 인쇄된 "순응전 44,500원  순응후 17,800원"을 가리고
+    // "( ) 순응전 44,500원   ( ) 순응후 17,800원"로 재배치(각 앞 선택 체크, 하나만).
+    { key: "copay_cover", type: "text", x: 65.9, y: 23.85, w: 22.7, h: 1.95, cover: true },
+    { key: "copay_pre", type: "checkbox", x: 65.9, y: 24.05, w: 2.9, h: 1.6, label: "순응전", parenMark: true, group: "copay" },
+    { key: "copay_pre_lbl", type: "text", x: 68.7, y: 24.05, w: 11, h: 1.6, staticText: "순응전 44,500원", align: "left", fontPct: 1.15 },
+    { key: "copay_post", type: "checkbox", x: 77.9, y: 24.05, w: 2.9, h: 1.6, label: "순응후", parenMark: true, group: "copay" },
+    { key: "copay_post_lbl", type: "text", x: 80.7, y: 24.05, w: 11, h: 1.6, staticText: "순응후 17,800원", align: "left", fontPct: 1.15 },
+
     // 개인정보 수집·이용 동의 체크박스
     { key: "consent_yes", type: "checkbox", x: 73.72, y: 88.58, w: 2.6, h: 1.0, label: "개인정보 수집·이용 동의", fixedChecked: true },
 
