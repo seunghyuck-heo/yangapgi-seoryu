@@ -72,6 +72,8 @@ export default function SettingsPage() {
   }, [user]);
 
   const displayName = profileName.trim() || (user?.email ? user.email.split("@")[0] : "사용자");
+  const meta = user?.user_metadata as { avatar_url?: string; picture?: string } | undefined;
+  const avatarUrl = meta?.avatar_url || meta?.picture || "";
 
   async function handleAuth(e: React.FormEvent) {
     e.preventDefault();
@@ -163,10 +165,15 @@ export default function SettingsPage() {
           <>
             <div className="profile-card">
               <div className="profile-card__avatar" aria-hidden>
-                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="8" r="4" />
-                  <path d="M4 21c0-3.3 3.6-6 8-6s8 2.7 8 6" />
-                </svg>
+                {avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={avatarUrl} alt="" className="profile-card__photo" referrerPolicy="no-referrer" />
+                ) : (
+                  <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="8" r="4" />
+                    <path d="M4 21c0-3.3 3.6-6 8-6s8 2.7 8 6" />
+                  </svg>
+                )}
               </div>
               <div className="profile-card__main">
                 {profileLoaded ? (
