@@ -1936,6 +1936,64 @@ input[type="password"]::placeholder {
   color: #333;
 }
 
+/* ===== 환자관리카드 핀치줌 뷰포트 ===== */
+.carecard-zoom {
+  position: relative;
+  width: 100%;
+  height: calc(100dvh - 96px);
+  overflow: hidden;
+  touch-action: none;
+  overscroll-behavior: contain;
+  background: var(--bg, #eef1f6);
+}
+.carecard-zoom__content {
+  transform-origin: 0 0;
+  width: 100%;
+  will-change: transform;
+}
+.carecard-zoom .carecard-wrap {
+  overflow: visible;
+}
+
+/* ===== 환자관리카드 편집 셀(파란 블록) ===== */
+.cc-visit .cc-edit {
+  cursor: pointer;
+  position: relative;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.cc-visit .cc-edit--empty {
+  background: rgba(47, 95, 221, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(47, 95, 221, 0.5);
+}
+.cc-visit .cc-edit {
+  font-weight: 700;
+  color: #12203f;
+}
+.cc-usage-cell .cc-vr__val {
+  pointer-events: none;
+}
+.cc-usage-select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+.cc-savestate {
+  flex: 1;
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted, #6b7280);
+}
+
 .doc-card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
@@ -2661,6 +2719,16 @@ input[type="password"]::placeholder {
   }
 
   /* 양압기 환자관리카드 인쇄: A4 한 장 채우기 */
+  .carecard-zoom {
+    height: auto !important;
+    overflow: visible !important;
+    touch-action: auto !important;
+    background: #fff !important;
+  }
+  .carecard-zoom__content {
+    transform: none !important;
+    width: 100% !important;
+  }
   .carecard-wrap {
     overflow: visible !important;
   }
@@ -2669,6 +2737,14 @@ input[type="password"]::placeholder {
     border: none !important;
     box-shadow: none !important;
     padding: 0 !important;
+  }
+  /* 편집 표시(파란 블록)·드롭다운 오버레이는 인쇄에서 숨김 */
+  .cc-visit .cc-edit--empty {
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+  .cc-usage-select {
+    display: none !important;
   }
 }
 

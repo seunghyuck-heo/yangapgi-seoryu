@@ -35,10 +35,12 @@ export type DocType =
   | "contract"
   | "subsidy_application"
   | "cms_autopay"
-  | "power_of_attorney";
+  | "power_of_attorney"
+  // 지속 관리 서류 — 5개 기본 서류 목록/번들에는 포함하지 않음(DOC_TYPE_ORDER 제외)
+  | "care_card";
 
 export interface DocumentTemplate {
-  docType: Exclude<DocType, "id_card">;
+  docType: Exclude<DocType, "id_card" | "care_card">;
   title: string;
   subtitle?: string;
   sections: TemplateSection[];
@@ -50,6 +52,7 @@ export const DOC_TYPE_LABELS: Record<DocType, string> = {
   subsidy_application: "급여대상자 등록 신청서",
   cms_autopay: "CMS 자동이체신청서",
   power_of_attorney: "요양비 지급청구 위임장",
+  care_card: "양압기 환자관리카드",
 };
 
 export const DOC_TYPE_ICONS: Record<DocType, string> = {
@@ -58,6 +61,7 @@ export const DOC_TYPE_ICONS: Record<DocType, string> = {
   subsidy_application: "📝",
   cms_autopay: "💳",
   power_of_attorney: "🖊️",
+  care_card: "🗂️",
 };
 
 export const DOC_TYPE_ORDER: DocType[] = [

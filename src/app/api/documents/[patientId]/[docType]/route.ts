@@ -5,14 +5,15 @@ import {
   getDocument,
   upsertDocument,
 } from "@/lib/db/documents";
-import { DOC_TYPE_ORDER, DocType } from "@/lib/templates/types";
+import { DOC_TYPE_LABELS, DocType } from "@/lib/templates/types";
 
 interface Params {
   params: Promise<{ patientId: string; docType: string }>;
 }
 
 function isValidDocType(value: string): value is DocType {
-  return (DOC_TYPE_ORDER as string[]).includes(value);
+  // 5개 기본 서류 + 지속관리 서류(care_card) 모두 저장 허용
+  return Object.prototype.hasOwnProperty.call(DOC_TYPE_LABELS, value);
 }
 
 export async function GET(_request: NextRequest, { params }: Params) {

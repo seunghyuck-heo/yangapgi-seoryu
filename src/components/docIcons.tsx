@@ -71,4 +71,15 @@ export const DOC_ICON_STYLES: Record<DocType, IconStyle> = {
       </svg>
     ),
   },
+  care_card: {
+    bg: "#d7f5f2",
+    color: "#0ea5a3",
+    icon: (
+      <svg width="24" height="24" viewBox="0 0 24 24" stroke="currentColor" {...stroke}>
+        <rect x="4" y="3" width="16" height="18" rx="2" />
+        <path d="M9 3v3h6V3" />
+        <path d="M8 11h8M8 15h5" />
+      </svg>
+    ),
+  },
 };
