@@ -75,7 +75,9 @@ function formatBirth(raw: string): string {
 
 // 전화번호 → 010-XXXX-XXXX
 function formatPhone(raw: string): string {
-  const d = raw.replace(/\D/g, "");
+  let d = raw.replace(/\D/g, "");
+  // 서류 필드는 앞자리(010-)를 제외한 8자리로 저장됨 → 010 보정
+  if (d.length === 8) d = "010" + d;
   if (d.length === 11) return `${d.slice(0, 3)}-${d.slice(3, 7)}-${d.slice(7)}`;
   if (d.length === 10) return `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}`;
   return raw.trim();
@@ -88,12 +90,6 @@ function fmtVisitDate(iso: string): string {
   return `${m[1].slice(2)}.${m[2]}.${m[3]}`;
 }
 
-function todayISO(): string {
-  const d = new Date();
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
-}
-
 // 양압기 환자관리카드 (별지 제5호 서식) — A4 한 장. 기본정보 자동채움 + 방문점검 편집/저장.
 export default function CareCardForm({ patientId, backHref }: CareCardFormProps) {
   const router = useRouter();
@@ -102,8 +98,6 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
   const loadedRef = useRef(false);
-  const dateInputRef = useRef<HTMLInputElement | null>(null);
-  const activeDateRow = useRef<number | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -156,23 +150,6 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
     [save]
   );
 
-  function openDate(i: number) {
-    activeDateRow.current = i;
-    const input = dateInputRef.current;
-    if (!input) return;
-    input.value = visits[i].date || todayISO();
-    if (typeof input.showPicker === "function") {
-      try {
-        input.showPicker();
-        return;
-      } catch {
-        /* fallback */
-      }
-    }
-    input.focus();
-    input.click();
-  }
-
   const docs = patient?.documents ?? [];
   const subsidy = fd(docs, "subsidy_application");
   const poa = fd(docs, "power_of_attorney");
@@ -190,7 +167,20 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
     : "";
   const phone = phoneRaw ? formatPhone(phoneRaw) : "";
 
-  const editCell = (filled: boolean, extra = "") => `cc-vr cc-edit${filled ? "" : " cc-edit--empty"}${extra ? " " + extra : ""}`;
+  // 스텝바이스텝: 날짜가 비어있는 첫 행이 "현재 입력 행"(파란 블록). 그 다음 행은 잠금.
+  const activeIndex = (() => {
+    const idx = visits.findIndex((v) => !v.date);
+    return idx === -1 ? VISIT_COUNT : idx;
+  })();
+
+  // filled: 값이 있는지 / editable: 이 행이 입력 가능(현재행 이하) / active: 현재 입력 행
+  const cellCls = (filled: boolean, editable: boolean, active: boolean, extra = "") => {
+    let c = "cc-vr";
+    if (editable) c += " cc-edit";
+    if (editable && active && !filled) c += " cc-edit--empty";
+    if (extra) c += " " + extra;
+    return c;
+  };
 
   return (
     <div className="doc-page">
@@ -289,6 +279,18 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
             {/* ④ 방문점검 서비스 기록 (편집 가능) */}
             <div className="cc-sec">④ 방문점검 서비스 기록</div>
             <table className="cc-table cc-visit">
+              <colgroup>
+                <col className="ccw-date" />
+                <col className="ccw-insp" />
+                <col className="ccw-insp" />
+                <col className="ccw-insp" />
+                <col className="ccw-insp" />
+                <col className="ccw-insp" />
+                <col className="ccw-usage" />
+                <col className="ccw-action" />
+                <col className="ccw-sign" />
+                <col className="ccw-sign" />
+              </colgroup>
               <thead>
                 <tr>
                   <th rowSpan={2} className="cc-vh cc-vh--date">날짜</th>
@@ -310,47 +312,65 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
                 </tr>
               </thead>
               <tbody>
-                {visits.map((v, i) => (
-                  <tr key={i}>
-                    <td className={editCell(!!v.date, "cc-vr--date")} onClick={() => openDate(i)}>
-                      {v.date ? fmtVisitDate(v.date) : ""}
-                    </td>
-                    <td className={editCell(v.cpap)} onClick={() => update(i, { cpap: !v.cpap })}>
-                      {v.cpap ? "O" : ""}
-                    </td>
-                    <td className={editCell(v.supply)} onClick={() => update(i, { supply: !v.supply })}>
-                      {v.supply ? "O" : ""}
-                    </td>
-                    <td className={editCell(v.hygiene)} onClick={() => update(i, { hygiene: !v.hygiene })}>
-                      {v.hygiene ? "O" : ""}
-                    </td>
-                    <td className={editCell(v.alarm)} onClick={() => update(i, { alarm: !v.alarm })}>
-                      {v.alarm ? "O" : ""}
-                    </td>
-                    <td className={editCell(v.pressure)} onClick={() => update(i, { pressure: !v.pressure })}>
-                      {v.pressure ? "O" : ""}
-                    </td>
-                    <td className={editCell(!!v.usage, "cc-usage-cell")}>
-                      <span className="cc-vr__val">{v.usage ? `${v.usage}시간` : ""}</span>
-                      <select
-                        className="cc-usage-select"
-                        value={v.usage}
-                        onChange={(e) => update(i, { usage: e.target.value })}
-                        aria-label="사용시간 선택"
-                      >
-                        <option value=""></option>
-                        {Array.from({ length: 12 }, (_, n) => n + 1).map((h) => (
-                          <option key={h} value={String(h)}>
-                            {h}시간
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="cc-vr" />
-                    <td className="cc-vr" />
-                    <td className="cc-vr" />
-                  </tr>
-                ))}
+                {visits.map((v, i) => {
+                  const editable = i <= activeIndex;
+                  const active = i === activeIndex;
+                  const toggle = (key: keyof Visit) => {
+                    if (editable) update(i, { [key]: !v[key] } as Partial<Visit>);
+                  };
+                  return (
+                    <tr key={i}>
+                      <td className={cellCls(!!v.date, editable, active, "cc-vr--date cc-date-cell")}>
+                        <span className="cc-vr__val">{v.date ? fmtVisitDate(v.date) : ""}</span>
+                        {editable && (
+                          <input
+                            type="date"
+                            className="cc-date-input"
+                            value={v.date}
+                            onChange={(e) => update(i, { date: e.target.value })}
+                            aria-label="방문 날짜"
+                          />
+                        )}
+                      </td>
+                      <td className={cellCls(v.cpap, editable, active)} onClick={() => toggle("cpap")}>
+                        {v.cpap ? "O" : ""}
+                      </td>
+                      <td className={cellCls(v.supply, editable, active)} onClick={() => toggle("supply")}>
+                        {v.supply ? "O" : ""}
+                      </td>
+                      <td className={cellCls(v.hygiene, editable, active)} onClick={() => toggle("hygiene")}>
+                        {v.hygiene ? "O" : ""}
+                      </td>
+                      <td className={cellCls(v.alarm, editable, active)} onClick={() => toggle("alarm")}>
+                        {v.alarm ? "O" : ""}
+                      </td>
+                      <td className={cellCls(v.pressure, editable, active)} onClick={() => toggle("pressure")}>
+                        {v.pressure ? "O" : ""}
+                      </td>
+                      <td className={cellCls(!!v.usage, editable, active, "cc-usage-cell")}>
+                        <span className="cc-vr__val">{v.usage ? `${v.usage}시간` : ""}</span>
+                        {editable && (
+                          <select
+                            className="cc-usage-select"
+                            value={v.usage}
+                            onChange={(e) => update(i, { usage: e.target.value })}
+                            aria-label="사용시간 선택"
+                          >
+                            <option value=""></option>
+                            {Array.from({ length: 12 }, (_, n) => n + 1).map((h) => (
+                              <option key={h} value={String(h)}>
+                                {h}시간
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                      </td>
+                      <td className="cc-vr" />
+                      <td className="cc-vr" />
+                      <td className="cc-vr" />
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
 
@@ -379,18 +399,6 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
           </div>
         </div>
       </CareCardZoom>
-
-      {/* 숨긴 날짜 입력: 방문점검 날짜 칸 탭 시 네이티브 캘린더 호출 */}
-      <input
-        ref={dateInputRef}
-        type="date"
-        className="odoc-hidden-date"
-        onChange={(e) => {
-          if (activeDateRow.current != null && e.target.value) {
-            update(activeDateRow.current, { date: e.target.value });
-          }
-        }}
-      />
     </div>
   );
 }
