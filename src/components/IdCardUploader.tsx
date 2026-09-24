@@ -350,7 +350,7 @@ export default function IdCardUploader({ patientId, initialUrl, backHref }: IdCa
           <button
             type="button"
             className="primary"
-            style={{ width: "100%", padding: 14, fontSize: 15, fontWeight: 700, borderRadius: 999 }}
+            style={{ width: 130, padding: "14px 0", fontSize: 15, fontWeight: 700, borderRadius: 999 }}
             onClick={() => setSheetOpen(true)}
             disabled={uploading}
           >
