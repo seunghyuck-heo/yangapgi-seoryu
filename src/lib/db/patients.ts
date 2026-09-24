@@ -13,42 +13,55 @@ export async function listPatients(search?: string): Promise<PatientWithDocument
   const { data: patients, error } = await query;
   if (error) throw new Error(error.message);
 
+  // 목록/배지는 doc_type·status·file_path만 사용 → 대용량 form_data(서명 base64 등)는 제외해 속도 개선
   const { data: documents, error: docsError } = await supabase
     .from("documents")
-    .select("*");
+    .select("id, patient_id, doc_type, status, file_path, completed_at, updated_at");
   if (docsError) throw new Error(docsError.message);
+
+  // 고객번호·증명사진 경로는 id_card의 form_data에만 있고 용량이 작음 → 별도 조회
+  const { data: idDocs, error: idErr } = await supabase
+    .from("documents")
+    .select("patient_id, form_data")
+    .eq("doc_type", "id_card");
+  if (idErr) throw new Error(idErr.message);
+  const idInfo = new Map<string, { customerNo: number | null; photoPath: string | null }>();
+  for (const d of idDocs ?? []) {
+    const fdt = ((d as { form_data?: Record<string, unknown> }).form_data ?? {}) as Record<string, unknown>;
+    idInfo.set((d as { patient_id: string }).patient_id, {
+      customerNo: typeof fdt.customer_no === "number" ? fdt.customer_no : null,
+      photoPath: typeof fdt.photo_path === "string" ? fdt.photo_path : null,
+    });
+  }
 
   const documentsByPatient = new Map<string, PatientDocument[]>();
   for (const doc of documents ?? []) {
     const list = documentsByPatient.get(doc.patient_id) ?? [];
-    list.push(doc as PatientDocument);
+    // form_data는 목록에서 불필요 → 빈 객체 placeholder
+    list.push({ ...(doc as object), form_data: {} } as PatientDocument);
     documentsByPatient.set(doc.patient_id, list);
   }
 
   const result: PatientWithDocuments[] = (patients ?? []).map((p) => {
     const docs = documentsByPatient.get(p.id) ?? [];
-    const idDoc = docs.find((d) => d.doc_type === "id_card");
-    const cn = idDoc?.form_data?.customer_no;
     return {
       ...(p as Patient),
       documents: docs,
-      customer_no: typeof cn === "number" ? cn : null,
+      customer_no: idInfo.get(p.id)?.customerNo ?? null,
     };
   });
 
   // 신분증 증명사진(photo_path) 서명 URL 부여 → 포토ID 아바타
   const photoPaths: string[] = [];
   for (const p of result) {
-    const idDoc = p.documents.find((d) => d.doc_type === "id_card");
-    const pp = idDoc?.form_data?.photo_path;
-    if (typeof pp === "string" && pp) photoPaths.push(pp);
+    const pp = idInfo.get(p.id)?.photoPath;
+    if (pp) photoPaths.push(pp);
   }
   if (photoPaths.length) {
     const signed = await createSignedUrls(photoPaths);
     for (const p of result) {
-      const idDoc = p.documents.find((d) => d.doc_type === "id_card");
-      const pp = idDoc?.form_data?.photo_path;
-      p.photo_url = typeof pp === "string" && signed[pp] ? signed[pp] : null;
+      const pp = idInfo.get(p.id)?.photoPath;
+      p.photo_url = pp && signed[pp] ? signed[pp] : null;
     }
   }
 
