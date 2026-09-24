@@ -129,7 +129,6 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
 
   // 편집 팝업들
   const [actionRow, setActionRow] = useState<number | null>(null); // 조치사항 입력
-  const [actionDraft, setActionDraft] = useState("");
   const [providerRow, setProviderRow] = useState<number | null>(null); // 준요양기관 선택
   const [providerDraft, setProviderDraft] = useState("");
   const [signRow, setSignRow] = useState<number | null>(null); // 환자(가족) 서명
@@ -260,26 +259,18 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
     return idx === -1 ? VISIT_COUNT : idx;
   })();
 
-  // 편집 가능한(잠기지 않은) 행의 빈 칸은 항상 블록 표시(탭으로 O 껐다 켜면 다시 블록)
+  // 블록 표시 규칙
+  //  - 작성중(blue): 아직 안 채운 빈 칸에 파란 블록 (탭으로 O 껐다 켜면 다시 파란 블록)
+  //  - 수정(green): 이미 입력한 칸에 초록 블록
   const cellCls = (filled: boolean, rowEditable: boolean, extra = "") => {
     let c = "cc-vr";
     if (rowEditable) c += " cc-edit";
-    if (rowEditable && !filled) {
-      c += mode === "green" ? " cc-edit--green" : " cc-edit--empty";
-    }
+    if (rowEditable && mode === "green" && filled) c += " cc-edit--green";
+    else if (rowEditable && mode === "blue" && !filled) c += " cc-edit--empty";
     if (extra) c += " " + extra;
     return c;
   };
 
-  function openAction(i: number) {
-    setActionDraft(visits[i].action);
-    setActionRow(i);
-  }
-  function saveAction() {
-    if (actionRow == null) return;
-    update(actionRow, { action: actionDraft.slice(0, ACTION_MAX) });
-    setActionRow(null);
-  }
   function openProvider(i: number) {
     setProviderDraft(visits[i].provider);
     setProviderRow(i);
@@ -445,19 +436,19 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
                         )}
                       </td>
                       <td className={cellCls(v.cpap, rowEditable)} onClick={() => toggle("cpap")}>
-                        {v.cpap ? "O" : ""}
+                        {v.cpap ? <span className="cc-o">O</span> : ""}
                       </td>
                       <td className={cellCls(v.supply, rowEditable)} onClick={() => toggle("supply")}>
-                        {v.supply ? "O" : ""}
+                        {v.supply ? <span className="cc-o">O</span> : ""}
                       </td>
                       <td className={cellCls(v.hygiene, rowEditable)} onClick={() => toggle("hygiene")}>
-                        {v.hygiene ? "O" : ""}
+                        {v.hygiene ? <span className="cc-o">O</span> : ""}
                       </td>
                       <td className={cellCls(v.alarm, rowEditable)} onClick={() => toggle("alarm")}>
-                        {v.alarm ? "O" : ""}
+                        {v.alarm ? <span className="cc-o">O</span> : ""}
                       </td>
                       <td className={cellCls(v.pressure, rowEditable)} onClick={() => toggle("pressure")}>
-                        {v.pressure ? "O" : ""}
+                        {v.pressure ? <span className="cc-o">O</span> : ""}
                       </td>
                       <td className={cellCls(!!v.usage, rowEditable, "cc-usage-cell")}>
                         <span className="cc-vr__val">{v.usage ? `${v.usage}시간` : ""}</span>
@@ -480,7 +471,7 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
                       {/* 조치사항: 탭 → 입력 팝업(최대 150자), 셀은 2줄 말줄임 */}
                       <td
                         className={cellCls(!!v.action, rowEditable, "cc-action-cell")}
-                        onClick={() => rowEditable && openAction(i)}
+                        onClick={() => rowEditable && setActionRow(i)}
                       >
                         <span className="cc-vr__clamp">{v.action}</span>
                       </td>
@@ -574,33 +565,16 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
         </div>
       )}
 
-      {/* 조치사항 입력 팝업 (최대 150자, 전체 표시) */}
+      {/* 조치사항 입력 팝업 (자체 상태로 분리 → 타이핑 시 표 전체 리렌더 방지) */}
       {actionRow != null && (
-        <div className="sheet-overlay" onClick={() => setActionRow(null)}>
-          <div className="sheet field-popup" onClick={(e) => e.stopPropagation()}>
-            <div className="field-popup__label">조치사항 (소독 및 소모품 교체 등)</div>
-            <textarea
-              className="cc-action-input"
-              value={actionDraft}
-              maxLength={ACTION_MAX}
-              rows={5}
-              autoFocus
-              placeholder="조치 내용을 입력하세요 (최대 150자)"
-              onChange={(e) => setActionDraft(e.target.value.slice(0, ACTION_MAX))}
-            />
-            <div className="cc-action-count">
-              {actionDraft.length} / {ACTION_MAX}
-            </div>
-            <div className="field-popup__actions">
-              <button type="button" onClick={() => setActionRow(null)}>
-                취소
-              </button>
-              <button type="button" className="primary" onClick={saveAction}>
-                확인
-              </button>
-            </div>
-          </div>
-        </div>
+        <ActionEditor
+          initial={visits[actionRow].action}
+          onCancel={() => setActionRow(null)}
+          onConfirm={(text) => {
+            if (actionRow != null) update(actionRow, { action: text.slice(0, ACTION_MAX) });
+            setActionRow(null);
+          }}
+        />
       )}
 
       {/* 준요양기관 점검자 선택 팝업 */}
@@ -656,6 +630,46 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// 조치사항 입력 팝업 — 자체 로컬 상태로 타이핑을 처리(부모 표 리렌더 방지)
+function ActionEditor({
+  initial,
+  onCancel,
+  onConfirm,
+}: {
+  initial: string;
+  onCancel: () => void;
+  onConfirm: (text: string) => void;
+}) {
+  const [text, setText] = useState(initial);
+  return (
+    <div className="sheet-overlay" onClick={onCancel}>
+      <div className="sheet field-popup" onClick={(e) => e.stopPropagation()}>
+        <div className="field-popup__label">조치사항 (소독 및 소모품 교체 등)</div>
+        <textarea
+          className="cc-action-input"
+          value={text}
+          maxLength={ACTION_MAX}
+          rows={5}
+          autoFocus
+          placeholder="조치 내용을 입력하세요 (최대 150자)"
+          onChange={(e) => setText(e.target.value.slice(0, ACTION_MAX))}
+        />
+        <div className="cc-action-count">
+          {text.length} / {ACTION_MAX}
+        </div>
+        <div className="field-popup__actions">
+          <button type="button" onClick={onCancel}>
+            취소
+          </button>
+          <button type="button" className="primary" onClick={() => onConfirm(text)}>
+            확인
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

@@ -1988,6 +1988,14 @@ input[type="password"]::placeholder {
   font-weight: 600;
   color: #12203f;
 }
+/* 점검 O 표시: 기록값보다 10% 크게 */
+.cc-visit .cc-o {
+  font-size: 1.33cqw;
+  font-weight: 700;
+  line-height: 1;
+  display: inline-block;
+  color: #12203f;
+}
 .cc-usage-cell .cc-vr__val,
 .cc-date-cell .cc-vr__val {
   pointer-events: none;
