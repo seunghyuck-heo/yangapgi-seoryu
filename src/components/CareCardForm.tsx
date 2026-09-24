@@ -6,6 +6,7 @@ import { PatientWithDocuments, PatientDocument } from "@/lib/db/types";
 import { DocType } from "@/lib/templates/types";
 import { PATIENTS_CHANGED_EVENT } from "./BottomTabs";
 import CareCardZoom from "./CareCardZoom";
+import SignaturePad from "./SignaturePad";
 
 interface CareCardFormProps {
   patientId: string;
@@ -15,6 +16,9 @@ interface CareCardFormProps {
 const CALL_CENTER = "010-5966-2460";
 const VISIT_COUNT = 12;
 
+const PROVIDERS = ["한혜리", "백영신"];
+const ACTION_MAX = 150;
+
 interface Visit {
   date: string; // YYYY-MM-DD
   cpap: boolean; // 양압기 점검
@@ -23,10 +27,24 @@ interface Visit {
   alarm: boolean; // 알람기능 작동여부
   pressure: boolean; // 설정압력 유지여부
   usage: string; // 사용시간 (1~12)
+  action: string; // 조치사항 (최대 150자)
+  provider: string; // 준요양기관 점검자 (한혜리/백영신)
+  guardianSign: string; // 환자(가족) 서명 이미지(data URL)
 }
 
 function blankVisit(): Visit {
-  return { date: "", cpap: false, supply: false, hygiene: false, alarm: false, pressure: false, usage: "" };
+  return {
+    date: "",
+    cpap: false,
+    supply: false,
+    hygiene: false,
+    alarm: false,
+    pressure: false,
+    usage: "",
+    action: "",
+    provider: "",
+    guardianSign: "",
+  };
 }
 
 function normalizeVisits(raw: unknown): Visit[] {
@@ -42,6 +60,9 @@ function normalizeVisits(raw: unknown): Visit[] {
       alarm: !!v.alarm,
       pressure: !!v.pressure,
       usage: typeof v.usage === "string" ? v.usage : v.usage != null ? String(v.usage) : "",
+      action: typeof v.action === "string" ? v.action : "",
+      provider: typeof v.provider === "string" ? v.provider : "",
+      guardianSign: typeof v.guardianSign === "string" ? v.guardianSign : "",
     });
   }
   return out;
@@ -105,6 +126,13 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
 
   const editSnapshotRef = useRef<string>("");
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // 편집 팝업들
+  const [actionRow, setActionRow] = useState<number | null>(null); // 조치사항 입력
+  const [actionDraft, setActionDraft] = useState("");
+  const [providerRow, setProviderRow] = useState<number | null>(null); // 준요양기관 선택
+  const [providerDraft, setProviderDraft] = useState("");
+  const [signRow, setSignRow] = useState<number | null>(null); // 환자(가족) 서명
 
   useEffect(() => {
     fetch(`/api/patients/${patientId}`)
@@ -232,15 +260,35 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
     return idx === -1 ? VISIT_COUNT : idx;
   })();
 
-  const cellCls = (filled: boolean, rowEditable: boolean, active: boolean, extra = "") => {
+  // 편집 가능한(잠기지 않은) 행의 빈 칸은 항상 블록 표시(탭으로 O 껐다 켜면 다시 블록)
+  const cellCls = (filled: boolean, rowEditable: boolean, extra = "") => {
     let c = "cc-vr";
-    if (editing && rowEditable) c += " cc-edit";
-    if (editing && rowEditable && active && !filled) {
+    if (rowEditable) c += " cc-edit";
+    if (rowEditable && !filled) {
       c += mode === "green" ? " cc-edit--green" : " cc-edit--empty";
     }
     if (extra) c += " " + extra;
     return c;
   };
+
+  function openAction(i: number) {
+    setActionDraft(visits[i].action);
+    setActionRow(i);
+  }
+  function saveAction() {
+    if (actionRow == null) return;
+    update(actionRow, { action: actionDraft.slice(0, ACTION_MAX) });
+    setActionRow(null);
+  }
+  function openProvider(i: number) {
+    setProviderDraft(visits[i].provider);
+    setProviderRow(i);
+  }
+  function saveProvider() {
+    if (providerRow == null) return;
+    update(providerRow, { provider: providerDraft });
+    setProviderRow(null);
+  }
 
   return (
     <div className="doc-page">
@@ -379,13 +427,12 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
               <tbody>
                 {visits.map((v, i) => {
                   const rowEditable = editing && i <= activeIndex;
-                  const active = i === activeIndex;
                   const toggle = (key: keyof Visit) => {
                     if (rowEditable) update(i, { [key]: !v[key] } as Partial<Visit>);
                   };
                   return (
                     <tr key={i}>
-                      <td className={cellCls(!!v.date, rowEditable, active, "cc-vr--date cc-date-cell")}>
+                      <td className={cellCls(!!v.date, rowEditable, "cc-vr--date cc-date-cell")}>
                         <span className="cc-vr__val">{v.date ? fmtVisitDate(v.date) : ""}</span>
                         {rowEditable && (
                           <input
@@ -397,22 +444,22 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
                           />
                         )}
                       </td>
-                      <td className={cellCls(v.cpap, rowEditable, active)} onClick={() => toggle("cpap")}>
+                      <td className={cellCls(v.cpap, rowEditable)} onClick={() => toggle("cpap")}>
                         {v.cpap ? "O" : ""}
                       </td>
-                      <td className={cellCls(v.supply, rowEditable, active)} onClick={() => toggle("supply")}>
+                      <td className={cellCls(v.supply, rowEditable)} onClick={() => toggle("supply")}>
                         {v.supply ? "O" : ""}
                       </td>
-                      <td className={cellCls(v.hygiene, rowEditable, active)} onClick={() => toggle("hygiene")}>
+                      <td className={cellCls(v.hygiene, rowEditable)} onClick={() => toggle("hygiene")}>
                         {v.hygiene ? "O" : ""}
                       </td>
-                      <td className={cellCls(v.alarm, rowEditable, active)} onClick={() => toggle("alarm")}>
+                      <td className={cellCls(v.alarm, rowEditable)} onClick={() => toggle("alarm")}>
                         {v.alarm ? "O" : ""}
                       </td>
-                      <td className={cellCls(v.pressure, rowEditable, active)} onClick={() => toggle("pressure")}>
+                      <td className={cellCls(v.pressure, rowEditable)} onClick={() => toggle("pressure")}>
                         {v.pressure ? "O" : ""}
                       </td>
-                      <td className={cellCls(!!v.usage, rowEditable, active, "cc-usage-cell")}>
+                      <td className={cellCls(!!v.usage, rowEditable, "cc-usage-cell")}>
                         <span className="cc-vr__val">{v.usage ? `${v.usage}시간` : ""}</span>
                         {rowEditable && (
                           <select
@@ -430,9 +477,30 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
                           </select>
                         )}
                       </td>
-                      <td className="cc-vr" />
-                      <td className="cc-vr" />
-                      <td className="cc-vr" />
+                      {/* 조치사항: 탭 → 입력 팝업(최대 150자), 셀은 2줄 말줄임 */}
+                      <td
+                        className={cellCls(!!v.action, rowEditable, "cc-action-cell")}
+                        onClick={() => rowEditable && openAction(i)}
+                      >
+                        <span className="cc-vr__clamp">{v.action}</span>
+                      </td>
+                      {/* 준요양기관: 탭 → 한혜리/백영신 선택 */}
+                      <td
+                        className={cellCls(!!v.provider, rowEditable)}
+                        onClick={() => rowEditable && openProvider(i)}
+                      >
+                        <span className="cc-vr__val">{v.provider}</span>
+                      </td>
+                      {/* 환자(가족): 탭 → 서명 팝업 */}
+                      <td
+                        className={cellCls(!!v.guardianSign, rowEditable)}
+                        onClick={() => rowEditable && setSignRow(i)}
+                      >
+                        {v.guardianSign ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={v.guardianSign} alt="환자(가족) 서명" className="cc-vr__sign" />
+                        ) : null}
+                      </td>
                     </tr>
                   );
                 })}
@@ -500,6 +568,89 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
               </button>
               <button type="button" className="primary" onClick={saveEdits} disabled={saving}>
                 {saving ? "반영 중..." : "반영하기"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 조치사항 입력 팝업 (최대 150자, 전체 표시) */}
+      {actionRow != null && (
+        <div className="sheet-overlay" onClick={() => setActionRow(null)}>
+          <div className="sheet field-popup" onClick={(e) => e.stopPropagation()}>
+            <div className="field-popup__label">조치사항 (소독 및 소모품 교체 등)</div>
+            <textarea
+              className="cc-action-input"
+              value={actionDraft}
+              maxLength={ACTION_MAX}
+              rows={5}
+              autoFocus
+              placeholder="조치 내용을 입력하세요 (최대 150자)"
+              onChange={(e) => setActionDraft(e.target.value.slice(0, ACTION_MAX))}
+            />
+            <div className="cc-action-count">
+              {actionDraft.length} / {ACTION_MAX}
+            </div>
+            <div className="field-popup__actions">
+              <button type="button" onClick={() => setActionRow(null)}>
+                취소
+              </button>
+              <button type="button" className="primary" onClick={saveAction}>
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 준요양기관 점검자 선택 팝업 */}
+      {providerRow != null && (
+        <div className="sheet-overlay sheet-overlay--center" onClick={() => setProviderRow(null)}>
+          <div className="sheet sheet--center" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet__title sheet__title--name">준요양기관 점검자</div>
+            <div className="cc-provider-list">
+              {PROVIDERS.map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  className={`cc-provider-item${providerDraft === p ? " is-on" : ""}`}
+                  onClick={() => setProviderDraft(p)}
+                >
+                  <span className="cc-provider-check" aria-hidden>
+                    {providerDraft === p ? "✓" : ""}
+                  </span>
+                  {p}
+                </button>
+              ))}
+            </div>
+            <div className="field-popup__actions">
+              <button type="button" onClick={() => setProviderRow(null)}>
+                취소
+              </button>
+              <button type="button" className="primary" onClick={saveProvider} disabled={!providerDraft}>
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 환자(가족) 서명 팝업 (계약서와 동일) */}
+      {signRow != null && (
+        <div className="sheet-overlay" onClick={() => setSignRow(null)}>
+          <div className="sheet field-popup" onClick={(e) => e.stopPropagation()}>
+            <SignaturePad
+              label="환자(가족) 서명"
+              confirmLabel="서명 확정"
+              existingUrl={visits[signRow].guardianSign || undefined}
+              onSave={(dataUrl) => {
+                update(signRow, { guardianSign: dataUrl });
+                setSignRow(null);
+              }}
+            />
+            <div className="field-popup__actions">
+              <button type="button" onClick={() => setSignRow(null)}>
+                닫기
               </button>
             </div>
           </div>
