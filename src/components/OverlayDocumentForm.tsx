@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { OverlayDoc, OverlayField } from "@/lib/overlays/types";
 import ZoomableDocument from "./ZoomableDocument";
 import SignaturePad from "./SignaturePad";
+import { PATIENTS_CHANGED_EVENT } from "./BottomTabs";
 
 interface OverlayDocumentFormProps {
   overlay: OverlayDoc;
@@ -451,7 +452,15 @@ function OverlayDocumentFormInner(
         setError(json.error || "저장 실패");
         return;
       }
-      if (targetStatus === "completed") router.push(backHref);
+      if (targetStatus === "completed") {
+        try {
+          window.dispatchEvent(new Event(PATIENTS_CHANGED_EVENT));
+        } catch {
+          // 무시
+        }
+        // 작성완료하면 환자목록으로 이동(서식 제출 흐름). 환자 상세에서 온 경우엔 해당 폴더로.
+        router.push(backHref === "/submit" ? "/patients" : backHref);
+      }
     } finally {
       setSaving(false);
     }
