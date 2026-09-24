@@ -44,6 +44,8 @@ export interface OverlayField {
   addressSearch?: boolean;
   /** 작성완료 시 필수 아님(빈 칸이어도 완료 가능) */
   optional?: boolean;
+  /** 지정한 체크박스 key가 체크됐을 때만 필수. 아니면 선택(빈 칸 허용) */
+  requiredIf?: string;
   /** 날짜: 오늘 날짜 자동 입력(편집 불가). 같은 dateGroup에 지정 */
   autoToday?: boolean;
   /** autoToday에 더할 연수(예: 5 → 오늘+5년). 위임 종료일 등에 사용 */

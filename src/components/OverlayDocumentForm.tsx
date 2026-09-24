@@ -416,6 +416,7 @@ function OverlayDocumentFormInner(
       if (f.type === "checkbox") return true; // 체크박스는 필수 아님(양자택일 포함)
       if (f.cover || f.staticText) return true; // 가림 박스·표시용 라벨은 입력 대상 아님
       if (f.optional) return true; // 선택 입력 항목(예: 자택 전화)
+      if (f.requiredIf && values[f.requiredIf] !== true) return true; // 조건부 필수(예: 카드 선택 시에만)
       const v = values[f.key];
       return typeof v === "string" ? v.trim() !== "" : !!v;
     });
