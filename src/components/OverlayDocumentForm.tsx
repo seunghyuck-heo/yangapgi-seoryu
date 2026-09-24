@@ -394,7 +394,8 @@ function OverlayDocumentFormInner(
   // 편집 대상(텍스트·서명) 칸이 모두 채워졌는지
   function allFilled(): boolean {
     return overlay.fields.every((f) => {
-      if (f.type === "checkbox") return true; // 체크박스는 필수 아님
+      if (f.type === "checkbox") return true; // 체크박스는 필수 아님(양자택일 포함)
+      if (f.cover || f.staticText) return true; // 가림 박스·표시용 라벨은 입력 대상 아님
       const v = values[f.key];
       return typeof v === "string" ? v.trim() !== "" : !!v;
     });
