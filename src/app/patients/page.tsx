@@ -247,7 +247,7 @@ export default function PatientsPage() {
             </p>
           </div>
         ) : (
-          <>
+          <div className="patient-list-wrap">
             {!q && <p className="patient-list__count">총 {realPatients.length}명</p>}
             <ul className="patient-list">
             {visible.map((patient) => {
@@ -322,7 +322,7 @@ export default function PatientsPage() {
               );
             })}
             </ul>
-          </>
+          </div>
         )}
       </div>
 
