@@ -495,13 +495,17 @@ function OverlayDocumentFormInner(
       }
     } else if (field.type === "checkbox") {
       if (field.parenMark) {
-        filled = true;
+        const selected = value === true;
+        // 선택 전엔 파란 블록(입력 안내) 표시. 그룹에서 하나라도 선택되면 파란 블록 제거.
+        filled = field.group
+          ? overlay.fields.some((f) => f.group === field.group && values[f.key] === true)
+          : selected;
         content = (
           <span
             className="odoc-hotspot__paren"
             style={{ fontSize: `${field.fontPct ?? 1.4}cqw` }}
           >
-            {value ? "( O )" : "(   )"}
+            {selected ? "( O )" : "(   )"}
           </span>
         );
       } else if (value || field.fixedChecked) {
