@@ -81,6 +81,7 @@ function OverlayDocumentFormInner(
   const [addrDetail, setAddrDetail] = useState("");
   const addrFieldRef = useRef<string | null>(null);
   const postcodeBoxRef = useRef<HTMLDivElement | null>(null);
+  const editSnapshotRef = useRef<string>(""); // 수정 진입 시 값 스냅샷(변경 여부 판단)
   const popupRef = useRef<HTMLDivElement | null>(null);
 
   const isCompleted = initialStatus === "completed";
@@ -350,6 +351,21 @@ function OverlayDocumentFormInner(
     window.setTimeout(() => setToast(null), 2200);
   }
 
+  // '수정' 진입: 현재 값 스냅샷 저장 후 편집 모드 시작
+  function startLocalEdit() {
+    editSnapshotRef.current = JSON.stringify(values);
+    setLocalEdit(true);
+  }
+
+  // '완료': 변경이 없으면 그냥 종료(취소와 동일), 변경이 있으면 반영 확인 팝업
+  function handleEditDone() {
+    if (JSON.stringify(values) === editSnapshotRef.current) {
+      setLocalEdit(false);
+      return;
+    }
+    setConfirmSave(true);
+  }
+
   // '수정' 취소: 값·서명을 처음 상태로 되돌리고 편집 모드 종료
   function cancelEdits() {
     setValues({ ...initialFormData });
@@ -396,6 +412,7 @@ function OverlayDocumentFormInner(
     return overlay.fields.every((f) => {
       if (f.type === "checkbox") return true; // 체크박스는 필수 아님(양자택일 포함)
       if (f.cover || f.staticText) return true; // 가림 박스·표시용 라벨은 입력 대상 아님
+      if (f.optional) return true; // 선택 입력 항목(예: 자택 전화)
       const v = values[f.key];
       return typeof v === "string" ? v.trim() !== "" : !!v;
     });
@@ -607,7 +624,7 @@ function OverlayDocumentFormInner(
             ← 목록으로
           </button>
           <div className="doc-page__toolbar-right">
-            <button type="button" className="doc-page__edit" onClick={() => setLocalEdit(true)}>
+            <button type="button" className="doc-page__edit" onClick={startLocalEdit}>
               수정
             </button>
             <button type="button" onClick={() => window.print()}>
@@ -631,7 +648,7 @@ function OverlayDocumentFormInner(
           <button type="button" onClick={cancelEdits} disabled={saving}>
             취소
           </button>
-          <button type="button" className="primary" onClick={() => setConfirmSave(true)} disabled={saving}>
+          <button type="button" className="primary" onClick={handleEditDone} disabled={saving}>
             완료
           </button>
         </div>

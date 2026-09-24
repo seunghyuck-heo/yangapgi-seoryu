@@ -42,6 +42,8 @@ export interface OverlayField {
   staticText?: string;
   /** 주소: 텍스트 직접입력 대신 도로명/지번 검색(다음 우편번호)으로 입력 */
   addressSearch?: boolean;
+  /** 작성완료 시 필수 아님(빈 칸이어도 완료 가능) */
+  optional?: boolean;
   /** 날짜: 오늘 날짜 자동 입력(편집 불가). 같은 dateGroup에 지정 */
   autoToday?: boolean;
 }
