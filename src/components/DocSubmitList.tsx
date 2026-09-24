@@ -212,6 +212,20 @@ export default function DocSubmitList({
     }
   }, [patientId, preview, router]);
 
+  // 서식 배경 이미지 미리 로드(캐시) → 문서 진입 시 즉시 표시
+  useEffect(() => {
+    const bgs = [
+      "/documents/contract.jpg",
+      "/documents/subsidy.jpg",
+      "/documents/cms.jpg",
+      "/documents/poa.jpg",
+    ];
+    for (const src of bgs) {
+      const img = new Image();
+      img.src = src;
+    }
+  }, []);
+
   async function handleIdFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (file) {
