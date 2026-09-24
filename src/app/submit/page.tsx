@@ -28,21 +28,26 @@ export default function SubmitPage() {
       } catch {
         stored = null;
       }
-      if (!stored) return;
-      try {
-        const res = await fetch(`/api/patients/${stored}`);
-        if (!res.ok) return;
-        const json = await res.json();
-        const docs: PatientDocument[] = json.patient?.documents ?? [];
-        const done = DOC_TYPE_ORDER.filter((t) =>
-          docs.some((d) => d.doc_type === t && d.status === "completed")
-        ).length;
-        if (json.patient && done < DOC_TYPE_ORDER.length && !ignore) {
-          setPatientId(stored);
+      if (stored) {
+        try {
+          const res = await fetch(`/api/patients/${stored}`);
+          if (res.ok) {
+            const json = await res.json();
+            const docs: PatientDocument[] = json.patient?.documents ?? [];
+            const done = DOC_TYPE_ORDER.filter((t) =>
+              docs.some((d) => d.doc_type === t && d.status === "completed")
+            ).length;
+            if (json.patient && done < DOC_TYPE_ORDER.length && !ignore) {
+              setPatientId(stored);
+              return;
+            }
+          }
+        } catch {
+          // 무시
         }
-      } catch {
-        // 무시
       }
+      // 이어쓸 draft가 없으면 폴더를 미리 만들어 둔다 → 각 서식 라우트 프리페치로 첫 진입 지연 최소화
+      if (!ignore) await ensurePatientId();
     })();
     return () => {
       ignore = true;
