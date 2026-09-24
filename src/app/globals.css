@@ -1124,6 +1124,29 @@ input[type="password"]::placeholder {
   gap: 10px;
 }
 
+/* 주소 검색(다음 우편번호) 시트 */
+.address-sheet {
+  gap: 12px;
+}
+.address-postcode {
+  width: 100%;
+  height: 62vh;
+  max-height: 500px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.address-base {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  line-height: 1.4;
+}
+
 .field-popup__actions button {
   flex: 1;
   padding: 14px;

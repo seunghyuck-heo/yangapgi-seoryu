@@ -74,6 +74,13 @@ function OverlayDocumentFormInner(
   const [localEdit, setLocalEdit] = useState(false); // 완료 서류 화면에서 '수정' 눌렀을 때
   const [confirmSave, setConfirmSave] = useState(false);
   const [pdfPromptOpen, setPdfPromptOpen] = useState(false); // 저장 후 PDF도 업데이트할지
+  // 주소 검색(도로명/지번)
+  const [addrOpen, setAddrOpen] = useState(false);
+  const [addrStage, setAddrStage] = useState<"search" | "detail">("search");
+  const [addrBase, setAddrBase] = useState("");
+  const [addrDetail, setAddrDetail] = useState("");
+  const addrFieldRef = useRef<string | null>(null);
+  const postcodeBoxRef = useRef<HTMLDivElement | null>(null);
   const popupRef = useRef<HTMLDivElement | null>(null);
 
   const isCompleted = initialStatus === "completed";
@@ -163,6 +170,52 @@ function OverlayDocumentFormInner(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // 주소 검색(다음 우편번호) 위젯 로드 + 임베드
+  useEffect(() => {
+    if (!addrOpen || addrStage !== "search") return;
+    let cancelled = false;
+    const win = window as unknown as {
+      daum?: { Postcode: new (o: object) => { embed: (el: HTMLElement) => void } };
+    };
+    const embed = () => {
+      if (cancelled || !postcodeBoxRef.current || !win.daum?.Postcode) return;
+      postcodeBoxRef.current.innerHTML = "";
+      new win.daum.Postcode({
+        oncomplete: (data: { roadAddress?: string; jibunAddress?: string; address?: string }) => {
+          setAddrBase(data.roadAddress || data.jibunAddress || data.address || "");
+          setAddrStage("detail");
+        },
+        width: "100%",
+        height: "100%",
+      }).embed(postcodeBoxRef.current);
+    };
+    if (win.daum?.Postcode) {
+      embed();
+    } else {
+      const existing = document.getElementById("daum-postcode-script") as HTMLScriptElement | null;
+      if (existing) {
+        existing.addEventListener("load", embed);
+      } else {
+        const s = document.createElement("script");
+        s.id = "daum-postcode-script";
+        s.src = "https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js";
+        s.onload = embed;
+        document.body.appendChild(s);
+      }
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [addrOpen, addrStage]);
+
+  function confirmAddr() {
+    const key = addrFieldRef.current;
+    if (!key) return;
+    const full = addrDetail.trim() ? `${addrBase} ${addrDetail.trim()}` : addrBase;
+    setValues((prev) => ({ ...prev, [key]: full }));
+    setAddrOpen(false);
+  }
+
   function handleTapField(key: string) {
     const field = fieldByKey.get(key);
     if (!field) return;
@@ -170,6 +223,16 @@ function OverlayDocumentFormInner(
     if (!embedded && isCompleted && !localEdit) return;
     // 고정 체크·오늘날짜 자동 필드는 편집 불가
     if (field.fixedChecked || field.autoToday) return;
+
+    // 주소 검색(도로명/지번) 필드
+    if (field.addressSearch) {
+      addrFieldRef.current = key;
+      setAddrBase("");
+      setAddrDetail("");
+      setAddrStage("search");
+      setAddrOpen(true);
+      return;
+    }
 
     if (field.type === "checkbox") {
       setValues((prev) => {
@@ -724,6 +787,48 @@ function OverlayDocumentFormInner(
                 예, PDF 업데이트
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 주소 검색(도로명/지번) */}
+      {addrOpen && (
+        <div className="sheet-overlay" onClick={() => setAddrOpen(false)}>
+          <div className="sheet address-sheet" onClick={(e) => e.stopPropagation()}>
+            {addrStage === "search" ? (
+              <>
+                <div className="field-popup__label">주소 검색 (도로명 · 지번)</div>
+                <div ref={postcodeBoxRef} className="address-postcode" />
+                <div className="field-popup__actions">
+                  <button type="button" onClick={() => setAddrOpen(false)}>
+                    취소
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="field-popup__label">상세주소 입력</div>
+                <div className="address-base">{addrBase}</div>
+                <input
+                  type="text"
+                  value={addrDetail}
+                  placeholder="상세주소 (동/호수 등, 선택)"
+                  autoFocus
+                  onChange={(e) => setAddrDetail(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") confirmAddr();
+                  }}
+                />
+                <div className="field-popup__actions">
+                  <button type="button" onClick={() => setAddrStage("search")}>
+                    다시 검색
+                  </button>
+                  <button type="button" className="primary" onClick={confirmAddr}>
+                    확인
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

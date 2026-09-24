@@ -40,6 +40,8 @@ export interface OverlayField {
   cover?: boolean;
   /** 고정 표시 텍스트(편집 불가) — 예: 재배치한 모델명 라벨 */
   staticText?: string;
+  /** 주소: 텍스트 직접입력 대신 도로명/지번 검색(다음 우편번호)으로 입력 */
+  addressSearch?: boolean;
   /** 날짜: 오늘 날짜 자동 입력(편집 불가). 같은 dateGroup에 지정 */
   autoToday?: boolean;
 }
