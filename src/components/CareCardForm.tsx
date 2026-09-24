@@ -1,17 +1,75 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { PatientWithDocuments, PatientDocument } from "@/lib/db/types";
+import { DocType } from "@/lib/templates/types";
 
 interface CareCardFormProps {
   patientId: string;
   backHref: string;
 }
 
-// 양압기 환자관리카드 (별지 제5호 서식) — A4 한 장 재현. 편집 필드는 추후 지정.
-export default function CareCardForm({ backHref }: CareCardFormProps) {
-  const router = useRouter();
+const CALL_CENTER = "010-5966-2460";
 
-  const visitRows = Array.from({ length: 8 });
+function fd(docs: PatientDocument[], type: DocType): Record<string, unknown> {
+  const d = docs.find((x) => x.doc_type === type);
+  return (d?.form_data as Record<string, unknown>) ?? {};
+}
+
+function firstStr(...vals: unknown[]): string {
+  for (const v of vals) {
+    if (typeof v === "string" && v.trim() !== "") return v.trim();
+  }
+  return "";
+}
+
+// 주민번호/생년월일 문자열 → "YYYY.MM.DD"
+function formatBirth(raw: string): string {
+  const digits = raw.replace(/\D/g, "");
+  if (digits.length < 6) return raw.trim();
+  const yy = digits.slice(0, 2);
+  const mm = digits.slice(2, 4);
+  const dd = digits.slice(4, 6);
+  const g = digits[6];
+  let century: string;
+  if (g === "1" || g === "2" || g === "5" || g === "6") century = "19";
+  else if (g === "3" || g === "4" || g === "7" || g === "8") century = "20";
+  else century = parseInt(yy, 10) > 30 ? "19" : "20";
+  return `${century}${yy}.${mm}.${dd}`;
+}
+
+// 양압기 환자관리카드 (별지 제5호 서식) — A4 한 장. 기본정보는 환자 서류에서 자동 채움.
+export default function CareCardForm({ patientId, backHref }: CareCardFormProps) {
+  const router = useRouter();
+  const [patient, setPatient] = useState<PatientWithDocuments | null>(null);
+
+  useEffect(() => {
+    fetch(`/api/patients/${patientId}`)
+      .then((res) => res.json())
+      .then((json) => {
+        if (json?.patient) setPatient(json.patient);
+      })
+      .catch(() => {});
+  }, [patientId]);
+
+  const docs = patient?.documents ?? [];
+  const subsidy = fd(docs, "subsidy_application");
+  const poa = fd(docs, "power_of_attorney");
+  const cms = fd(docs, "cms_autopay");
+
+  const name = patient
+    ? firstStr(patient.name, subsidy.patient_name, poa.insured_name, cms.applicant_name)
+    : "";
+  const birthRaw = patient
+    ? firstStr(patient.resident_number, subsidy.patient_rrn, poa.insured_rrn, cms.payer_birth)
+    : "";
+  const birth = birthRaw ? formatBirth(birthRaw) : "";
+  const phone = patient
+    ? firstStr(patient.phone, subsidy.patient_mobile_phone, poa.delegator_phone, cms.account_holder_phone)
+    : "";
+
+  const visitRows = Array.from({ length: 12 });
 
   return (
     <div className="doc-page">
@@ -46,11 +104,11 @@ export default function CareCardForm({ backHref }: CareCardFormProps) {
               <tr>
                 <th className="cc-cat">환자</th>
                 <td className="cc-lbl">성명</td>
-                <td className="cc-val" />
+                <td className="cc-val">{name}</td>
                 <td className="cc-lbl">생년월일</td>
-                <td className="cc-val" />
+                <td className="cc-val">{birth}</td>
                 <td className="cc-lbl">연락처</td>
-                <td className="cc-val" />
+                <td className="cc-val">{phone}</td>
               </tr>
               <tr>
                 <th className="cc-cat">준요양기관</th>
@@ -59,7 +117,7 @@ export default function CareCardForm({ backHref }: CareCardFormProps) {
                 <td className="cc-lbl">연락처</td>
                 <td className="cc-val" />
                 <td className="cc-lbl">콜센터 번호</td>
-                <td className="cc-val" />
+                <td className="cc-val">{CALL_CENTER}</td>
               </tr>
               <tr>
                 <th className="cc-cat">기기정보</th>
@@ -75,30 +133,30 @@ export default function CareCardForm({ backHref }: CareCardFormProps) {
 
           {/* ② 장비설치 전 성능검사 */}
           <div className="cc-sec">② 장비설치 전 성능검사</div>
-          <table className="cc-table">
+          <table className="cc-table cc-insp">
             <tbody>
               <tr>
-                <th className="cc-cat cc-cat--sm">날짜</th>
-                <td className="cc-val" />
-                <th className="cc-cat cc-cat--sm">점검내용</th>
-                <td className="cc-check">[ ] 장비기능 &nbsp; [ ] 알람기능 &nbsp; [ ] 소독·세척</td>
-                <th className="cc-cat cc-cat--sm">점검자 서명</th>
-                <td className="cc-val" />
+                <th className="cc-cat cc-cat--xs">날짜</th>
+                <td className="cc-val cc-date" />
+                <th className="cc-cat cc-cat--xs">점검내용</th>
+                <td className="cc-check cc-check--wide">[ ] 장비기능 &nbsp; [ ] 알람기능 &nbsp; [ ] 소독·세척</td>
+                <th className="cc-cat cc-cat--xs">점검자 서명</th>
+                <td className="cc-val cc-sign" />
               </tr>
             </tbody>
           </table>
 
           {/* ③ 안전교육 */}
           <div className="cc-sec">③ 안전교육</div>
-          <table className="cc-table">
+          <table className="cc-table cc-insp">
             <tbody>
               <tr>
-                <th className="cc-cat cc-cat--sm">날짜</th>
-                <td className="cc-val" />
-                <th className="cc-cat cc-cat--sm">교육내용</th>
-                <td className="cc-check">[ ] 장비사용법 &nbsp; [ ] 응급상황 시 대처요령 &nbsp; [ ] 기타</td>
-                <th className="cc-cat cc-cat--sm">환자 서명</th>
-                <td className="cc-val" />
+                <th className="cc-cat cc-cat--xs">날짜</th>
+                <td className="cc-val cc-date" />
+                <th className="cc-cat cc-cat--xs">교육내용</th>
+                <td className="cc-check cc-check--wide">[ ] 장비사용법 &nbsp; [ ] 응급상황 시 대처요령 &nbsp; [ ] 기타</td>
+                <th className="cc-cat cc-cat--xs">환자 서명</th>
+                <td className="cc-val cc-sign" />
               </tr>
             </tbody>
           </table>

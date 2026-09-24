@@ -1821,10 +1821,13 @@ input[type="password"]::placeholder {
 /* 지속 관리 서류 서브헤더 */
 .patient-detail-page__subhead {
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: -0.02em;
   margin-top: 20px;
   color: var(--ink);
+}
+.patient-detail-page__subhead + .doc-row-list {
+  margin-top: 0;
 }
 
 /* ===== 양압기 환자관리카드 (A4 재현) ===== */
@@ -1902,6 +1905,14 @@ input[type="password"]::placeholder {
 }
 .cc-val { background: #fff; }
 .cc-check { text-align: left; }
+/* ②③ 성능검사·안전교육: 날짜 좁히고 점검/교육내용은 한 줄 */
+.cc-cat--xs { width: 7%; }
+.cc-insp .cc-date { width: 9%; }
+.cc-insp .cc-sign { width: 15%; }
+.cc-insp .cc-check--wide {
+  white-space: nowrap;
+  overflow: hidden;
+}
 /* ④ 방문점검 표 — 남는 세로 공간을 흡수해 A4 한 장을 채움 */
 .cc-visit {
   flex: 1 1 auto;
