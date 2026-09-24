@@ -208,6 +208,18 @@ export async function renderOverlayPage(
     const fontPx = (field.fontPct ?? 1.4) * cqw;
     const raw = values[field.key];
 
+    // 인쇄 글자 가림 박스
+    if (field.cover) {
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(bx, by, bw, bh);
+      continue;
+    }
+    // 고정 표시 텍스트
+    if (field.staticText) {
+      drawText(ctx, field.staticText, bx, by, bw, bh, fontPx, field.align);
+      continue;
+    }
+
     if (field.type === "signature") {
       const img = sigImgs[field.key];
       if (img) drawSignature(ctx, img, bx, by, bw, bh);
@@ -216,7 +228,7 @@ export async function renderOverlayPage(
 
     if (field.type === "checkbox") {
       if (field.parenMark) {
-        drawText(ctx, raw === true ? "(O)" : "( )", bx, by, bw, bh, fontPx, "center");
+        drawText(ctx, raw === true ? "( O )" : "(   )", bx, by, bw, bh, fontPx, "center");
       } else if (raw === true || field.fixedChecked) {
         drawCheck(ctx, bx, by, bw, bh);
       }

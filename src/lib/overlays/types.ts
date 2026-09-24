@@ -36,6 +36,10 @@ export interface OverlayField {
   fixedChecked?: boolean;
   /** 체크박스를 ( ) / (O) 텍스트 마크로 표시 (체크 전 "( )", 체크 시 "(O)") */
   parenMark?: boolean;
+  /** 인쇄된 글자를 가리는 흰색 박스(편집 불가) — 위에 새 레이아웃을 얹을 때 사용 */
+  cover?: boolean;
+  /** 고정 표시 텍스트(편집 불가) — 예: 재배치한 모델명 라벨 */
+  staticText?: string;
   /** 날짜: 오늘 날짜 자동 입력(편집 불가). 같은 dateGroup에 지정 */
   autoToday?: boolean;
 }

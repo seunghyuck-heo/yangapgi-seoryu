@@ -26,8 +26,13 @@ export const contractOverlay: OverlayDoc = {
     // 기기관리번호 (값 칸 좌측 정렬)
     { key: "device_id", type: "text", x: 37, y: 19.9, w: 26, h: 1.4, label: "기기관리번호", align: "left" },
 
-    // 양압기 종류/모델명 — "Prisma Smart / Smart Max" 항목 앞에 ( ) 체크(누르면 (O))
-    { key: "model_check", type: "checkbox", x: 63.4, y: 21.6, w: 3.4, h: 1.6, label: "모델 확인", parenMark: true },
+    // 양압기 종류/모델명 — 인쇄된 "Prisma Smart / Smart Max"를 가리고
+    // "( ) Prisma Smart   ( ) Smart Max"로 재배치(각 앞에 선택 체크, 하나만).
+    { key: "model_cover", type: "text", x: 65.8, y: 21.3, w: 31.5, h: 2.3, cover: true },
+    { key: "model_prisma", type: "checkbox", x: 66.0, y: 21.55, w: 3.4, h: 1.7, label: "Prisma Smart", parenMark: true, group: "device_model" },
+    { key: "model_prisma_lbl", type: "text", x: 69.4, y: 21.55, w: 14, h: 1.7, staticText: "Prisma Smart", align: "left", fontPct: 1.55 },
+    { key: "model_smartmax", type: "checkbox", x: 82.3, y: 21.55, w: 3.4, h: 1.7, label: "Smart Max", parenMark: true, group: "device_model" },
+    { key: "model_smartmax_lbl", type: "text", x: 85.7, y: 21.55, w: 12, h: 1.7, staticText: "Smart Max", align: "left", fontPct: 1.55 },
 
     // 개인정보 수집·이용 동의 체크박스
     { key: "consent_yes", type: "checkbox", x: 73.72, y: 88.58, w: 2.6, h: 1.0, label: "개인정보 수집·이용 동의", fixedChecked: true },

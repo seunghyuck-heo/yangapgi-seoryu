@@ -375,6 +375,28 @@ function OverlayDocumentFormInner(
       height: `${field.h}%`,
     };
 
+    // 인쇄 글자 가림 박스 (편집 불가·탭 불가)
+    if (field.cover) {
+      return <div key={field.key} className="odoc-hotspot odoc-hotspot--cover" style={style} aria-hidden />;
+    }
+    // 고정 표시 텍스트 (편집 불가·탭 불가)
+    if (field.staticText) {
+      return (
+        <div key={field.key} className="odoc-hotspot odoc-hotspot--static" style={style} aria-hidden>
+          <span
+            className="odoc-hotspot__text"
+            style={{
+              fontSize: `${field.fontPct ?? 1.4}cqw`,
+              justifyContent:
+                field.align === "left" ? "flex-start" : field.align === "right" ? "flex-end" : "center",
+            }}
+          >
+            {field.staticText}
+          </span>
+        </div>
+      );
+    }
+
     let content: React.ReactNode = null;
     let filled = false;
 
@@ -395,7 +417,7 @@ function OverlayDocumentFormInner(
             className="odoc-hotspot__paren"
             style={{ fontSize: `${field.fontPct ?? 1.4}cqw` }}
           >
-            {value ? "(O)" : "( )"}
+            {value ? "( O )" : "(   )"}
           </span>
         );
       } else if (value || field.fixedChecked) {
