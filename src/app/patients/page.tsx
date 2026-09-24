@@ -6,7 +6,7 @@ import BottomTabs, { PATIENTS_CHANGED_EVENT } from "@/components/BottomTabs";
 import { PatientWithDocuments } from "@/lib/db/types";
 import { DOC_TYPE_ORDER } from "@/lib/templates/types";
 
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 100;
 
 // 탭 전환/재진입 시 즉시 표시하기 위한 클라이언트 캐시 (stale-while-revalidate)
 interface PatientsCacheShape {
