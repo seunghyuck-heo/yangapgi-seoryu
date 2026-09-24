@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PatientWithDocuments, PatientDocument } from "@/lib/db/types";
 import { DocType } from "@/lib/templates/types";
+import { PATIENTS_CHANGED_EVENT } from "./BottomTabs";
 import CareCardZoom from "./CareCardZoom";
 
 interface CareCardFormProps {
@@ -90,15 +91,20 @@ function fmtVisitDate(iso: string): string {
   return `${m[1].slice(2)}.${m[2]}.${m[3]}`;
 }
 
-// 양압기 환자관리카드 (별지 제5호 서식) — A4 한 장. 기본정보 자동채움 + 방문점검 편집/저장.
+// 양압기 환자관리카드 (별지 제5호 서식) — 다른 서류와 동일한 작성/수정 흐름.
 export default function CareCardForm({ patientId, backHref }: CareCardFormProps) {
   const router = useRouter();
   const [patient, setPatient] = useState<PatientWithDocuments | null>(null);
   const [visits, setVisits] = useState<Visit[]>(() => Array.from({ length: VISIT_COUNT }, blankVisit));
-  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [status, setStatus] = useState<"draft" | "completed">("draft");
+  const [localEdit, setLocalEdit] = useState(false); // 완료 화면에서 '수정' 눌렀을 때
+  const [confirmSave, setConfirmSave] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
 
-  const loadedRef = useRef(false);
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const editSnapshotRef = useRef<string>("");
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     fetch(`/api/patients/${patientId}`)
@@ -108,47 +114,100 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
           const p = json.patient as PatientWithDocuments;
           setPatient(p);
           const cc = p.documents.find((d) => d.doc_type === "care_card");
-          if (cc?.form_data && (cc.form_data as Record<string, unknown>).visits) {
-            setVisits(normalizeVisits((cc.form_data as Record<string, unknown>).visits));
+          if (cc) {
+            if (cc.status === "completed") setStatus("completed");
+            const raw = (cc.form_data as Record<string, unknown>)?.visits;
+            if (raw) setVisits(normalizeVisits(raw));
           }
         }
-        loadedRef.current = true;
       })
-      .catch(() => {
-        loadedRef.current = true;
-      });
+      .catch(() => {});
   }, [patientId]);
 
-  const save = useCallback(
-    (next: Visit[]) => {
-      if (saveTimer.current) clearTimeout(saveTimer.current);
-      setSaveState("saving");
-      saveTimer.current = setTimeout(() => {
-        fetch(`/api/documents/${patientId}/care_card`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ form_data: { visits: next }, status: "draft" }),
-        })
-          .then((res) => {
-            if (!res.ok) throw new Error("save failed");
-            setSaveState("saved");
-          })
-          .catch(() => setSaveState("error"));
-      }, 500);
-    },
-    [patientId]
-  );
+  function showToast(msg: string) {
+    setToast(msg);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 2200);
+  }
 
-  const update = useCallback(
-    (i: number, patch: Partial<Visit>) => {
-      setVisits((prev) => {
-        const next = prev.map((v, idx) => (idx === i ? { ...v, ...patch } : v));
-        if (loadedRef.current) save(next);
-        return next;
+  const isCompleted = status === "completed";
+  const editing = !isCompleted || localEdit; // 셀 편집 가능 여부
+  const mode: "green" | "blue" | null = localEdit ? "green" : !isCompleted ? "blue" : null;
+
+  const update = useCallback((i: number, patch: Partial<Visit>) => {
+    setVisits((prev) => prev.map((v, idx) => (idx === i ? { ...v, ...patch } : v)));
+  }, []);
+
+  async function putCard(targetStatus: "draft" | "completed"): Promise<boolean> {
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/documents/${patientId}/care_card`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ form_data: { visits }, status: targetStatus }),
       });
-    },
-    [save]
-  );
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        setError(json.error || "저장에 실패했습니다");
+        return false;
+      }
+      return true;
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // 하단: 임시저장 / 작성 완료
+  async function handleSubmit(targetStatus: "draft" | "completed") {
+    const ok = await putCard(targetStatus);
+    if (!ok) return;
+    if (targetStatus === "completed") {
+      setStatus("completed");
+      try {
+        window.dispatchEvent(new Event(PATIENTS_CHANGED_EVENT));
+      } catch {
+        // 무시
+      }
+      router.push(backHref === "/submit" ? "/patients" : backHref);
+    } else {
+      showToast("임시저장되었습니다.");
+    }
+  }
+
+  // 상단 '수정' 진입
+  function startLocalEdit() {
+    editSnapshotRef.current = JSON.stringify(visits);
+    setLocalEdit(true);
+  }
+
+  // 편집 '완료': 변경 없으면 그냥 종료, 있으면 확인 팝업
+  function handleEditDone() {
+    if (JSON.stringify(visits) === editSnapshotRef.current) {
+      setLocalEdit(false);
+      return;
+    }
+    setConfirmSave(true);
+  }
+
+  // 편집 '취소': 스냅샷으로 복원 후 종료
+  function cancelEdits() {
+    try {
+      setVisits(normalizeVisits(JSON.parse(editSnapshotRef.current)));
+    } catch {
+      // 무시
+    }
+    setLocalEdit(false);
+  }
+
+  // 확인 팝업 → 반영
+  async function saveEdits() {
+    const ok = await putCard("completed");
+    if (!ok) return;
+    setConfirmSave(false);
+    setLocalEdit(false);
+    showToast("수정사항이 반영되었습니다.");
+  }
 
   const docs = patient?.documents ?? [];
   const subsidy = fd(docs, "subsidy_application");
@@ -167,17 +226,18 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
     : "";
   const phone = phoneRaw ? formatPhone(phoneRaw) : "";
 
-  // 스텝바이스텝: 날짜가 비어있는 첫 행이 "현재 입력 행"(파란 블록). 그 다음 행은 잠금.
+  // 스텝바이스텝: 날짜가 비어있는 첫 행이 "현재 입력 행". 그 다음 행은 잠금.
   const activeIndex = (() => {
     const idx = visits.findIndex((v) => !v.date);
     return idx === -1 ? VISIT_COUNT : idx;
   })();
 
-  // filled: 값이 있는지 / editable: 이 행이 입력 가능(현재행 이하) / active: 현재 입력 행
-  const cellCls = (filled: boolean, editable: boolean, active: boolean, extra = "") => {
+  const cellCls = (filled: boolean, rowEditable: boolean, active: boolean, extra = "") => {
     let c = "cc-vr";
-    if (editable) c += " cc-edit";
-    if (editable && active && !filled) c += " cc-edit--empty";
+    if (editing && rowEditable) c += " cc-edit";
+    if (editing && rowEditable && active && !filled) {
+      c += mode === "green" ? " cc-edit--green" : " cc-edit--empty";
+    }
     if (extra) c += " " + extra;
     return c;
   };
@@ -188,13 +248,18 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
         <button type="button" className="doc-page__back" onClick={() => router.push(backHref)}>
           ← 목록으로
         </button>
-        <span className="cc-savestate" aria-live="polite">
-          {saveState === "saving" ? "저장 중…" : saveState === "saved" ? "저장됨" : saveState === "error" ? "저장 실패" : ""}
-        </span>
-        <button type="button" onClick={() => window.print()}>
-          인쇄 (A4)
-        </button>
+        <div className="doc-page__toolbar-right">
+          <button type="button" className="doc-page__edit" onClick={startLocalEdit}>
+            수정
+          </button>
+          <button type="button" onClick={() => window.print()}>
+            인쇄 (A4)
+          </button>
+        </div>
       </div>
+
+      {error && <div className="error-banner no-print">{error}</div>}
+      {toast && <div className="toast no-print">{toast}</div>}
 
       <CareCardZoom>
         <div className="carecard-wrap">
@@ -313,16 +378,16 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
               </thead>
               <tbody>
                 {visits.map((v, i) => {
-                  const editable = i <= activeIndex;
+                  const rowEditable = editing && i <= activeIndex;
                   const active = i === activeIndex;
                   const toggle = (key: keyof Visit) => {
-                    if (editable) update(i, { [key]: !v[key] } as Partial<Visit>);
+                    if (rowEditable) update(i, { [key]: !v[key] } as Partial<Visit>);
                   };
                   return (
                     <tr key={i}>
-                      <td className={cellCls(!!v.date, editable, active, "cc-vr--date cc-date-cell")}>
+                      <td className={cellCls(!!v.date, rowEditable, active, "cc-vr--date cc-date-cell")}>
                         <span className="cc-vr__val">{v.date ? fmtVisitDate(v.date) : ""}</span>
-                        {editable && (
+                        {rowEditable && (
                           <input
                             type="date"
                             className="cc-date-input"
@@ -332,24 +397,24 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
                           />
                         )}
                       </td>
-                      <td className={cellCls(v.cpap, editable, active)} onClick={() => toggle("cpap")}>
+                      <td className={cellCls(v.cpap, rowEditable, active)} onClick={() => toggle("cpap")}>
                         {v.cpap ? "O" : ""}
                       </td>
-                      <td className={cellCls(v.supply, editable, active)} onClick={() => toggle("supply")}>
+                      <td className={cellCls(v.supply, rowEditable, active)} onClick={() => toggle("supply")}>
                         {v.supply ? "O" : ""}
                       </td>
-                      <td className={cellCls(v.hygiene, editable, active)} onClick={() => toggle("hygiene")}>
+                      <td className={cellCls(v.hygiene, rowEditable, active)} onClick={() => toggle("hygiene")}>
                         {v.hygiene ? "O" : ""}
                       </td>
-                      <td className={cellCls(v.alarm, editable, active)} onClick={() => toggle("alarm")}>
+                      <td className={cellCls(v.alarm, rowEditable, active)} onClick={() => toggle("alarm")}>
                         {v.alarm ? "O" : ""}
                       </td>
-                      <td className={cellCls(v.pressure, editable, active)} onClick={() => toggle("pressure")}>
+                      <td className={cellCls(v.pressure, rowEditable, active)} onClick={() => toggle("pressure")}>
                         {v.pressure ? "O" : ""}
                       </td>
-                      <td className={cellCls(!!v.usage, editable, active, "cc-usage-cell")}>
+                      <td className={cellCls(!!v.usage, rowEditable, active, "cc-usage-cell")}>
                         <span className="cc-vr__val">{v.usage ? `${v.usage}시간` : ""}</span>
-                        {editable && (
+                        {rowEditable && (
                           <select
                             className="cc-usage-select"
                             value={v.usage}
@@ -399,6 +464,47 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
           </div>
         </div>
       </CareCardZoom>
+
+      {/* 하단 액션 바 — 다른 서류와 동일 */}
+      {localEdit ? (
+        <div className="action-bar no-print">
+          <button type="button" onClick={cancelEdits} disabled={saving}>
+            취소
+          </button>
+          <button type="button" className="primary" onClick={handleEditDone} disabled={saving}>
+            완료
+          </button>
+        </div>
+      ) : !isCompleted ? (
+        <div className="action-bar no-print">
+          <button type="button" onClick={() => handleSubmit("draft")} disabled={saving}>
+            임시저장
+          </button>
+          <button type="button" className="primary" onClick={() => handleSubmit("completed")} disabled={saving}>
+            {saving ? "저장 중..." : "작성 완료"}
+          </button>
+        </div>
+      ) : null}
+
+      {/* 수정 완료 확인 팝업 */}
+      {confirmSave && (
+        <div className="sheet-overlay sheet-overlay--center" onClick={() => !saving && setConfirmSave(false)}>
+          <div className="sheet sheet--center" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet__title sheet__title--name">수정사항 반영</div>
+            <p style={{ textAlign: "center", color: "var(--ink-soft)", fontSize: 14, margin: "-4px 0 16px" }}>
+              수정사항을 반영하시겠습니까?
+            </p>
+            <div className="field-popup__actions">
+              <button type="button" onClick={() => setConfirmSave(false)} disabled={saving}>
+                취소
+              </button>
+              <button type="button" className="primary" onClick={saveEdits} disabled={saving}>
+                {saving ? "반영 중..." : "반영하기"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
