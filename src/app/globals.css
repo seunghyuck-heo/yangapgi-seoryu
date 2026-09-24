@@ -1818,6 +1818,106 @@ input[type="password"]::placeholder {
   color: var(--ink-soft);
 }
 
+/* 지속 관리 서류 서브헤더 */
+.patient-detail-page__subhead {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin-top: 20px;
+  color: var(--ink);
+}
+
+/* ===== 양압기 환자관리카드 (A4 재현) ===== */
+.carecard-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+.carecard-page {
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  background: #fff;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-card);
+  container-type: inline-size;
+  box-sizing: border-box;
+  padding: 3.4cqw 3.4cqw 2cqw;
+  color: #1a1a1a;
+}
+.cc-top {
+  display: flex;
+  justify-content: space-between;
+  font-size: 1.5cqw;
+}
+.cc-title {
+  text-align: center;
+  font-size: 3.4cqw;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  margin: 0.8cqw 0 0.4cqw;
+}
+.cc-subrow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 2cqw;
+  font-size: 1.35cqw;
+  margin-bottom: 1.4cqw;
+}
+.cc-note { color: #333; }
+.cc-page { white-space: nowrap; }
+.cc-sec {
+  font-weight: 800;
+  font-size: 1.95cqw;
+  margin: 2.2cqw 0 0.7cqw;
+}
+.cc-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+.cc-table th,
+.cc-table td {
+  border: 1px solid #444;
+  padding: 1cqw 0.8cqw;
+  font-size: 1.5cqw;
+  vertical-align: middle;
+  word-break: break-all;
+}
+.cc-cat {
+  background: #eef1f4;
+  font-weight: 700;
+  width: 13%;
+  text-align: center;
+}
+.cc-cat--sm { width: 11%; }
+.cc-lbl {
+  background: #f6f7f9;
+  width: 10%;
+  text-align: center;
+  color: #333;
+}
+.cc-val { background: #fff; }
+.cc-check { text-align: left; }
+/* ④ 방문점검 표 */
+.cc-visit th,
+.cc-visit td {
+  padding: 0.5cqw 0.25cqw;
+  font-size: 1.05cqw;
+  text-align: center;
+  line-height: 1.15;
+}
+.cc-vh { background: #eef1f4; font-weight: 700; }
+.cc-vh--date { width: 7%; }
+.cc-vh--sub { font-weight: 600; }
+.cc-vr { height: 2.8cqw; }
+.cc-foot {
+  text-align: right;
+  font-size: 1.2cqw;
+  margin-top: 1.4cqw;
+  color: #333;
+}
+
 .doc-card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
@@ -2540,6 +2640,17 @@ input[type="password"]::placeholder {
 
   .zoomdoc__controls {
     display: none !important;
+  }
+
+  /* 양압기 환자관리카드 인쇄: A4 한 장 채우기 */
+  .carecard-wrap {
+    overflow: visible !important;
+  }
+  .carecard-page {
+    width: 100% !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
   }
 }
 

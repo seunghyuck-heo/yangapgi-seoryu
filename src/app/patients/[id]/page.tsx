@@ -136,6 +136,27 @@ export default function PatientDetailPage({ params }: PatientDetailPageProps) {
         })}
       </ul>
 
+      <h2 className="patient-detail-page__subhead">지속 관리 서류</h2>
+      <ul className="doc-row-list">
+        <li>
+          <Link href={`/patients/${id}/care-card`} className="doc-row">
+            <span className="doc-row__icon" style={{ background: "#0ea5a3", color: "#fff" }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <rect x="4" y="3" width="16" height="18" rx="2" />
+                <path d="M9 3v3h6V3" />
+                <path d="M8 11h8M8 15h5" />
+              </svg>
+            </span>
+            <span className="doc-row__title">양압기 환자관리카드</span>
+            <span className="doc-row__chevron" aria-hidden>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 18l6-6-6-6" />
+              </svg>
+            </span>
+          </Link>
+        </li>
+      </ul>
+
       {toast && <div className="toast no-print">{toast}</div>}
 
       {showBundle && (
