@@ -138,10 +138,6 @@ function OverlayDocumentFormInner(
 
   // 고정 체크(항상 동의) + 오늘 날짜 자동 입력 초기화
   useEffect(() => {
-    const t = new Date();
-    const y = String(t.getFullYear());
-    const m = String(t.getMonth() + 1).padStart(2, "0");
-    const d = String(t.getDate()).padStart(2, "0");
     setValues((prev) => {
       const next = { ...prev };
       let changed = false;
@@ -157,6 +153,13 @@ function OverlayDocumentFormInner(
         const parts = overlay.fields.filter((f) => f.dateGroup === g);
         const anyFilled = parts.some((f) => typeof next[f.key] === "string" && (next[f.key] as string).trim());
         if (anyFilled) continue;
+        // 그룹별로 오늘(+오프셋 연수) 날짜 계산 (예: 위임 종료일 = 오늘+5년)
+        const offY = parts.find((f) => f.autoTodayOffsetYears != null)?.autoTodayOffsetYears ?? 0;
+        const dt = new Date();
+        dt.setFullYear(dt.getFullYear() + offY);
+        const y = String(dt.getFullYear());
+        const m = String(dt.getMonth() + 1).padStart(2, "0");
+        const d = String(dt.getDate()).padStart(2, "0");
         next[`__d_${g}`] = `${y}-${m}-${d}`;
         for (const f of parts) {
           if (f.datePart === "y") next[f.key] = f.fullYear ? y : y.slice(2);

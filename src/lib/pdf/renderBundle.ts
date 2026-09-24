@@ -36,9 +36,11 @@ function formatBoxPattern(raw: string, pattern: number[]): string {
 function effectiveDateValue(field: OverlayField, stored: unknown, when: Date): string | null {
   if (typeof stored === "string" && stored.trim()) return stored;
   if (!field.autoToday || !field.datePart) return null;
-  const y = when.getFullYear();
-  const m = when.getMonth() + 1;
-  const d = when.getDate();
+  const base = new Date(when);
+  if (field.autoTodayOffsetYears) base.setFullYear(base.getFullYear() + field.autoTodayOffsetYears);
+  const y = base.getFullYear();
+  const m = base.getMonth() + 1;
+  const d = base.getDate();
   if (field.datePart === "y") return field.fullYear ? String(y) : String(y).slice(-2);
   if (field.datePart === "m") return String(m);
   if (field.datePart === "d") return String(d);

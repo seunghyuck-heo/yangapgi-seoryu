@@ -46,6 +46,8 @@ export interface OverlayField {
   optional?: boolean;
   /** 날짜: 오늘 날짜 자동 입력(편집 불가). 같은 dateGroup에 지정 */
   autoToday?: boolean;
+  /** autoToday에 더할 연수(예: 5 → 오늘+5년). 위임 종료일 등에 사용 */
+  autoTodayOffsetYears?: number;
 }
 
 export interface OverlayDoc {
