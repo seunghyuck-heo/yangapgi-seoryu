@@ -1514,9 +1514,9 @@ input[type="password"]::placeholder {
   font-weight: 600;
   margin-bottom: 8px;
 }
-/* 환자 보기: '총 N명'과 리스트 사이 16px (감싸는 wrap으로 본문 gap 미적용) */
+/* 환자 보기: '총 N명'과 리스트 사이 12px (감싸는 wrap으로 본문 gap 미적용) */
 .patient-list__count {
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 .customer-list {
   list-style: none;
