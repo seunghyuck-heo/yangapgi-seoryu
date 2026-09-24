@@ -1,11 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createPatient, listPatients } from "@/lib/db/patients";
+import { createPatient, listPatients, countRegisteredPatients } from "@/lib/db/patients";
 
 export async function GET(request: NextRequest) {
   try {
-    const search = request.nextUrl.searchParams.get("q") ?? undefined;
-    const patients = await listPatients(search);
-    return NextResponse.json({ patients });
+    const sp = request.nextUrl.searchParams;
+    const search = sp.get("q") ?? undefined;
+
+    // 배지용: 총원만 가볍게
+    if (sp.get("count") === "1") {
+      const total = await countRegisteredPatients(search);
+      return NextResponse.json({ total });
+    }
+
+    const limitRaw = parseInt(sp.get("limit") ?? "", 10);
+    const offsetRaw = parseInt(sp.get("offset") ?? "", 10);
+    const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 100) : undefined;
+    const offset = Number.isFinite(offsetRaw) ? Math.max(offsetRaw, 0) : undefined;
+
+    const { patients, total, hasMore } = await listPatients({ search, limit, offset });
+    return NextResponse.json({ patients, total, hasMore });
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }

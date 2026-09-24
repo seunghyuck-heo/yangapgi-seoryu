@@ -126,6 +126,7 @@ interface BodyProps {
   onOpenAction: (i: number) => void;
   onOpenProvider: (i: number) => void;
   onOpenSign: (i: number) => void;
+  guardianSrc: (i: number, val: string) => string;
 }
 
 const CareCardBody = memo(function CareCardBody({
@@ -140,6 +141,7 @@ const CareCardBody = memo(function CareCardBody({
   onOpenAction,
   onOpenProvider,
   onOpenSign,
+  guardianSrc,
 }: BodyProps) {
   // 블록 표시:
   //  - 수정(green): 이미 입력한 칸=초록, 아직 안 채운 편집 가능 칸=파란(다음 입력 유도)
@@ -337,15 +339,20 @@ const CareCardBody = memo(function CareCardBody({
                       <span className="cc-vr__val">{v.provider}</span>
                     </td>
                     {/* 환자(가족): 탭 → 서명 팝업 */}
-                    <td
-                      className={cellCls(!!v.guardianSign, rowEditable)}
-                      onClick={() => rowEditable && onOpenSign(i)}
-                    >
-                      {v.guardianSign ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={v.guardianSign} alt="환자(가족) 서명" className="cc-vr__sign" />
-                      ) : null}
-                    </td>
+                    {(() => {
+                      const gsrc = guardianSrc(i, v.guardianSign);
+                      return (
+                        <td
+                          className={cellCls(!!gsrc, rowEditable)}
+                          onClick={() => rowEditable && onOpenSign(i)}
+                        >
+                          {gsrc ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={gsrc} alt="환자(가족) 서명" className="cc-vr__sign" />
+                          ) : null}
+                        </td>
+                      );
+                    })()}
                   </tr>
                 );
               })}
@@ -400,6 +407,10 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
   const [providerRow, setProviderRow] = useState<number | null>(null);
   const [signRow, setSignRow] = useState<number | null>(null);
 
+  // 서명 이미지: 스토리지 경로 → 서명 URL (서버) / 방금 그린 서명 dataURL (로컬 즉시표시)
+  const [signUrls, setSignUrls] = useState<Record<string, string>>({});
+  const [localSigns, setLocalSigns] = useState<Record<number, string>>({});
+
   useEffect(() => {
     fetch(`/api/patients/${patientId}`)
       .then((res) => res.json())
@@ -413,6 +424,7 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
             const raw = (cc.form_data as Record<string, unknown>)?.visits;
             if (raw) setVisits(normalizeVisits(raw));
           }
+          if (p.signedUrls) setSignUrls(p.signedUrls);
         }
       })
       .catch(() => {});
@@ -435,6 +447,49 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
   const openAction = useCallback((i: number) => setActionRow(i), []);
   const openProvider = useCallback((i: number) => setProviderRow(i), []);
   const openSign = useCallback((i: number) => setSignRow(i), []);
+
+  // 서명 저장: 즉시 로컬 표시 후 스토리지 업로드(경로 저장). 실패 시 base64로 폴백.
+  const saveGuardianSign = useCallback(
+    (i: number, dataUrl: string) => {
+      setLocalSigns((prev) => ({ ...prev, [i]: dataUrl }));
+      setSignRow(null);
+      fetch("/api/uploads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          patientId,
+          docType: "care_card",
+          kind: "signature",
+          fieldKey: `guardian-${i}`,
+          dataUrl,
+        }),
+      })
+        .then((res) => (res.ok ? res.json() : Promise.reject(new Error("upload failed"))))
+        .then((json) => {
+          if (typeof json?.path === "string") {
+            update(i, { guardianSign: json.path });
+            setSignUrls((prev) => ({ ...prev, [json.path]: dataUrl }));
+          } else {
+            update(i, { guardianSign: dataUrl });
+          }
+        })
+        .catch(() => {
+          update(i, { guardianSign: dataUrl }); // 업로드 실패 → base64 폴백(데이터 유실 방지)
+        });
+    },
+    [patientId, update]
+  );
+
+  // 서명 이미지 표시용 URL 해석: 방금 그린 것 → 서버 서명 URL → data URL(레거시/폴백)
+  const guardianSrc = useCallback(
+    (i: number, val: string): string => {
+      if (localSigns[i]) return localSigns[i];
+      if (!val) return "";
+      if (val.startsWith("data:")) return val;
+      return signUrls[val] ?? "";
+    },
+    [localSigns, signUrls]
+  );
 
   async function putCard(targetStatus: "draft" | "completed"): Promise<boolean> {
     setSaving(true);
@@ -555,6 +610,7 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
         onOpenAction={openAction}
         onOpenProvider={openProvider}
         onOpenSign={openSign}
+        guardianSrc={guardianSrc}
       />
 
       {/* 하단 액션 바 — 다른 서류와 동일 */}
@@ -629,11 +685,8 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
             <SignaturePad
               label="환자(가족) 서명"
               confirmLabel="서명 확정"
-              existingUrl={visits[signRow].guardianSign || undefined}
-              onSave={(dataUrl) => {
-                update(signRow, { guardianSign: dataUrl });
-                setSignRow(null);
-              }}
+              existingUrl={guardianSrc(signRow, visits[signRow].guardianSign) || undefined}
+              onSave={(dataUrl) => saveGuardianSign(signRow, dataUrl)}
             />
             <div className="field-popup__actions">
               <button type="button" onClick={() => setSignRow(null)}>

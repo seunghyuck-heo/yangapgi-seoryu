@@ -1520,6 +1520,15 @@ input[type="password"]::placeholder {
   font-weight: 600;
   margin-bottom: 8px;
 }
+.patient-list__sentinel {
+  height: 1px;
+}
+.patient-list__more {
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted);
+  padding: 12px 0;
+}
 /* 환자 보기: '총 N명'과 리스트 사이 12px (감싸는 wrap으로 본문 gap 미적용) */
 .patient-list__count {
   margin-bottom: 12px;

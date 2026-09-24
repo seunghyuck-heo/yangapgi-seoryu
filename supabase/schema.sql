@@ -126,3 +126,56 @@ create policy "own files delete" on storage.objects
 --     check (doc_type in
 --       ('id_card','contract','subsidy_application','cms_autopay','power_of_attorney','care_card'));
 -- ────────────────────────────────────────────────────────────
+
+-- ────────────────────────────────────────────────────────────
+-- 확장(대규모): 환자 목록 서버 페이지네이션/검색/총원 RPC
+--  · '등록 환자' 판별: 서류 하나라도 완료 || (신분증 업로드/완료 + 이름 입력)
+--  · security invoker → 호출자 권한으로 실행되어 RLS(owner_id=auth.uid())가 그대로 적용됨
+--  · 성능: 아래 인덱스 권장
+--      create index if not exists documents_patient_type_status_idx
+--        on documents(patient_id, doc_type, status);
+-- ────────────────────────────────────────────────────────────
+create index if not exists documents_patient_type_status_idx
+  on documents(patient_id, doc_type, status);
+
+create or replace function public.is_registered_patient(p patients)
+returns boolean language sql stable security invoker as $$
+  select
+    exists (select 1 from documents d where d.patient_id = p.id and d.status = 'completed')
+    or (
+      coalesce(nullif(btrim(p.name), ''), '') <> ''
+      and btrim(p.name) <> '새 환자'
+      and exists (
+        select 1 from documents d
+        where d.patient_id = p.id and d.doc_type = 'id_card'
+          and (d.status = 'completed' or d.file_path is not null)
+      )
+    );
+$$;
+
+create or replace function public.list_registered_patients(
+  p_search text default null,
+  p_limit int default 50,
+  p_offset int default 0
+)
+returns setof patients language sql stable security invoker as $$
+  select p.*
+  from patients p
+  where p.owner_id = auth.uid()
+    and (p_search is null or p.name ilike '%' || p_search || '%' or coalesce(p.phone,'') ilike '%' || p_search || '%')
+    and public.is_registered_patient(p)
+  order by p.updated_at desc
+  limit greatest(p_limit, 1) offset greatest(p_offset, 0);
+$$;
+
+create or replace function public.count_registered_patients(
+  p_search text default null
+)
+returns bigint language sql stable security invoker as $$
+  select count(*)::bigint
+  from patients p
+  where p.owner_id = auth.uid()
+    and (p_search is null or p.name ilike '%' || p_search || '%' or coalesce(p.phone,'') ilike '%' || p_search || '%')
+    and public.is_registered_patient(p);
+$$;
+-- ────────────────────────────────────────────────────────────

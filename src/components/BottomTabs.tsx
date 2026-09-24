@@ -3,8 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import type { PatientWithDocuments } from "@/lib/db/types";
-import { isRegisteredPatient } from "@/lib/patientStatus";
 
 const stroke = {
   fill: "none",
@@ -51,18 +49,18 @@ export default function BottomTabs() {
   const pathname = usePathname();
   const [inProgress, setInProgress] = useState(cachedInProgress);
 
-  // 진행중(작성 미완료) 환자 수 → 환자 보기 탭 배지 (내용 없는 빈 폴더는 제외)
+  // 등록 환자 총원 → 환자 보기 탭 배지.
+  // 예전엔 탭을 옮길 때마다(pathname) 전체 목록을 다시 받아 카운트했으나,
+  // 이제 마운트 1회 + 목록 변경 이벤트 시에만 "카운트만"(count=1) 가볍게 조회.
   useEffect(() => {
     let cancelled = false;
     async function refresh() {
       try {
-        const res = await fetch("/api/patients");
+        const res = await fetch("/api/patients?count=1");
         if (!res.ok) return;
         const json = await res.json();
         if (cancelled) return;
-        const patients = (json.patients ?? []) as PatientWithDocuments[];
-        // 신분증+이름이 등록된 환자 총원(서류 완료자 포함)
-        const count = patients.filter(isRegisteredPatient).length;
+        const count = typeof json.total === "number" ? json.total : 0;
         cachedInProgress = count;
         setInProgress(count);
       } catch {
@@ -76,7 +74,7 @@ export default function BottomTabs() {
       cancelled = true;
       window.removeEventListener(PATIENTS_CHANGED_EVENT, onChanged);
     };
-  }, [pathname]);
+  }, []);
 
   return (
     <nav className="bottom-tabs no-print">

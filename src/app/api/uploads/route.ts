@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { uploadFile } from "@/lib/db/documents";
 import { getCurrentUser } from "@/lib/supabase/server";
-import { DOC_TYPE_ORDER, DocType } from "@/lib/templates/types";
+import { DOC_TYPE_LABELS, DocType } from "@/lib/templates/types";
 
 function isValidDocType(value: string): value is DocType {
-  return (DOC_TYPE_ORDER as string[]).includes(value);
+  // 5개 기본 서류 + 지속관리 서류(care_card) 서명/이미지 업로드 허용
+  return Object.prototype.hasOwnProperty.call(DOC_TYPE_LABELS, value);
 }
 
 function parseDataUrl(dataUrl: string): { buffer: Buffer; contentType: string; ext: string } {

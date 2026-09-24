@@ -26,4 +26,6 @@ export interface PatientWithDocuments extends Patient {
   photo_url?: string | null;
   /** 고객 참조 매칭으로 부여된 고유번호 (No.) */
   customer_no?: number | null;
+  /** 스토리지 경로 → 서명 URL 맵 (예: 환자관리카드 방문점검 서명 이미지) */
+  signedUrls?: Record<string, string>;
 }

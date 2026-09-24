@@ -1,93 +1,161 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import BottomTabs, { PATIENTS_CHANGED_EVENT } from "@/components/BottomTabs";
 import { PatientWithDocuments } from "@/lib/db/types";
 import { DOC_TYPE_ORDER } from "@/lib/templates/types";
-import { isRegisteredPatient } from "@/lib/patientStatus";
+
+const PAGE_SIZE = 50;
 
 // 탭 전환/재진입 시 즉시 표시하기 위한 클라이언트 캐시 (stale-while-revalidate)
-let patientsCache: PatientWithDocuments[] | null = null;
-const PATIENTS_CACHE_KEY = "patients_cache_v1";
+interface PatientsCacheShape {
+  patients: PatientWithDocuments[];
+  total: number;
+  hasMore: boolean;
+}
+let patientsCache: PatientsCacheShape | null = null;
+const PATIENTS_CACHE_KEY = "patients_cache_v2";
 
 export default function PatientsPage() {
-  const [patients, setPatients] = useState<PatientWithDocuments[]>(patientsCache ?? []);
+  const [patients, setPatients] = useState<PatientWithDocuments[]>(patientsCache?.patients ?? []);
+  const [total, setTotal] = useState<number>(patientsCache?.total ?? 0);
+  const [hasMore, setHasMore] = useState<boolean>(patientsCache?.hasMore ?? false);
   const [search, setSearch] = useState("");
   const [searchMode, setSearchMode] = useState(false);
   const [loading, setLoading] = useState(patientsCache == null);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
   const [renameTarget, setRenameTarget] = useState<{ id: string; value: string } | null>(null);
   const [renameSaving, setRenameSaving] = useState(false);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
 
-  function persist(list: PatientWithDocuments[]) {
-    patientsCache = list;
+  const patientsRef = useRef(patients);
+  const hasMoreRef = useRef(hasMore);
+  const loadingMoreRef = useRef(false);
+  const queryRef = useRef(""); // 현재 적용된 검색어
+  useEffect(() => {
+    patientsRef.current = patients;
+  }, [patients]);
+  useEffect(() => {
+    hasMoreRef.current = hasMore;
+  }, [hasMore]);
+
+  function persist(shape: PatientsCacheShape) {
+    patientsCache = shape;
     try {
-      sessionStorage.setItem(PATIENTS_CACHE_KEY, JSON.stringify(list));
+      sessionStorage.setItem(PATIENTS_CACHE_KEY, JSON.stringify(shape));
     } catch {
       // 저장 실패 무시
     }
   }
 
-  // 서버에서 최신 목록을 받아 화면·캐시 갱신. 실패해도 기존 목록 유지.
-  function loadPatients() {
-    return fetch("/api/patients")
+  // 검색어 q로 첫 페이지 로드(초기화). 검색어 없을 때만 캐시.
+  const loadFirst = useCallback((q: string) => {
+    queryRef.current = q;
+    const params = new URLSearchParams({ limit: String(PAGE_SIZE), offset: "0" });
+    if (q) params.set("q", q);
+    return fetch(`/api/patients?${params.toString()}`)
       .then(async (res) => {
         if (!res.ok) return;
         const json = await res.json();
-        setPatients(json.patients);
-        persist(json.patients);
+        const list = (json.patients ?? []) as PatientWithDocuments[];
+        const t = typeof json.total === "number" ? json.total : list.length;
+        const hm = !!json.hasMore;
+        setPatients(list);
+        setTotal(t);
+        setHasMore(hm);
+        if (!q) persist({ patients: list, total: t, hasMore: hm });
       })
       .catch(() => {
-        // 네트워크 오류 시 캐시 유지
-      });
-  }
+        // 네트워크 오류 시 기존 유지
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
+  // 스크롤로 다음 페이지 추가 로드
+  const loadMore = useCallback(() => {
+    if (loadingMoreRef.current || !hasMoreRef.current) return;
+    loadingMoreRef.current = true;
+    setLoadingMore(true);
+    const q = queryRef.current;
+    const offset = patientsRef.current.length;
+    const params = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String(offset) });
+    if (q) params.set("q", q);
+    fetch(`/api/patients?${params.toString()}`)
+      .then(async (res) => {
+        if (!res.ok) return;
+        const json = await res.json();
+        const more = (json.patients ?? []) as PatientWithDocuments[];
+        const t = typeof json.total === "number" ? json.total : undefined;
+        const hm = !!json.hasMore;
+        setPatients((prev) => {
+          const seen = new Set(prev.map((p) => p.id));
+          const merged = [...prev, ...more.filter((p) => !seen.has(p.id))];
+          if (!q) persist({ patients: merged, total: t ?? merged.length, hasMore: hm });
+          return merged;
+        });
+        if (t != null) setTotal(t);
+        setHasMore(hm);
+      })
+      .catch(() => {})
+      .finally(() => {
+        loadingMoreRef.current = false;
+        setLoadingMore(false);
+      });
+  }, []);
+
+  const reload = useCallback(() => loadFirst(queryRef.current), [loadFirst]);
+
+  // 세션 캐시로 즉시 표시(네트워크 없음)
   useEffect(() => {
-    // 1) 모듈 캐시가 없으면 세션 캐시로 즉시 표시
     if (patientsCache == null) {
       try {
         const s = sessionStorage.getItem(PATIENTS_CACHE_KEY);
         if (s) {
-          const list = JSON.parse(s) as PatientWithDocuments[];
-          patientsCache = list;
-          setPatients(list);
+          const c = JSON.parse(s) as PatientsCacheShape;
+          patientsCache = c;
+          setPatients(c.patients);
+          setTotal(c.total);
+          setHasMore(c.hasMore);
           setLoading(false);
         }
       } catch {
         // 무시
       }
     }
-    // 2) 항상 백그라운드로 최신화 (체감상 즉시 뜨고, 데이터는 조용히 갱신)
-    let ignore = false;
-    fetch("/api/patients")
-      .then(async (res) => {
-        if (!res.ok) return;
-        const json = await res.json();
-        if (ignore) return;
-        setPatients(json.patients);
-        persist(json.patients);
-      })
-      .catch(() => {
-        // 캐시 유지
-      })
-      .finally(() => {
-        if (!ignore) setLoading(false);
-      });
-    return () => {
-      ignore = true;
-    };
   }, []);
 
-  // 서류 완료 등으로 목록이 바뀌면 백그라운드 갱신
+  // 검색어(디바운스)로 서버 조회. 최초 마운트(빈 검색어)도 여기서 로드.
   useEffect(() => {
-    const onChanged = () => loadPatients();
+    const q = search.trim();
+    const t = setTimeout(() => loadFirst(q), q ? 300 : 0);
+    return () => clearTimeout(t);
+  }, [search, loadFirst]);
+
+  // 서류 완료/삭제 등으로 목록이 바뀌면 현재 검색 기준으로 갱신
+  useEffect(() => {
+    const onChanged = () => reload();
     window.addEventListener(PATIENTS_CHANGED_EVENT, onChanged);
     return () => window.removeEventListener(PATIENTS_CHANGED_EVENT, onChanged);
-  }, []);
+  }, [reload]);
+
+  // 무한 스크롤: 센티넬이 보이면 다음 페이지 로드
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) loadMore();
+      },
+      { rootMargin: "300px" }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [loadMore, hasMore, patients.length]);
 
   useEffect(() => {
     if (searchMode) searchInputRef.current?.focus();
@@ -97,17 +165,9 @@ export default function PatientsPage() {
     DOC_TYPE_ORDER.filter((t) => documents.some((d) => d.doc_type === t && d.status === "completed"))
       .length;
 
-  // 신분증 업로드 + 이름 입력이 끝난 환자만 표시 (서식만 열었다 나온 빈 폴더 제외)
-  const realPatients = patients.filter(isRegisteredPatient);
-  const q = search.trim().toLowerCase();
-  const visible = q
-    ? realPatients.filter(
-        (p) =>
-          p.name.toLowerCase().includes(q) ||
-          (p.customer_no != null && String(p.customer_no).includes(q)) ||
-          (p.phone ?? "").toLowerCase().includes(q)
-      )
-    : realPatients;
+  // 서버가 이미 '등록 환자' 필터 + 검색을 적용한 목록
+  const visible = patients;
+  const q = search.trim();
 
   function toggleSelect(id: string) {
     setSelected((prev) => {
@@ -134,7 +194,7 @@ export default function PatientsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name }),
       });
-      await loadPatients();
+      await reload();
       setRenameTarget(null);
     } finally {
       setRenameSaving(false);
@@ -150,7 +210,7 @@ export default function PatientsPage() {
       await Promise.all(
         [...selected].map((id) => fetch(`/api/patients/${id}`, { method: "DELETE" }))
       );
-      await loadPatients();
+      await reload();
       try {
         window.dispatchEvent(new Event(PATIENTS_CHANGED_EVENT));
       } catch {
@@ -248,7 +308,7 @@ export default function PatientsPage() {
           </div>
         ) : (
           <div className="patient-list-wrap">
-            {!q && <p className="patient-list__count">총 {realPatients.length}명</p>}
+            {!q && <p className="patient-list__count">총 {total}명</p>}
             <ul className="patient-list">
             {visible.map((patient) => {
               const done = completeCount(patient.documents);
@@ -322,6 +382,8 @@ export default function PatientsPage() {
               );
             })}
             </ul>
+            {hasMore && <div ref={sentinelRef} className="patient-list__sentinel" aria-hidden />}
+            {loadingMore && <p className="patient-list__more">불러오는 중…</p>}
           </div>
         )}
       </div>
