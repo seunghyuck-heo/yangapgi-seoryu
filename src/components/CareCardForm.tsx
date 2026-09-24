@@ -141,11 +141,14 @@ const CareCardBody = memo(function CareCardBody({
   onOpenProvider,
   onOpenSign,
 }: BodyProps) {
+  // 블록 표시:
+  //  - 수정(green): 이미 입력한 칸=초록, 아직 안 채운 편집 가능 칸=파란(다음 입력 유도)
+  //  - 작성중(blue): 아직 안 채운 편집 가능 칸=파란
   const cellCls = (filled: boolean, rowEditable: boolean, extra = "") => {
     let c = "cc-vr";
     if (rowEditable) c += " cc-edit";
     if (rowEditable && mode === "green" && filled) c += " cc-edit--green";
-    else if (rowEditable && mode === "blue" && !filled) c += " cc-edit--empty";
+    else if (rowEditable && !filled) c += " cc-edit--empty";
     if (extra) c += " " + extra;
     return c;
   };

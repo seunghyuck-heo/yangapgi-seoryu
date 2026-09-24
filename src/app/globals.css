@@ -1984,7 +1984,8 @@ input[type="password"]::placeholder {
 }
 /* 기록값 폰트: 다른 서류 입력값과 동일(굵기 600, 잉크색) */
 .cc-visit .cc-edit,
-.cc-visit .cc-vr__val {
+.cc-visit .cc-vr__val,
+.cc-visit .cc-vr__clamp {
   font-weight: 600;
   color: #12203f;
 }
@@ -2036,7 +2037,8 @@ input[type="password"]::placeholder {
   overflow: hidden;
   width: 100%;
   line-height: 1.18;
-  font-size: 1.05cqw;
+  /* 다른 기록값(시간·이름)과 동일한 폰트 크기(1.208cqw) 사용 */
+  font-size: 1.208cqw;
   word-break: break-all;
 }
 /* 환자(가족) 서명 이미지 */
