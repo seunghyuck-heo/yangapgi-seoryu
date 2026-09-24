@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PatientWithDocuments, PatientDocument } from "@/lib/db/types";
 import { DocType } from "@/lib/templates/types";
@@ -15,7 +15,6 @@ interface CareCardFormProps {
 
 const CALL_CENTER = "010-5966-2460";
 const VISIT_COUNT = 12;
-
 const PROVIDERS = ["한혜리", "백영신"];
 const ACTION_MAX = 150;
 
@@ -98,19 +97,285 @@ function formatBirth(raw: string): string {
 // 전화번호 → 010-XXXX-XXXX
 function formatPhone(raw: string): string {
   let d = raw.replace(/\D/g, "");
-  // 서류 필드는 앞자리(010-)를 제외한 8자리로 저장됨 → 010 보정
-  if (d.length === 8) d = "010" + d;
+  if (d.length === 8) d = "010" + d; // 서류엔 앞자리(010-) 제외 8자리로 저장됨
   if (d.length === 11) return `${d.slice(0, 3)}-${d.slice(3, 7)}-${d.slice(7)}`;
   if (d.length === 10) return `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}`;
   return raw.trim();
 }
 
-// YYYY-MM-DD → YY.MM.DD (방문점검 표 좁은 칸용)
+// YYYY-MM-DD → YY.MM.DD
 function fmtVisitDate(iso: string): string {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
   if (!m) return iso;
   return `${m[1].slice(2)}.${m[2]}.${m[3]}`;
 }
+
+// ────────────────────────────────────────────────────────────
+// 카드 본문(무거운 표) — 팝업 상태와 무관하므로 memo 처리:
+// 팝업을 열 때(providerRow/actionRow/signRow 변경) 표가 다시 그려지지 않아 팝업이 즉시 뜬다.
+// ────────────────────────────────────────────────────────────
+interface BodyProps {
+  visits: Visit[];
+  editing: boolean;
+  mode: "green" | "blue" | null;
+  activeIndex: number;
+  name: string;
+  birth: string;
+  phone: string;
+  onUpdate: (i: number, patch: Partial<Visit>) => void;
+  onOpenAction: (i: number) => void;
+  onOpenProvider: (i: number) => void;
+  onOpenSign: (i: number) => void;
+}
+
+const CareCardBody = memo(function CareCardBody({
+  visits,
+  editing,
+  mode,
+  activeIndex,
+  name,
+  birth,
+  phone,
+  onUpdate,
+  onOpenAction,
+  onOpenProvider,
+  onOpenSign,
+}: BodyProps) {
+  const cellCls = (filled: boolean, rowEditable: boolean, extra = "") => {
+    let c = "cc-vr";
+    if (rowEditable) c += " cc-edit";
+    if (rowEditable && mode === "green" && filled) c += " cc-edit--green";
+    else if (rowEditable && mode === "blue" && !filled) c += " cc-edit--empty";
+    if (extra) c += " " + extra;
+    return c;
+  };
+
+  return (
+    <CareCardZoom>
+      <div className="carecard-wrap">
+        <div className="carecard-page">
+          {/* 상단 머리말 */}
+          <div className="cc-top">
+            <span className="cc-top__form">[별지 제5호 서식]</span>
+            <span className="cc-top__keep">(업체보관용)</span>
+          </div>
+          <h1 className="cc-title">양압기 환자관리카드</h1>
+          <div className="cc-subrow">
+            <span className="cc-note">
+              ※ 자세한 유의사항 및 작성방법은 본 환자관리카드 서식의 뒤쪽 설명란을 참고하여 주시기 바랍니다.
+            </span>
+            <span className="cc-page">(앞 쪽)</span>
+          </div>
+
+          {/* ① 기본정보 */}
+          <div className="cc-sec">① 기본정보</div>
+          <table className="cc-table cc-basic">
+            <tbody>
+              <tr>
+                <th className="cc-cat">환자</th>
+                <td className="cc-lbl">성명</td>
+                <td className="cc-val">{name}</td>
+                <td className="cc-lbl">생년월일</td>
+                <td className="cc-val">{birth}</td>
+                <td className="cc-lbl">연락처</td>
+                <td className="cc-val">{phone}</td>
+              </tr>
+              <tr>
+                <th className="cc-cat">준요양기관</th>
+                <td className="cc-lbl">상호명</td>
+                <td className="cc-val" />
+                <td className="cc-lbl">연락처</td>
+                <td className="cc-val" />
+                <td className="cc-lbl">콜센터 번호</td>
+                <td className="cc-val">{CALL_CENTER}</td>
+              </tr>
+              <tr>
+                <th className="cc-cat">기기정보</th>
+                <td className="cc-lbl">기기 관리번호</td>
+                <td className="cc-val" />
+                <td className="cc-lbl">제품명</td>
+                <td className="cc-val" />
+                <td className="cc-lbl">계약기간</td>
+                <td className="cc-val" />
+              </tr>
+            </tbody>
+          </table>
+
+          {/* ② 장비설치 전 성능검사 */}
+          <div className="cc-sec">② 장비설치 전 성능검사</div>
+          <table className="cc-table cc-insp">
+            <tbody>
+              <tr>
+                <th className="cc-cat cc-cat--xs">날짜</th>
+                <td className="cc-val cc-date" />
+                <th className="cc-cat cc-cat--xs">점검내용</th>
+                <td className="cc-check cc-check--wide">[ ] 장비기능 &nbsp; [ ] 알람기능 &nbsp; [ ] 소독·세척</td>
+                <th className="cc-cat cc-cat--xs">점검자 서명</th>
+                <td className="cc-val cc-sign" />
+              </tr>
+            </tbody>
+          </table>
+
+          {/* ③ 안전교육 */}
+          <div className="cc-sec">③ 안전교육</div>
+          <table className="cc-table cc-insp">
+            <tbody>
+              <tr>
+                <th className="cc-cat cc-cat--xs">날짜</th>
+                <td className="cc-val cc-date" />
+                <th className="cc-cat cc-cat--xs">교육내용</th>
+                <td className="cc-check cc-check--wide">[ ] 장비사용법 &nbsp; [ ] 응급상황 시 대처요령 &nbsp; [ ] 기타</td>
+                <th className="cc-cat cc-cat--xs">환자 서명</th>
+                <td className="cc-val cc-sign" />
+              </tr>
+            </tbody>
+          </table>
+
+          {/* ④ 방문점검 서비스 기록 (편집 가능) */}
+          <div className="cc-sec">④ 방문점검 서비스 기록</div>
+          <table className="cc-table cc-visit">
+            <colgroup>
+              <col className="ccw-date" />
+              <col className="ccw-insp" />
+              <col className="ccw-insp" />
+              <col className="ccw-insp" />
+              <col className="ccw-insp" />
+              <col className="ccw-insp" />
+              <col className="ccw-usage" />
+              <col className="ccw-action" />
+              <col className="ccw-sign" />
+              <col className="ccw-sign" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th rowSpan={2} className="cc-vh cc-vh--date">날짜</th>
+                <th colSpan={3} className="cc-vh">방문점검</th>
+                <th colSpan={3} className="cc-vh">방문 또는 유선점검</th>
+                <th className="cc-vh">점검결과</th>
+                <th colSpan={2} className="cc-vh">점검확인 서명</th>
+              </tr>
+              <tr>
+                <th className="cc-vh cc-vh--sub">양압기 점검</th>
+                <th className="cc-vh cc-vh--sub">소모품 점검</th>
+                <th className="cc-vh cc-vh--sub">위생상태 점검</th>
+                <th className="cc-vh cc-vh--sub">알람기능 작동여부</th>
+                <th className="cc-vh cc-vh--sub">설정압력 유지여부</th>
+                <th className="cc-vh cc-vh--sub">사용시간/ 사용상태</th>
+                <th className="cc-vh cc-vh--sub">조치사항 (소독 및 소모품 교체 등)</th>
+                <th className="cc-vh cc-vh--sub">준요양기관</th>
+                <th className="cc-vh cc-vh--sub">환자(가족)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visits.map((v, i) => {
+                const rowEditable = editing && i <= activeIndex;
+                const toggle = (key: keyof Visit) => {
+                  if (rowEditable) onUpdate(i, { [key]: !v[key] } as Partial<Visit>);
+                };
+                return (
+                  <tr key={i}>
+                    <td className={cellCls(!!v.date, rowEditable, "cc-vr--date cc-date-cell")}>
+                      <span className="cc-vr__val">{v.date ? fmtVisitDate(v.date) : ""}</span>
+                      {rowEditable && (
+                        <input
+                          type="date"
+                          className="cc-date-input"
+                          value={v.date}
+                          onChange={(e) => onUpdate(i, { date: e.target.value })}
+                          aria-label="방문 날짜"
+                        />
+                      )}
+                    </td>
+                    <td className={cellCls(v.cpap, rowEditable)} onClick={() => toggle("cpap")}>
+                      {v.cpap ? <span className="cc-o">O</span> : ""}
+                    </td>
+                    <td className={cellCls(v.supply, rowEditable)} onClick={() => toggle("supply")}>
+                      {v.supply ? <span className="cc-o">O</span> : ""}
+                    </td>
+                    <td className={cellCls(v.hygiene, rowEditable)} onClick={() => toggle("hygiene")}>
+                      {v.hygiene ? <span className="cc-o">O</span> : ""}
+                    </td>
+                    <td className={cellCls(v.alarm, rowEditable)} onClick={() => toggle("alarm")}>
+                      {v.alarm ? <span className="cc-o">O</span> : ""}
+                    </td>
+                    <td className={cellCls(v.pressure, rowEditable)} onClick={() => toggle("pressure")}>
+                      {v.pressure ? <span className="cc-o">O</span> : ""}
+                    </td>
+                    <td className={cellCls(!!v.usage, rowEditable, "cc-usage-cell")}>
+                      <span className="cc-vr__val">{v.usage ? `${v.usage}시간` : ""}</span>
+                      {rowEditable && (
+                        <select
+                          className="cc-usage-select"
+                          value={v.usage}
+                          onChange={(e) => onUpdate(i, { usage: e.target.value })}
+                          aria-label="사용시간 선택"
+                        >
+                          <option value=""></option>
+                          {Array.from({ length: 12 }, (_, n) => n + 1).map((h) => (
+                            <option key={h} value={String(h)}>
+                              {h}시간
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </td>
+                    {/* 조치사항: 탭 → 입력 팝업(최대 150자), 셀은 2줄 말줄임 */}
+                    <td
+                      className={cellCls(!!v.action, rowEditable, "cc-action-cell")}
+                      onClick={() => rowEditable && onOpenAction(i)}
+                    >
+                      <span className="cc-vr__clamp">{v.action}</span>
+                    </td>
+                    {/* 준요양기관: 탭 → 한혜리/백영신 선택 */}
+                    <td
+                      className={cellCls(!!v.provider, rowEditable)}
+                      onClick={() => rowEditable && onOpenProvider(i)}
+                    >
+                      <span className="cc-vr__val">{v.provider}</span>
+                    </td>
+                    {/* 환자(가족): 탭 → 서명 팝업 */}
+                    <td
+                      className={cellCls(!!v.guardianSign, rowEditable)}
+                      onClick={() => rowEditable && onOpenSign(i)}
+                    >
+                      {v.guardianSign ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={v.guardianSign} alt="환자(가족) 서명" className="cc-vr__sign" />
+                      ) : null}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+
+          {/* ⑤ 설치 및 회수확인 */}
+          <div className="cc-sec">⑤ 설치 및 회수확인</div>
+          <table className="cc-table">
+            <tbody>
+              <tr>
+                <th className="cc-cat cc-cat--sm">설치일자</th>
+                <td className="cc-val" />
+                <th className="cc-cat cc-cat--sm">회수일자</th>
+                <td className="cc-val" />
+                <th className="cc-cat cc-cat--sm">준요양기관</th>
+                <td className="cc-val" />
+                <th className="cc-cat cc-cat--sm">환자(가족)</th>
+                <td className="cc-val" />
+              </tr>
+              <tr>
+                <th className="cc-cat cc-cat--sm">기타사항</th>
+                <td className="cc-val" colSpan={7} />
+              </tr>
+            </tbody>
+          </table>
+
+          <div className="cc-foot">210㎜ × 297㎜ [백상지(80g/㎡) 또는 중질지(80g/㎡)]</div>
+        </div>
+      </div>
+    </CareCardZoom>
+  );
+});
 
 // 양압기 환자관리카드 (별지 제5호 서식) — 다른 서류와 동일한 작성/수정 흐름.
 export default function CareCardForm({ patientId, backHref }: CareCardFormProps) {
@@ -118,7 +383,7 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
   const [patient, setPatient] = useState<PatientWithDocuments | null>(null);
   const [visits, setVisits] = useState<Visit[]>(() => Array.from({ length: VISIT_COUNT }, blankVisit));
   const [status, setStatus] = useState<"draft" | "completed">("draft");
-  const [localEdit, setLocalEdit] = useState(false); // 완료 화면에서 '수정' 눌렀을 때
+  const [localEdit, setLocalEdit] = useState(false);
   const [confirmSave, setConfirmSave] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -127,11 +392,10 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
   const editSnapshotRef = useRef<string>("");
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // 편집 팝업들
-  const [actionRow, setActionRow] = useState<number | null>(null); // 조치사항 입력
-  const [providerRow, setProviderRow] = useState<number | null>(null); // 준요양기관 선택
-  const [providerDraft, setProviderDraft] = useState("");
-  const [signRow, setSignRow] = useState<number | null>(null); // 환자(가족) 서명
+  // 편집 팝업들 (본문과 분리되어 열림 → 표 리렌더 없음)
+  const [actionRow, setActionRow] = useState<number | null>(null);
+  const [providerRow, setProviderRow] = useState<number | null>(null);
+  const [signRow, setSignRow] = useState<number | null>(null);
 
   useEffect(() => {
     fetch(`/api/patients/${patientId}`)
@@ -158,12 +422,16 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
   }
 
   const isCompleted = status === "completed";
-  const editing = !isCompleted || localEdit; // 셀 편집 가능 여부
+  const editing = !isCompleted || localEdit;
   const mode: "green" | "blue" | null = localEdit ? "green" : !isCompleted ? "blue" : null;
 
+  // 안정적 콜백(참조 고정) — 본문 memo가 팝업 상태 변경 시 리렌더되지 않도록
   const update = useCallback((i: number, patch: Partial<Visit>) => {
     setVisits((prev) => prev.map((v, idx) => (idx === i ? { ...v, ...patch } : v)));
   }, []);
+  const openAction = useCallback((i: number) => setActionRow(i), []);
+  const openProvider = useCallback((i: number) => setProviderRow(i), []);
+  const openSign = useCallback((i: number) => setSignRow(i), []);
 
   async function putCard(targetStatus: "draft" | "completed"): Promise<boolean> {
     setSaving(true);
@@ -185,7 +453,6 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
     }
   }
 
-  // 하단: 임시저장 / 작성 완료
   async function handleSubmit(targetStatus: "draft" | "completed") {
     const ok = await putCard(targetStatus);
     if (!ok) return;
@@ -202,13 +469,11 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
     }
   }
 
-  // 상단 '수정' 진입
   function startLocalEdit() {
     editSnapshotRef.current = JSON.stringify(visits);
     setLocalEdit(true);
   }
 
-  // 편집 '완료': 변경 없으면 그냥 종료, 있으면 확인 팝업
   function handleEditDone() {
     if (JSON.stringify(visits) === editSnapshotRef.current) {
       setLocalEdit(false);
@@ -217,7 +482,6 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
     setConfirmSave(true);
   }
 
-  // 편집 '취소': 스냅샷으로 복원 후 종료
   function cancelEdits() {
     try {
       setVisits(normalizeVisits(JSON.parse(editSnapshotRef.current)));
@@ -227,7 +491,6 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
     setLocalEdit(false);
   }
 
-  // 확인 팝업 → 반영
   async function saveEdits() {
     const ok = await putCard("completed");
     if (!ok) return;
@@ -253,33 +516,10 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
     : "";
   const phone = phoneRaw ? formatPhone(phoneRaw) : "";
 
-  // 스텝바이스텝: 날짜가 비어있는 첫 행이 "현재 입력 행". 그 다음 행은 잠금.
   const activeIndex = (() => {
     const idx = visits.findIndex((v) => !v.date);
     return idx === -1 ? VISIT_COUNT : idx;
   })();
-
-  // 블록 표시 규칙
-  //  - 작성중(blue): 아직 안 채운 빈 칸에 파란 블록 (탭으로 O 껐다 켜면 다시 파란 블록)
-  //  - 수정(green): 이미 입력한 칸에 초록 블록
-  const cellCls = (filled: boolean, rowEditable: boolean, extra = "") => {
-    let c = "cc-vr";
-    if (rowEditable) c += " cc-edit";
-    if (rowEditable && mode === "green" && filled) c += " cc-edit--green";
-    else if (rowEditable && mode === "blue" && !filled) c += " cc-edit--empty";
-    if (extra) c += " " + extra;
-    return c;
-  };
-
-  function openProvider(i: number) {
-    setProviderDraft(visits[i].provider);
-    setProviderRow(i);
-  }
-  function saveProvider() {
-    if (providerRow == null) return;
-    update(providerRow, { provider: providerDraft });
-    setProviderRow(null);
-  }
 
   return (
     <div className="doc-page">
@@ -300,229 +540,19 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
       {error && <div className="error-banner no-print">{error}</div>}
       {toast && <div className="toast no-print">{toast}</div>}
 
-      <CareCardZoom>
-        <div className="carecard-wrap">
-          <div className="carecard-page">
-            {/* 상단 머리말 */}
-            <div className="cc-top">
-              <span className="cc-top__form">[별지 제5호 서식]</span>
-              <span className="cc-top__keep">(업체보관용)</span>
-            </div>
-            <h1 className="cc-title">양압기 환자관리카드</h1>
-            <div className="cc-subrow">
-              <span className="cc-note">
-                ※ 자세한 유의사항 및 작성방법은 본 환자관리카드 서식의 뒤쪽 설명란을 참고하여 주시기 바랍니다.
-              </span>
-              <span className="cc-page">(앞 쪽)</span>
-            </div>
-
-            {/* ① 기본정보 */}
-            <div className="cc-sec">① 기본정보</div>
-            <table className="cc-table cc-basic">
-              <tbody>
-                <tr>
-                  <th className="cc-cat">환자</th>
-                  <td className="cc-lbl">성명</td>
-                  <td className="cc-val">{name}</td>
-                  <td className="cc-lbl">생년월일</td>
-                  <td className="cc-val">{birth}</td>
-                  <td className="cc-lbl">연락처</td>
-                  <td className="cc-val">{phone}</td>
-                </tr>
-                <tr>
-                  <th className="cc-cat">준요양기관</th>
-                  <td className="cc-lbl">상호명</td>
-                  <td className="cc-val" />
-                  <td className="cc-lbl">연락처</td>
-                  <td className="cc-val" />
-                  <td className="cc-lbl">콜센터 번호</td>
-                  <td className="cc-val">{CALL_CENTER}</td>
-                </tr>
-                <tr>
-                  <th className="cc-cat">기기정보</th>
-                  <td className="cc-lbl">기기 관리번호</td>
-                  <td className="cc-val" />
-                  <td className="cc-lbl">제품명</td>
-                  <td className="cc-val" />
-                  <td className="cc-lbl">계약기간</td>
-                  <td className="cc-val" />
-                </tr>
-              </tbody>
-            </table>
-
-            {/* ② 장비설치 전 성능검사 */}
-            <div className="cc-sec">② 장비설치 전 성능검사</div>
-            <table className="cc-table cc-insp">
-              <tbody>
-                <tr>
-                  <th className="cc-cat cc-cat--xs">날짜</th>
-                  <td className="cc-val cc-date" />
-                  <th className="cc-cat cc-cat--xs">점검내용</th>
-                  <td className="cc-check cc-check--wide">[ ] 장비기능 &nbsp; [ ] 알람기능 &nbsp; [ ] 소독·세척</td>
-                  <th className="cc-cat cc-cat--xs">점검자 서명</th>
-                  <td className="cc-val cc-sign" />
-                </tr>
-              </tbody>
-            </table>
-
-            {/* ③ 안전교육 */}
-            <div className="cc-sec">③ 안전교육</div>
-            <table className="cc-table cc-insp">
-              <tbody>
-                <tr>
-                  <th className="cc-cat cc-cat--xs">날짜</th>
-                  <td className="cc-val cc-date" />
-                  <th className="cc-cat cc-cat--xs">교육내용</th>
-                  <td className="cc-check cc-check--wide">[ ] 장비사용법 &nbsp; [ ] 응급상황 시 대처요령 &nbsp; [ ] 기타</td>
-                  <th className="cc-cat cc-cat--xs">환자 서명</th>
-                  <td className="cc-val cc-sign" />
-                </tr>
-              </tbody>
-            </table>
-
-            {/* ④ 방문점검 서비스 기록 (편집 가능) */}
-            <div className="cc-sec">④ 방문점검 서비스 기록</div>
-            <table className="cc-table cc-visit">
-              <colgroup>
-                <col className="ccw-date" />
-                <col className="ccw-insp" />
-                <col className="ccw-insp" />
-                <col className="ccw-insp" />
-                <col className="ccw-insp" />
-                <col className="ccw-insp" />
-                <col className="ccw-usage" />
-                <col className="ccw-action" />
-                <col className="ccw-sign" />
-                <col className="ccw-sign" />
-              </colgroup>
-              <thead>
-                <tr>
-                  <th rowSpan={2} className="cc-vh cc-vh--date">날짜</th>
-                  <th colSpan={3} className="cc-vh">방문점검</th>
-                  <th colSpan={3} className="cc-vh">방문 또는 유선점검</th>
-                  <th className="cc-vh">점검결과</th>
-                  <th colSpan={2} className="cc-vh">점검확인 서명</th>
-                </tr>
-                <tr>
-                  <th className="cc-vh cc-vh--sub">양압기 점검</th>
-                  <th className="cc-vh cc-vh--sub">소모품 점검</th>
-                  <th className="cc-vh cc-vh--sub">위생상태 점검</th>
-                  <th className="cc-vh cc-vh--sub">알람기능 작동여부</th>
-                  <th className="cc-vh cc-vh--sub">설정압력 유지여부</th>
-                  <th className="cc-vh cc-vh--sub">사용시간/ 사용상태</th>
-                  <th className="cc-vh cc-vh--sub">조치사항 (소독 및 소모품 교체 등)</th>
-                  <th className="cc-vh cc-vh--sub">준요양기관</th>
-                  <th className="cc-vh cc-vh--sub">환자(가족)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visits.map((v, i) => {
-                  const rowEditable = editing && i <= activeIndex;
-                  const toggle = (key: keyof Visit) => {
-                    if (rowEditable) update(i, { [key]: !v[key] } as Partial<Visit>);
-                  };
-                  return (
-                    <tr key={i}>
-                      <td className={cellCls(!!v.date, rowEditable, "cc-vr--date cc-date-cell")}>
-                        <span className="cc-vr__val">{v.date ? fmtVisitDate(v.date) : ""}</span>
-                        {rowEditable && (
-                          <input
-                            type="date"
-                            className="cc-date-input"
-                            value={v.date}
-                            onChange={(e) => update(i, { date: e.target.value })}
-                            aria-label="방문 날짜"
-                          />
-                        )}
-                      </td>
-                      <td className={cellCls(v.cpap, rowEditable)} onClick={() => toggle("cpap")}>
-                        {v.cpap ? <span className="cc-o">O</span> : ""}
-                      </td>
-                      <td className={cellCls(v.supply, rowEditable)} onClick={() => toggle("supply")}>
-                        {v.supply ? <span className="cc-o">O</span> : ""}
-                      </td>
-                      <td className={cellCls(v.hygiene, rowEditable)} onClick={() => toggle("hygiene")}>
-                        {v.hygiene ? <span className="cc-o">O</span> : ""}
-                      </td>
-                      <td className={cellCls(v.alarm, rowEditable)} onClick={() => toggle("alarm")}>
-                        {v.alarm ? <span className="cc-o">O</span> : ""}
-                      </td>
-                      <td className={cellCls(v.pressure, rowEditable)} onClick={() => toggle("pressure")}>
-                        {v.pressure ? <span className="cc-o">O</span> : ""}
-                      </td>
-                      <td className={cellCls(!!v.usage, rowEditable, "cc-usage-cell")}>
-                        <span className="cc-vr__val">{v.usage ? `${v.usage}시간` : ""}</span>
-                        {rowEditable && (
-                          <select
-                            className="cc-usage-select"
-                            value={v.usage}
-                            onChange={(e) => update(i, { usage: e.target.value })}
-                            aria-label="사용시간 선택"
-                          >
-                            <option value=""></option>
-                            {Array.from({ length: 12 }, (_, n) => n + 1).map((h) => (
-                              <option key={h} value={String(h)}>
-                                {h}시간
-                              </option>
-                            ))}
-                          </select>
-                        )}
-                      </td>
-                      {/* 조치사항: 탭 → 입력 팝업(최대 150자), 셀은 2줄 말줄임 */}
-                      <td
-                        className={cellCls(!!v.action, rowEditable, "cc-action-cell")}
-                        onClick={() => rowEditable && setActionRow(i)}
-                      >
-                        <span className="cc-vr__clamp">{v.action}</span>
-                      </td>
-                      {/* 준요양기관: 탭 → 한혜리/백영신 선택 */}
-                      <td
-                        className={cellCls(!!v.provider, rowEditable)}
-                        onClick={() => rowEditable && openProvider(i)}
-                      >
-                        <span className="cc-vr__val">{v.provider}</span>
-                      </td>
-                      {/* 환자(가족): 탭 → 서명 팝업 */}
-                      <td
-                        className={cellCls(!!v.guardianSign, rowEditable)}
-                        onClick={() => rowEditable && setSignRow(i)}
-                      >
-                        {v.guardianSign ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={v.guardianSign} alt="환자(가족) 서명" className="cc-vr__sign" />
-                        ) : null}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-
-            {/* ⑤ 설치 및 회수확인 */}
-            <div className="cc-sec">⑤ 설치 및 회수확인</div>
-            <table className="cc-table">
-              <tbody>
-                <tr>
-                  <th className="cc-cat cc-cat--sm">설치일자</th>
-                  <td className="cc-val" />
-                  <th className="cc-cat cc-cat--sm">회수일자</th>
-                  <td className="cc-val" />
-                  <th className="cc-cat cc-cat--sm">준요양기관</th>
-                  <td className="cc-val" />
-                  <th className="cc-cat cc-cat--sm">환자(가족)</th>
-                  <td className="cc-val" />
-                </tr>
-                <tr>
-                  <th className="cc-cat cc-cat--sm">기타사항</th>
-                  <td className="cc-val" colSpan={7} />
-                </tr>
-              </tbody>
-            </table>
-
-            <div className="cc-foot">210㎜ × 297㎜ [백상지(80g/㎡) 또는 중질지(80g/㎡)]</div>
-          </div>
-        </div>
-      </CareCardZoom>
+      <CareCardBody
+        visits={visits}
+        editing={editing}
+        mode={mode}
+        activeIndex={activeIndex}
+        name={name}
+        birth={birth}
+        phone={phone}
+        onUpdate={update}
+        onOpenAction={openAction}
+        onOpenProvider={openProvider}
+        onOpenSign={openSign}
+      />
 
       {/* 하단 액션 바 — 다른 서류와 동일 */}
       {localEdit ? (
@@ -565,7 +595,7 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
         </div>
       )}
 
-      {/* 조치사항 입력 팝업 (자체 상태로 분리 → 타이핑 시 표 전체 리렌더 방지) */}
+      {/* 조치사항 입력 팝업 */}
       {actionRow != null && (
         <ActionEditor
           initial={visits[actionRow].action}
@@ -579,34 +609,14 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
 
       {/* 준요양기관 점검자 선택 팝업 */}
       {providerRow != null && (
-        <div className="sheet-overlay sheet-overlay--center" onClick={() => setProviderRow(null)}>
-          <div className="sheet sheet--center" onClick={(e) => e.stopPropagation()}>
-            <div className="sheet__title sheet__title--name">준요양기관 점검자</div>
-            <div className="cc-provider-list">
-              {PROVIDERS.map((p) => (
-                <button
-                  key={p}
-                  type="button"
-                  className={`cc-provider-item${providerDraft === p ? " is-on" : ""}`}
-                  onClick={() => setProviderDraft(p)}
-                >
-                  <span className="cc-provider-check" aria-hidden>
-                    {providerDraft === p ? "✓" : ""}
-                  </span>
-                  {p}
-                </button>
-              ))}
-            </div>
-            <div className="field-popup__actions">
-              <button type="button" onClick={() => setProviderRow(null)}>
-                취소
-              </button>
-              <button type="button" className="primary" onClick={saveProvider} disabled={!providerDraft}>
-                확인
-              </button>
-            </div>
-          </div>
-        </div>
+        <ProviderEditor
+          initial={visits[providerRow].provider}
+          onCancel={() => setProviderRow(null)}
+          onConfirm={(p) => {
+            if (providerRow != null) update(providerRow, { provider: p });
+            setProviderRow(null);
+          }}
+        />
       )}
 
       {/* 환자(가족) 서명 팝업 (계약서와 동일) */}
@@ -666,6 +676,49 @@ function ActionEditor({
             취소
           </button>
           <button type="button" className="primary" onClick={() => onConfirm(text)}>
+            확인
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 준요양기관 점검자 선택 팝업
+function ProviderEditor({
+  initial,
+  onCancel,
+  onConfirm,
+}: {
+  initial: string;
+  onCancel: () => void;
+  onConfirm: (p: string) => void;
+}) {
+  const [pick, setPick] = useState(initial);
+  return (
+    <div className="sheet-overlay sheet-overlay--center" onClick={onCancel}>
+      <div className="sheet sheet--center" onClick={(e) => e.stopPropagation()}>
+        <div className="sheet__title sheet__title--name">준요양기관 점검자</div>
+        <div className="cc-provider-list">
+          {PROVIDERS.map((p) => (
+            <button
+              key={p}
+              type="button"
+              className={`cc-provider-item${pick === p ? " is-on" : ""}`}
+              onClick={() => setPick(p)}
+            >
+              <span className="cc-provider-check" aria-hidden>
+                {pick === p ? "✓" : ""}
+              </span>
+              {p}
+            </button>
+          ))}
+        </div>
+        <div className="field-popup__actions">
+          <button type="button" onClick={onCancel}>
+            취소
+          </button>
+          <button type="button" className="primary" onClick={() => onConfirm(pick)} disabled={!pick}>
             확인
           </button>
         </div>
