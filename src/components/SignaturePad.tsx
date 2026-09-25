@@ -55,9 +55,16 @@ export default function SignaturePad({
 
   function handlePointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
     if (disabled) return;
+    // 펜(스타일러스)은 마우스 보조버튼/지우개가 아닌 주 접촉만 그림
+    if (e.pointerType === "pen" && e.buttons > 1) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
-    canvas.setPointerCapture(e.pointerId);
+    e.preventDefault(); // 펜 기본동작(호버/스크롤/선택) 방지
+    try {
+      canvas.setPointerCapture(e.pointerId); // 실패해도 그리기는 계속
+    } catch {
+      /* noop */
+    }
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     const { x, y } = getPos(e);
@@ -70,10 +77,23 @@ export default function SignaturePad({
     if (!drawingRef.current) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
+    e.preventDefault();
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    const { x, y } = getPos(e);
-    ctx.lineTo(x, y);
+    // 펜은 한 번에 여러 좌표(coalesced)가 오므로 모두 반영 → 끊김 없는 선
+    const events =
+      typeof e.nativeEvent.getCoalescedEvents === "function"
+        ? e.nativeEvent.getCoalescedEvents()
+        : [];
+    if (events.length > 0) {
+      const rect = canvas.getBoundingClientRect();
+      for (const ev of events) {
+        ctx.lineTo(ev.clientX - rect.left, ev.clientY - rect.top);
+      }
+    } else {
+      const { x, y } = getPos(e);
+      ctx.lineTo(x, y);
+    }
     ctx.stroke();
     hasStrokeRef.current = true;
     setHasDrawing(true);
