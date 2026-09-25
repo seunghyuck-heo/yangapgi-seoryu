@@ -1138,10 +1138,15 @@ input[type="password"]::placeholder {
 .cal__cell--empty {
   background: transparent;
 }
-/* 선택 날짜 = 파란 원형 + 흰 글자 (버튼 기본색보다 우선하도록 이중 클래스) */
-.cal__cell.cal__cell--sel {
-  background: var(--brand);
-  color: #fff;
+/* 선택 날짜 = 파란 원형 + 흰 글자.
+   탭 순간 버튼의 hover/focus/active 상태가 색을 덮어쓰지 않도록 !important + 상태 명시 */
+.cal__cell.cal__cell--sel,
+.cal__cell.cal__cell--sel:hover,
+.cal__cell.cal__cell--sel:focus,
+.cal__cell.cal__cell--sel:focus-visible,
+.cal__cell.cal__cell--sel:active {
+  background: var(--brand) !important;
+  color: #fff !important;
   font-weight: 700;
   border-radius: 50%;
 }
