@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 interface SignaturePadProps {
   label: string;
@@ -27,13 +27,13 @@ export default function SignaturePad({
   const [saving, setSaving] = useState(false);
   const [savedUrl, setSavedUrl] = useState<string | undefined>(existingUrl);
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
+  // 캔버스가 DOM에 붙을 때마다(최초 + '다시 서명하기'로 재표시될 때) 초기화
+  const initCanvas = useCallback((canvas: HTMLCanvasElement | null) => {
+    canvasRef.current = canvas;
     if (!canvas) return;
     // willReadFrequently: getImageData(트리밍)를 CPU 캔버스로 빠르게
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
     if (!ctx) return;
-
     // 내부 해상도 상한(2배)로 getImageData/인코딩 비용 절감
     const ratio = Math.min(window.devicePixelRatio || 1, 2);
     const width = canvas.clientWidth;
@@ -84,14 +84,16 @@ export default function SignaturePad({
   }
 
   function handleClear() {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // '다시 서명하기' 상태에선 캔버스가 아직 DOM에 없을 수 있으므로
+    // 상태 초기화를 먼저 하고(→ 빈 캔버스로 전환), 캔버스가 있으면 지운다.
     hasStrokeRef.current = false;
     setHasDrawing(false);
     setSavedUrl(undefined);
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext("2d");
+      if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
   }
 
   function trimmedDataUrl(canvas: HTMLCanvasElement): string {
@@ -154,7 +156,7 @@ export default function SignaturePad({
       ) : (
         <div className="signature-pad__canvas-wrap">
           <canvas
-            ref={canvasRef}
+            ref={initCanvas}
             className="signature-pad__canvas"
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
