@@ -405,7 +405,9 @@ function OverlayDocumentFormInner(
       }
       setConfirmSave(false);
       setLocalEdit(false);
-      setPdfPromptOpen(true);
+      // PDF는 '수정 저장' 시점이 아니라, 환자 상세의 'PDF로 출력' 버튼을 누를 때
+      // 그 시점의 5개 문서 최신 상태로 생성한다. 여기선 저장만 하고 프롬프트 없음.
+      showToast("저장되었습니다.");
     } finally {
       setSaving(false);
     }

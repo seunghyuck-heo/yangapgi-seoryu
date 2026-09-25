@@ -55,8 +55,6 @@ export default function SignaturePad({
 
   function handlePointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
     if (disabled) return;
-    // 펜(스타일러스)은 마우스 보조버튼/지우개가 아닌 주 접촉만 그림
-    if (e.pointerType === "pen" && e.buttons > 1) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     e.preventDefault(); // 펜 기본동작(호버/스크롤/선택) 방지
