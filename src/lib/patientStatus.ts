@@ -1,15 +1,16 @@
 import type { PatientWithDocuments } from "@/lib/db/types";
+import { DOC_TYPE_ORDER, DocType } from "@/lib/templates/types";
+
+const REQUIRED_TYPES = new Set<DocType>(DOC_TYPE_ORDER);
 
 // 환자로 "카운팅/표시"하는 기준:
-// - 신분증 업로드 + 이름 입력을 마쳤거나,
-// - 서류를 하나라도 '작성완료'했으면 정식 환자로 본다.
-// (서식만 잠깐 열었다 나온 빈 폴더/미완료 초안은 제외)
+// - 필수 서류(5종) 중 하나라도 저장(임시저장 draft 또는 작성완료 completed)했거나,
+// - 신분증 이미지가 올라가 있으면 정식 환자로 본다.
+// (신분증을 먼저 안 넣어도, 서류 하나만 임시저장하면 목록에 보인다.)
 export function isRegisteredPatient(p: PatientWithDocuments): boolean {
-  const hasIdCard = p.documents.some(
-    (d) => d.doc_type === "id_card" && (d.status === "completed" || !!d.file_path)
+  return p.documents.some(
+    (d) =>
+      REQUIRED_TYPES.has(d.doc_type) &&
+      (d.status === "completed" || d.status === "draft" || !!d.file_path)
   );
-  const name = (p.name ?? "").trim();
-  const hasName = name !== "" && name !== "새 환자";
-  const hasCompletedDoc = p.documents.some((d) => d.status === "completed");
-  return (hasIdCard && hasName) || hasCompletedDoc;
 }
