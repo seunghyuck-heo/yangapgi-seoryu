@@ -1991,6 +1991,19 @@ input[type="password"]::placeholder {
   background: rgba(34, 197, 94, 0.3);
   box-shadow: inset 0 0 0 1.5px rgba(22, 163, 74, 0.9);
 }
+/* 기본정보 표의 편집 셀(제품명) 블록 */
+.cc-basic .cc-basic-edit {
+  cursor: pointer;
+  position: relative;
+}
+.cc-basic .cc-edit--empty {
+  background: rgba(47, 95, 221, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(47, 95, 221, 0.5);
+}
+.cc-basic .cc-edit--green {
+  background: rgba(34, 197, 94, 0.3);
+  box-shadow: inset 0 0 0 1.5px rgba(22, 163, 74, 0.9);
+}
 /* 기록값 폰트: 다른 서류 입력값과 동일(굵기 600, 잉크색) */
 .cc-visit .cc-edit,
 .cc-visit .cc-vr__val,
@@ -2864,7 +2877,9 @@ input[type="password"]::placeholder {
   }
   /* 편집 표시(파란/초록 블록)·드롭다운 오버레이는 인쇄에서 숨김 */
   .cc-visit .cc-edit--empty,
-  .cc-visit .cc-edit--green {
+  .cc-visit .cc-edit--green,
+  .cc-basic .cc-edit--empty,
+  .cc-basic .cc-edit--green {
     background: transparent !important;
     box-shadow: none !important;
   }

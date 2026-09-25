@@ -16,6 +16,7 @@ interface CareCardFormProps {
 const CALL_CENTER = "010-5966-2460";
 const VISIT_COUNT = 12;
 const PROVIDERS = ["한혜리", "백영신"];
+const PRODUCTS = ["Prisma Smart", "Smart Max"];
 const ACTION_MAX = 150;
 
 interface Visit {
@@ -122,6 +123,10 @@ interface BodyProps {
   name: string;
   birth: string;
   phone: string;
+  deviceId: string;
+  contractPeriod: string;
+  product: string;
+  onOpenProduct: () => void;
   onUpdate: (i: number, patch: Partial<Visit>) => void;
   onOpenAction: (i: number) => void;
   onOpenProvider: (i: number) => void;
@@ -137,6 +142,10 @@ const CareCardBody = memo(function CareCardBody({
   name,
   birth,
   phone,
+  deviceId,
+  contractPeriod,
+  product,
+  onOpenProduct,
   onUpdate,
   onOpenAction,
   onOpenProvider,
@@ -152,6 +161,14 @@ const CareCardBody = memo(function CareCardBody({
     if (rowEditable && mode === "green" && filled) c += " cc-edit--green";
     else if (rowEditable && !filled) c += " cc-edit--empty";
     if (extra) c += " " + extra;
+    return c;
+  };
+
+  // 기기정보 제품명(기본정보 표) 편집 블록 클래스
+  const productCls = () => {
+    let c = "cc-val cc-basic-edit";
+    if (editing && mode === "green" && product) c += " cc-edit--green";
+    else if (editing && !product) c += " cc-edit--empty";
     return c;
   };
 
@@ -197,11 +214,13 @@ const CareCardBody = memo(function CareCardBody({
               <tr>
                 <th className="cc-cat">기기정보</th>
                 <td className="cc-lbl">기기 관리번호</td>
-                <td className="cc-val" />
+                <td className="cc-val">{deviceId}</td>
                 <td className="cc-lbl">제품명</td>
-                <td className="cc-val" />
+                <td className={productCls()} onClick={() => editing && onOpenProduct()}>
+                  {product}
+                </td>
                 <td className="cc-lbl">계약기간</td>
-                <td className="cc-val" />
+                <td className="cc-val">{contractPeriod}</td>
               </tr>
             </tbody>
           </table>
@@ -402,6 +421,10 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
   const editSnapshotRef = useRef<string>("");
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // 기기정보 제품명(편집): Prisma Smart / Smart Max 중 선택
+  const [product, setProduct] = useState("");
+  const [productOpen, setProductOpen] = useState(false);
+
   // 편집 팝업들 (본문과 분리되어 열림 → 표 리렌더 없음)
   const [actionRow, setActionRow] = useState<number | null>(null);
   const [providerRow, setProviderRow] = useState<number | null>(null);
@@ -421,8 +444,9 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
           const cc = p.documents.find((d) => d.doc_type === "care_card");
           if (cc) {
             if (cc.status === "completed") setStatus("completed");
-            const raw = (cc.form_data as Record<string, unknown>)?.visits;
-            if (raw) setVisits(normalizeVisits(raw));
+            const cfd = cc.form_data as Record<string, unknown>;
+            if (cfd?.visits) setVisits(normalizeVisits(cfd.visits));
+            if (typeof cfd?.product === "string") setProduct(cfd.product);
           }
           if (p.signedUrls) setSignUrls(p.signedUrls);
         }
@@ -498,7 +522,7 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
       const res = await fetch(`/api/documents/${patientId}/care_card`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ form_data: { visits }, status: targetStatus }),
+        body: JSON.stringify({ form_data: { visits, product }, status: targetStatus }),
       });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
@@ -528,12 +552,12 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
   }
 
   function startLocalEdit() {
-    editSnapshotRef.current = JSON.stringify(visits);
+    editSnapshotRef.current = JSON.stringify({ visits, product });
     setLocalEdit(true);
   }
 
   function handleEditDone() {
-    if (JSON.stringify(visits) === editSnapshotRef.current) {
+    if (JSON.stringify({ visits, product }) === editSnapshotRef.current) {
       setLocalEdit(false);
       return;
     }
@@ -542,7 +566,9 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
 
   function cancelEdits() {
     try {
-      setVisits(normalizeVisits(JSON.parse(editSnapshotRef.current)));
+      const snap = JSON.parse(editSnapshotRef.current) as { visits?: unknown; product?: unknown };
+      setVisits(normalizeVisits(snap.visits));
+      if (typeof snap.product === "string") setProduct(snap.product);
     } catch {
       // 무시
     }
@@ -561,6 +587,18 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
   const subsidy = fd(docs, "subsidy_application");
   const poa = fd(docs, "power_of_attorney");
   const cms = fd(docs, "cms_autopay");
+  const contract = fd(docs, "contract");
+
+  // 기기정보 자동 채움(계약서에서)
+  const deviceId = typeof contract.device_id === "string" ? contract.device_id : "";
+  const contractPeriod = (() => {
+    const y = contract.rental_start_year;
+    const m = contract.rental_start_month;
+    const d = contract.rental_start_day;
+    if (!y && !m && !d) return "";
+    const pad = (v: unknown) => String(v ?? "").padStart(2, "0");
+    return `${y ?? ""}.${pad(m)}.${pad(d)}`;
+  })();
 
   const name = patient
     ? firstStr(patient.name, subsidy.patient_name, poa.insured_name, cms.applicant_name)
@@ -606,6 +644,10 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
         name={name}
         birth={birth}
         phone={phone}
+        deviceId={deviceId}
+        contractPeriod={contractPeriod}
+        product={product}
+        onOpenProduct={() => setProductOpen(true)}
         onUpdate={update}
         onOpenAction={openAction}
         onOpenProvider={openProvider}
@@ -662,6 +704,18 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
           onConfirm={(text) => {
             if (actionRow != null) update(actionRow, { action: text.slice(0, ACTION_MAX) });
             setActionRow(null);
+          }}
+        />
+      )}
+
+      {/* 제품명 선택 팝업 (Prisma Smart / Smart Max) */}
+      {productOpen && (
+        <ProductEditor
+          initial={product}
+          onCancel={() => setProductOpen(false)}
+          onConfirm={(p) => {
+            setProduct(p);
+            setProductOpen(false);
           }}
         />
       )}
@@ -757,6 +811,49 @@ function ProviderEditor({
         <div className="sheet__title sheet__title--name">준요양기관 점검자</div>
         <div className="cc-provider-list">
           {PROVIDERS.map((p) => (
+            <button
+              key={p}
+              type="button"
+              className={`cc-provider-item${pick === p ? " is-on" : ""}`}
+              onClick={() => setPick(p)}
+            >
+              <span className="cc-provider-check" aria-hidden>
+                {pick === p ? "✓" : ""}
+              </span>
+              {p}
+            </button>
+          ))}
+        </div>
+        <div className="field-popup__actions">
+          <button type="button" onClick={onCancel}>
+            취소
+          </button>
+          <button type="button" className="primary" onClick={() => onConfirm(pick)} disabled={!pick}>
+            확인
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 제품명 선택 팝업 (Prisma Smart / Smart Max)
+function ProductEditor({
+  initial,
+  onCancel,
+  onConfirm,
+}: {
+  initial: string;
+  onCancel: () => void;
+  onConfirm: (p: string) => void;
+}) {
+  const [pick, setPick] = useState(initial);
+  return (
+    <div className="sheet-overlay sheet-overlay--center" onClick={onCancel}>
+      <div className="sheet sheet--center" onClick={(e) => e.stopPropagation()}>
+        <div className="sheet__title sheet__title--name">제품명 선택</div>
+        <div className="cc-provider-list">
+          {PRODUCTS.map((p) => (
             <button
               key={p}
               type="button"
