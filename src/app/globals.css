@@ -932,7 +932,11 @@ input[type="password"]::placeholder {
 .zoomdoc__viewport {
   position: relative;
   width: 100%;
+  /* A4 문서(가로/세로=0.707)가 뷰포트 높이(68vh) 안에 전부 들어오도록 폭 제한 → 한 화면에 전체 표시
+     (폰은 화면이 좁아 100%가 이김, 타블렛은 이 폭으로 축소되어 전체가 보임) */
+  max-width: calc(68vh * 0.707);
   height: 68vh;
+  margin: 0 auto;
   overflow: hidden;
   background: #4a4f5a;
   border: 1px solid var(--border);
@@ -1846,7 +1850,9 @@ input[type="password"]::placeholder {
 }
 .carecard-page {
   width: 100%;
-  max-width: 760px;
+  /* A4 세로(높이=폭×1.414). 화면 높이에 맞춰 폭을 제한 → 문서 전체가 한 화면에 보임
+     (폰은 화면이 좁아 100vw가 이기고, 타블렛은 높이 기준으로 축소되어 전체가 들어옴) */
+  max-width: min(760px, calc((100dvh - 160px) * 0.707));
   margin: 0 auto;
   background: #fff;
   border: 1px solid var(--border);
