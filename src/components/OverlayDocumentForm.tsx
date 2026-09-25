@@ -688,12 +688,7 @@ function OverlayDocumentFormInner(
         <div className="sheet-overlay" onClick={() => setDateGroupOpen(null)}>
           <div className="sheet field-popup" onClick={(e) => e.stopPropagation()}>
             <div className="field-popup__label">날짜 선택</div>
-            <input
-              type="date"
-              className="odoc-date-input"
-              value={dateDraft}
-              onChange={(e) => setDateDraft(e.target.value)}
-            />
+            <InlineCalendar value={dateDraft} onSelect={setDateDraft} />
             <div className="field-popup__actions">
               <button type="button" onClick={() => setDateGroupOpen(null)}>
                 취소
@@ -889,3 +884,61 @@ function OverlayDocumentFormInner(
 
 const OverlayDocumentForm = forwardRef(OverlayDocumentFormInner);
 export default OverlayDocumentForm;
+
+// 팝업에 바로 뜨는 인라인 캘린더(네이티브 입력창 없이, iOS/안드로이드 동일 동작)
+function InlineCalendar({ value, onSelect }: { value: string; onSelect: (iso: string) => void }) {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const valid = /^\d{4}-\d{2}-\d{2}$/.test(value);
+  const init = valid ? new Date(value + "T00:00:00") : new Date();
+  const [y, setY] = useState(init.getFullYear());
+  const [m, setM] = useState(init.getMonth()); // 0-11
+
+  const firstDow = new Date(y, m, 1).getDay();
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+  const cells: (number | null)[] = [];
+  for (let i = 0; i < firstDow; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+  const prevMonth = () => (m === 0 ? (setY(y - 1), setM(11)) : setM(m - 1));
+  const nextMonth = () => (m === 11 ? (setY(y + 1), setM(0)) : setM(m + 1));
+
+  return (
+    <div className="cal">
+      <div className="cal__head">
+        <button type="button" className="cal__nav" onClick={prevMonth} aria-label="이전 달">
+          ‹
+        </button>
+        <span className="cal__title">
+          {y}년 {m + 1}월
+        </span>
+        <button type="button" className="cal__nav" onClick={nextMonth} aria-label="다음 달">
+          ›
+        </button>
+      </div>
+      <div className="cal__grid cal__grid--dow">
+        {["일", "월", "화", "수", "목", "금", "토"].map((d) => (
+          <span key={d} className="cal__dow">
+            {d}
+          </span>
+        ))}
+      </div>
+      <div className="cal__grid">
+        {cells.map((d, i) => {
+          if (d === null) return <span key={i} className="cal__cell cal__cell--empty" />;
+          const iso = `${y}-${pad(m + 1)}-${pad(d)}`;
+          const sel = iso === value;
+          return (
+            <button
+              key={i}
+              type="button"
+              className={`cal__cell${sel ? " cal__cell--sel" : ""}`}
+              onClick={() => onSelect(iso)}
+            >
+              {d}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
