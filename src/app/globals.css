@@ -929,46 +929,39 @@ input[type="password"]::placeholder {
   gap: 10px;
 }
 
+/* 세로는 페이지 기본 스크롤, 확대 시 가로 스크롤. 고정 박스 없이 문서 자체를 확대/스크롤 */
 .zoomdoc__viewport {
   position: relative;
   width: 100%;
-  /* A4 문서(가로/세로=0.707)가 뷰포트 높이(68vh) 안에 전부 들어오도록 폭 제한 → 한 화면에 전체 표시
-     (폰은 화면이 좁아 100%가 이김, 타블렛은 이 폭으로 축소되어 전체가 보임) */
-  max-width: calc(68vh * 0.707);
-  height: 68vh;
-  margin: 0 auto;
-  overflow: hidden;
-  background: #4a4f5a;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  touch-action: none;
-  overscroll-behavior: contain;
+  overflow-x: auto;
+  padding-bottom: 96px; /* 하단 고정 액션바 가림 방지 */
 }
 
 .zoomdoc__stage {
-  position: absolute;
-  top: 0;
-  left: 0;
+  /* 기본 상태에서 A4 전체가 한 화면에 들어오도록 화면 높이 기준으로 폭 제한
+     (폰은 100vw가 이김, 타블렛은 높이 기준으로 축소되어 전체가 보임) */
   width: 100%;
-  transform-origin: 0 0;
+  max-width: min(760px, calc((100dvh - 200px) * 0.707));
+  margin: 0 auto;
+  transform-origin: top center;
   container-type: inline-size;
   background: #fff;
+  box-shadow: var(--shadow-card);
 }
 
 .odoc-image {
   display: block;
   width: 100%;
-  height: 100%;
-  object-fit: contain;
+  height: auto;
   pointer-events: none;
   user-select: none;
 }
 
 .zoomdoc__controls {
-  position: absolute;
-  right: 12px;
-  bottom: 12px;
-  z-index: 3;
+  position: fixed;
+  right: 14px;
+  bottom: 84px;
+  z-index: 20;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -2820,6 +2813,7 @@ input[type="password"]::placeholder {
     border-radius: 0 !important;
     background: #fff !important;
     margin: 0 !important;
+    padding-bottom: 0 !important;
     text-align: center !important; /* inline-block 스테이지 가운데 정렬 */
   }
 
@@ -2831,6 +2825,7 @@ input[type="password"]::placeholder {
     position: relative !important;
     display: block !important;
     transform: none !important;
+    zoom: 1 !important;
     width: 190mm !important;
     max-width: 190mm !important;
     height: auto !important;
