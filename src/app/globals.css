@@ -1142,6 +1142,7 @@ input[type="password"]::placeholder {
   background: var(--brand);
   color: #fff;
   font-weight: 700;
+  border-radius: 50%; /* 선택 날짜 = 파란 원형 */
 }
 
 /* 인쇄 글자 가림 박스 */

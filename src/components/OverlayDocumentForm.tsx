@@ -256,9 +256,12 @@ function OverlayDocumentFormInner(
     }
 
     if (field.dateGroup) {
-      // iOS Safari는 showPicker 미지원 → 팝업 안의 보이는 date input을 탭해 네이티브 달력 호출
+      // 팝업 인라인 캘린더: 기존 값이 있으면 그 날짜, 없으면 오늘을 기본 선택
       const cur = values[`__d_${field.dateGroup}`];
-      setDateDraft(typeof cur === "string" ? cur : "");
+      const now = new Date();
+      const p2 = (n: number) => String(n).padStart(2, "0");
+      const todayIso = `${now.getFullYear()}-${p2(now.getMonth() + 1)}-${p2(now.getDate())}`;
+      setDateDraft(typeof cur === "string" && cur ? cur : todayIso);
       setDateGroupOpen(field.dateGroup);
       return;
     }
