@@ -938,6 +938,9 @@ input[type="password"]::placeholder {
 }
 
 .zoomdoc__stage {
+  /* hotspot(절대위치) 기준점 → 반드시 positioned 여야 스테이지 기준으로 정렬됨
+     (static이면 뷰포트 기준이 되어 타블렛처럼 스테이지<뷰포트일 때 어긋남) */
+  position: relative;
   /* 기본 상태에서 A4 전체가 한 화면에 들어오도록 화면 높이 기준으로 폭 제한
      (폰은 100vw가 이김, 타블렛은 높이 기준으로 축소되어 전체가 보임) */
   width: 100%;
