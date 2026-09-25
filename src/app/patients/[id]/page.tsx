@@ -22,6 +22,21 @@ function hasFormData(fd: Record<string, unknown> | null | undefined): boolean {
   });
 }
 
+// 환자관리카드: 제품명 또는 방문점검 중 하나라도 입력됐는지 (빈 visits 배열은 제외)
+function careCardHasData(fd: Record<string, unknown> | null | undefined): boolean {
+  if (!fd) return false;
+  if (typeof fd.product === "string" && fd.product.trim() !== "") return true;
+  const visits = fd.visits;
+  if (Array.isArray(visits)) {
+    return visits.some(
+      (v) =>
+        v &&
+        (v.date || v.cpap || v.supply || v.hygiene || v.alarm || v.pressure || v.usage || v.action || v.provider || v.guardianSign)
+    );
+  }
+  return false;
+}
+
 export default function PatientDetailPage({ params }: PatientDetailPageProps) {
   const router = useRouter();
   const { id } = use(params);
@@ -138,6 +153,17 @@ export default function PatientDetailPage({ params }: PatientDetailPageProps) {
 
       <h2 className="patient-detail-page__subhead">지속 관리 서류</h2>
       <ul className="doc-row-list">
+        {(() => {
+          const careDoc = patient.documents.find((d) => d.doc_type === "care_card");
+          const careState =
+            careDoc?.status === "completed"
+              ? "complete"
+              : careDoc && careCardHasData(careDoc.form_data)
+                ? "progress"
+                : "none";
+          const careLabel =
+            careState === "complete" ? "완료" : careState === "progress" ? "작성중" : "작성 필요";
+          return (
         <li>
           <Link href={`/patients/${id}/care-card`} className="doc-row">
             <span className="doc-row__icon" style={{ background: "#0ea5a3", color: "#fff" }}>
@@ -148,6 +174,7 @@ export default function PatientDetailPage({ params }: PatientDetailPageProps) {
               </svg>
             </span>
             <span className="doc-row__title">양압기 환자관리카드</span>
+            <span className={`doc-row__status doc-row__status--${careState}`}>{careLabel}</span>
             <span className="doc-row__chevron" aria-hidden>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
                 <path d="M9 18l6-6-6-6" />
@@ -155,6 +182,8 @@ export default function PatientDetailPage({ params }: PatientDetailPageProps) {
             </span>
           </Link>
         </li>
+          );
+        })()}
       </ul>
 
       {toast && <div className="toast no-print">{toast}</div>}
