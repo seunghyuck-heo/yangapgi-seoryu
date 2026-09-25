@@ -8,160 +8,68 @@ interface CareCardZoomProps {
   maxScale?: number;
 }
 
-interface P {
-  x: number;
-  y: number;
-}
-
-const TAP_MOVE = 8; // px, 이 이하로 움직이면 탭으로 간주(셀 클릭 통과)
-
-// 양압기 환자관리카드 전용 핀치줌/팬 래퍼.
-// - 1손가락: 움직이면 팬, 가만히 있으면 셀 탭(달력/O표시/드롭다운) 그대로 동작
-// - 2손가락: 핀치 줌인/아웃
-// - 더블탭: 원래 크기로
+// 환자관리카드 줌 래퍼.
+// - 세로 스크롤은 브라우저 기본 스크롤을 그대로 사용(모든 기기에서 확실히 동작) → 잘림/스크롤불가 없음
+// - 두 손가락 핀치로만 확대/축소(zoom). 한 손가락은 건드리지 않아 탭·스크롤이 자연스럽게 동작
+// - 더블탭으로 원래 크기 복귀
 export default function CareCardZoom({ children, minScale = 1, maxScale = 3 }: CareCardZoomProps) {
-  const vpRef = useRef<HTMLDivElement | null>(null);
-  const contentRef = useRef<HTMLDivElement | null>(null);
-  const [t, setT] = useState({ scale: 1, tx: 0, ty: 0 });
-  const stateRef = useRef(t);
-  useEffect(() => {
-    stateRef.current = t;
-  }, [t]);
-
-  const pointers = useRef<Map<number, P>>(new Map());
-  const pan = useRef<{ x: number; y: number; tx: number; ty: number } | null>(null);
-  const pinch = useRef<{ dist: number; mx: number; my: number; scale: number; tx: number; ty: number } | null>(null);
-  const moved = useRef(false);
-  const justMoved = useRef(false);
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  const [zoom, setZoom] = useState(1);
+  const pinch = useRef<{ dist: number; startZoom: number } | null>(null);
+  const zoomRef = useRef(1);
   const lastTap = useRef(0);
+  useEffect(() => {
+    zoomRef.current = zoom;
+  }, [zoom]);
 
-  function clampScale(s: number) {
-    return Math.min(maxScale, Math.max(minScale, s));
+  function clampZoom(z: number) {
+    return Math.min(maxScale, Math.max(minScale, z));
+  }
+  function dist(a: Touch, b: Touch) {
+    return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
   }
 
-  function clamp(scale: number, tx: number, ty: number) {
-    const vp = vpRef.current;
-    const content = contentRef.current;
-    if (!vp || !content) return { scale, tx, ty };
-    const vw = vp.clientWidth;
-    const vh = vp.clientHeight;
-    const cw = content.offsetWidth * scale;
-    const ch = content.offsetHeight * scale;
-    let nx: number;
-    let ny: number;
-    if (cw <= vw) nx = (vw - cw) / 2;
-    else nx = Math.min(0, Math.max(vw - cw, tx));
-    if (ch <= vh) ny = (vh - ch) / 2;
-    else ny = Math.min(0, Math.max(vh - ch, ty));
-    return { scale, tx: nx, ty: ny };
-  }
+  // 핀치(2손가락)만 non-passive로 가로채 확대/축소. 1손가락 스크롤은 기본 동작 유지.
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
 
-  function localPoint(clientX: number, clientY: number) {
-    const rect = vpRef.current!.getBoundingClientRect();
-    return { x: clientX - rect.left, y: clientY - rect.top };
-  }
-
-  function onPointerDown(e: React.PointerEvent) {
-    const p = localPoint(e.clientX, e.clientY);
-    pointers.current.set(e.pointerId, p);
-    moved.current = false;
-    if (pointers.current.size === 1) {
-      const { scale, tx, ty } = stateRef.current;
-      pan.current = { x: p.x, y: p.y, tx, ty };
-      pinch.current = null;
-    } else if (pointers.current.size === 2) {
-      const pts = [...pointers.current.values()];
-      const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
-      const mx = (pts[0].x + pts[1].x) / 2;
-      const my = (pts[0].y + pts[1].y) / 2;
-      const { scale, tx, ty } = stateRef.current;
-      pinch.current = { dist: dist || 1, mx, my, scale, tx, ty };
-      pan.current = null;
-    }
-  }
-
-  function onPointerMove(e: React.PointerEvent) {
-    if (!pointers.current.has(e.pointerId)) return;
-    const p = localPoint(e.clientX, e.clientY);
-    pointers.current.set(e.pointerId, p);
-
-    if (pointers.current.size >= 2 && pinch.current) {
-      e.preventDefault();
-      const pts = [...pointers.current.values()];
-      const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
-      const start = pinch.current;
-      const nextScale = clampScale(start.scale * (dist / start.dist));
-      // 핀치 중심(midpoint)이 고정되도록 tx,ty 보정
-      const contentX = (start.mx - start.tx) / start.scale;
-      const contentY = (start.my - start.ty) / start.scale;
-      const tx = start.mx - contentX * nextScale;
-      const ty = start.my - contentY * nextScale;
-      moved.current = true;
-      justMoved.current = true;
-      setT(clamp(nextScale, tx, ty));
-      return;
-    }
-
-    if (pointers.current.size === 1 && pan.current) {
-      const dx = p.x - pan.current.x;
-      const dy = p.y - pan.current.y;
-      if (!moved.current && Math.hypot(dx, dy) > TAP_MOVE) {
-        moved.current = true;
-        try {
-          (e.target as Element).setPointerCapture?.(e.pointerId);
-        } catch {
-          /* noop */
-        }
+    const onStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        pinch.current = { dist: dist(e.touches[0], e.touches[1]) || 1, startZoom: zoomRef.current };
       }
-      if (moved.current) {
-        e.preventDefault();
-        justMoved.current = true;
-        const { scale } = stateRef.current;
-        setT(clamp(scale, pan.current.tx + dx, pan.current.ty + dy));
+    };
+    const onMove = (e: TouchEvent) => {
+      if (e.touches.length === 2 && pinch.current) {
+        e.preventDefault(); // 브라우저 2손가락 팬 방지
+        const d = dist(e.touches[0], e.touches[1]);
+        setZoom(clampZoom(pinch.current.startZoom * (d / pinch.current.dist)));
       }
-    }
-  }
-
-  function endPointer(e: React.PointerEvent) {
-    pointers.current.delete(e.pointerId);
-    if (pointers.current.size < 2) pinch.current = null;
-    if (pointers.current.size === 0) {
-      pan.current = null;
-      // 더블탭 → 리셋
-      if (!moved.current) {
+    };
+    const onEnd = (e: TouchEvent) => {
+      if (e.touches.length < 2) pinch.current = null;
+      // 더블탭 → 원래 크기
+      if (e.touches.length === 0 && e.changedTouches.length === 1) {
         const now = Date.now();
-        if (now - lastTap.current < 300) {
-          setT({ scale: 1, tx: 0, ty: 0 });
-          justMoved.current = true; // 리셋 탭이 셀 클릭으로 새지 않도록
-        }
+        if (now - lastTap.current < 300) setZoom(1);
         lastTap.current = now;
       }
-      // 팬/핀치 직후엔 클릭 억제 플래그를 잠깐 유지했다가 클릭에서 소비
-      if (moved.current) justMoved.current = true;
-    }
-  }
+    };
 
-  function onClickCapture(e: React.MouseEvent) {
-    if (justMoved.current) {
-      e.preventDefault();
-      e.stopPropagation();
-      justMoved.current = false;
-    }
-  }
-
-  const transform = `translate3d(${t.tx}px, ${t.ty}px, 0) scale(${t.scale})`;
+    el.addEventListener("touchstart", onStart, { passive: true });
+    el.addEventListener("touchmove", onMove, { passive: false });
+    el.addEventListener("touchend", onEnd, { passive: true });
+    return () => {
+      el.removeEventListener("touchstart", onStart);
+      el.removeEventListener("touchmove", onMove);
+      el.removeEventListener("touchend", onEnd);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [minScale, maxScale]);
 
   return (
-    <div
-      ref={vpRef}
-      className="carecard-zoom"
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={endPointer}
-      onPointerCancel={endPointer}
-      onClickCapture={onClickCapture}
-    >
-      <div ref={contentRef} className="carecard-zoom__content" style={{ transform }}>
+    <div ref={wrapRef} className="carecard-zoom">
+      <div className="carecard-zoom__content" style={{ zoom }}>
         {children}
       </div>
     </div>

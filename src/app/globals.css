@@ -1956,20 +1956,16 @@ input[type="password"]::placeholder {
   color: #333;
 }
 
-/* ===== 환자관리카드 핀치줌 뷰포트 ===== */
+/* ===== 환자관리카드 줌 래퍼 (세로는 페이지 기본 스크롤 사용) ===== */
 .carecard-zoom {
   position: relative;
   width: 100%;
-  height: calc(100dvh - 150px); /* 상단 툴바 + 하단 액션바 공간 확보 */
-  overflow: hidden;
-  touch-action: none;
-  overscroll-behavior: contain;
-  background: var(--bg, #eef1f6);
+  overflow-x: auto; /* 확대 시 가로 스크롤 */
+  /* 하단 고정 액션바에 마지막 내용이 가리지 않도록 여백 */
+  padding-bottom: 96px;
 }
 .carecard-zoom__content {
-  transform-origin: 0 0;
   width: 100%;
-  will-change: transform;
 }
 .carecard-zoom .carecard-wrap {
   overflow: visible;
@@ -2861,8 +2857,10 @@ input[type="password"]::placeholder {
     overflow: visible !important;
     touch-action: auto !important;
     background: #fff !important;
+    padding-bottom: 0 !important;
   }
   .carecard-zoom__content {
+    zoom: 1 !important;
     transform: none !important;
     width: 100% !important;
   }
