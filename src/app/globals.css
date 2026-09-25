@@ -1138,11 +1138,12 @@ input[type="password"]::placeholder {
 .cal__cell--empty {
   background: transparent;
 }
-.cal__cell--sel {
+/* 선택 날짜 = 파란 원형 + 흰 글자 (버튼 기본색보다 우선하도록 이중 클래스) */
+.cal__cell.cal__cell--sel {
   background: var(--brand);
   color: #fff;
   font-weight: 700;
-  border-radius: 50%; /* 선택 날짜 = 파란 원형 */
+  border-radius: 50%;
 }
 
 /* 인쇄 글자 가림 박스 */
