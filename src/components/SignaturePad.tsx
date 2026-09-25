@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface SignaturePadProps {
   label: string;
@@ -23,87 +23,107 @@ export default function SignaturePad({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const drawingRef = useRef(false);
   const hasStrokeRef = useRef(false);
+  const disabledRef = useRef(!!disabled);
+  const cleanupRef = useRef<(() => void) | null>(null);
   const [hasDrawing, setHasDrawing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savedUrl, setSavedUrl] = useState<string | undefined>(existingUrl);
 
-  // 캔버스가 DOM에 붙을 때마다(최초 + '다시 서명하기'로 재표시될 때) 초기화
+  useEffect(() => {
+    disabledRef.current = !!disabled;
+  }, [disabled]);
+
+  // 캔버스가 DOM에 붙을 때 초기화 + 네이티브 입력 리스너 부착(iOS 정전식 펜 인식률↑)
   const initCanvas = useCallback((canvas: HTMLCanvasElement | null) => {
+    // 이전 캔버스 리스너 정리
+    if (cleanupRef.current) {
+      cleanupRef.current();
+      cleanupRef.current = null;
+    }
     canvasRef.current = canvas;
     if (!canvas) return;
-    // willReadFrequently: getImageData(트리밍)를 CPU 캔버스로 빠르게
+
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
     if (!ctx) return;
-    // 내부 해상도 상한(2배)로 getImageData/인코딩 비용 절감
     const ratio = Math.min(window.devicePixelRatio || 1, 2);
-    const width = canvas.clientWidth;
-    const height = canvas.clientHeight;
-    canvas.width = width * ratio;
-    canvas.height = height * ratio;
+    canvas.width = canvas.clientWidth * ratio;
+    canvas.height = canvas.clientHeight * ratio;
     ctx.scale(ratio, ratio);
     ctx.lineWidth = 8;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     ctx.strokeStyle = "#1a1a1a";
+
+    const xy = (clientX: number, clientY: number): [number, number] => {
+      const r = canvas.getBoundingClientRect();
+      return [clientX - r.left, clientY - r.top];
+    };
+    const begin = (clientX: number, clientY: number) => {
+      if (disabledRef.current) return;
+      const [x, y] = xy(clientX, clientY);
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      drawingRef.current = true;
+    };
+    const extend = (clientX: number, clientY: number) => {
+      if (!drawingRef.current) return;
+      const [x, y] = xy(clientX, clientY);
+      ctx.lineTo(x, y);
+      ctx.stroke();
+      hasStrokeRef.current = true;
+      setHasDrawing(true);
+    };
+    const finish = () => {
+      drawingRef.current = false;
+    };
+
+    // 터치(손가락·정전식 펜) — non-passive로 preventDefault 하여 스크롤/줌/마우스에뮬레이션 차단
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      e.preventDefault();
+      begin(e.touches[0].clientX, e.touches[0].clientY);
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      if (!drawingRef.current) return;
+      e.preventDefault();
+      const t = e.touches[0];
+      if (t) extend(t.clientX, t.clientY);
+    };
+    const onTouchEnd = (e: TouchEvent) => {
+      e.preventDefault();
+      finish();
+    };
+    // 마우스(데스크톱)
+    const onMouseDown = (e: MouseEvent) => begin(e.clientX, e.clientY);
+    const onMouseMove = (e: MouseEvent) => extend(e.clientX, e.clientY);
+    const onMouseUp = () => finish();
+
+    canvas.addEventListener("touchstart", onTouchStart, { passive: false });
+    canvas.addEventListener("touchmove", onTouchMove, { passive: false });
+    canvas.addEventListener("touchend", onTouchEnd, { passive: false });
+    canvas.addEventListener("touchcancel", onTouchEnd, { passive: false });
+    canvas.addEventListener("mousedown", onMouseDown);
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+
+    cleanupRef.current = () => {
+      canvas.removeEventListener("touchstart", onTouchStart);
+      canvas.removeEventListener("touchmove", onTouchMove);
+      canvas.removeEventListener("touchend", onTouchEnd);
+      canvas.removeEventListener("touchcancel", onTouchEnd);
+      canvas.removeEventListener("mousedown", onMouseDown);
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
   }, []);
 
-  function getPos(e: React.PointerEvent<HTMLCanvasElement>) {
-    const canvas = canvasRef.current!;
-    const rect = canvas.getBoundingClientRect();
-    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
-  }
-
-  function handlePointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
-    if (disabled) return;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    e.preventDefault(); // 펜 기본동작(호버/스크롤/선택) 방지
-    try {
-      canvas.setPointerCapture(e.pointerId); // 실패해도 그리기는 계속
-    } catch {
-      /* noop */
-    }
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    const { x, y } = getPos(e);
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    drawingRef.current = true;
-  }
-
-  function handlePointerMove(e: React.PointerEvent<HTMLCanvasElement>) {
-    if (!drawingRef.current) return;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    e.preventDefault();
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    // 펜은 한 번에 여러 좌표(coalesced)가 오므로 모두 반영 → 끊김 없는 선
-    const events =
-      typeof e.nativeEvent.getCoalescedEvents === "function"
-        ? e.nativeEvent.getCoalescedEvents()
-        : [];
-    if (events.length > 0) {
-      const rect = canvas.getBoundingClientRect();
-      for (const ev of events) {
-        ctx.lineTo(ev.clientX - rect.left, ev.clientY - rect.top);
-      }
-    } else {
-      const { x, y } = getPos(e);
-      ctx.lineTo(x, y);
-    }
-    ctx.stroke();
-    hasStrokeRef.current = true;
-    setHasDrawing(true);
-  }
-
-  function handlePointerUp() {
-    drawingRef.current = false;
-  }
+  useEffect(() => {
+    return () => {
+      if (cleanupRef.current) cleanupRef.current();
+    };
+  }, []);
 
   function handleClear() {
-    // '다시 서명하기' 상태에선 캔버스가 아직 DOM에 없을 수 있으므로
-    // 상태 초기화를 먼저 하고(→ 빈 캔버스로 전환), 캔버스가 있으면 지운다.
     hasStrokeRef.current = false;
     setHasDrawing(false);
     setSavedUrl(undefined);
@@ -124,7 +144,6 @@ export default function SignaturePad({
       maxX = 0,
       maxY = 0,
       found = false;
-    // 2px 간격으로 스캔(약 4배 빠름). 오차는 아래 padding 으로 보정.
     for (let y = 0; y < height; y += 2) {
       for (let x = 0; x < width; x += 2) {
         if (data[(y * width + x) * 4 + 3] > 10) {
@@ -173,14 +192,7 @@ export default function SignaturePad({
         </div>
       ) : (
         <div className="signature-pad__canvas-wrap">
-          <canvas
-            ref={initCanvas}
-            className="signature-pad__canvas"
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onPointerLeave={handlePointerUp}
-          />
+          <canvas ref={initCanvas} className="signature-pad__canvas" />
           {!hasDrawing && <div className="signature-pad__hint">여기에 손가락(펜)으로 서명해 주세요</div>}
         </div>
       )}
