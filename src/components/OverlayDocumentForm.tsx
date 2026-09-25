@@ -88,6 +88,7 @@ function OverlayDocumentFormInner(
   const isCompleted = initialStatus === "completed";
   const highlightEdit = editMode || localEdit; // 편집 가능 칸 초록 표시
   const [dateGroupOpen, setDateGroupOpen] = useState<string | null>(null);
+  const [dateDraft, setDateDraft] = useState("");
 
   const fieldByKey = useMemo(() => {
     const m = new Map<string, OverlayField>();
@@ -256,6 +257,8 @@ function OverlayDocumentFormInner(
 
     if (field.dateGroup) {
       // iOS Safari는 showPicker 미지원 → 팝업 안의 보이는 date input을 탭해 네이티브 달력 호출
+      const cur = values[`__d_${field.dateGroup}`];
+      setDateDraft(typeof cur === "string" ? cur : "");
       setDateGroupOpen(field.dateGroup);
       return;
     }
@@ -679,7 +682,8 @@ function OverlayDocumentFormInner(
         </div>
       )}
 
-      {/* 날짜 선택 팝업 — 보이는 date input을 탭하면 iOS/안드로이드 모두 네이티브 달력이 뜬다 */}
+      {/* 날짜 선택 팝업 — 보이는 date input을 탭하면 iOS/안드로이드 모두 네이티브 달력이 뜬다.
+          선택값은 드래프트에 담고 '확인'을 눌러야 반영(iOS에서 자동확정/닫힘 방지) */}
       {dateGroupOpen && (
         <div className="sheet-overlay" onClick={() => setDateGroupOpen(null)}>
           <div className="sheet field-popup" onClick={(e) => e.stopPropagation()}>
@@ -687,16 +691,22 @@ function OverlayDocumentFormInner(
             <input
               type="date"
               className="odoc-date-input"
-              autoFocus
-              value={typeof values[`__d_${dateGroupOpen}`] === "string" ? (values[`__d_${dateGroupOpen}`] as string) : ""}
-              onChange={(e) => {
-                if (e.target.value) applyDate(dateGroupOpen, e.target.value);
-                setDateGroupOpen(null);
-              }}
+              value={dateDraft}
+              onChange={(e) => setDateDraft(e.target.value)}
             />
             <div className="field-popup__actions">
               <button type="button" onClick={() => setDateGroupOpen(null)}>
-                닫기
+                취소
+              </button>
+              <button
+                type="button"
+                className="primary"
+                onClick={() => {
+                  if (dateDraft) applyDate(dateGroupOpen, dateDraft);
+                  setDateGroupOpen(null);
+                }}
+              >
+                확인
               </button>
             </div>
           </div>
