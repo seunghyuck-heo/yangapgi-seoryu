@@ -929,42 +929,52 @@ input[type="password"]::placeholder {
   gap: 10px;
 }
 
-/* 세로는 페이지 기본 스크롤, 확대 시 가로 스크롤. 고정 박스 없이 문서 자체를 확대/스크롤 */
+/* 모바일 기본(원본): 68vh 고정 박스 안에서 포인터 핀치/팬 (기존 동작 유지) */
 .zoomdoc__viewport {
   position: relative;
   width: 100%;
-  overflow-x: auto;
-  padding-bottom: 96px; /* 하단 고정 액션바 가림 방지 */
+  height: 68vh;
+  overflow: hidden;
+  background: #4a4f5a;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  touch-action: none;
+  overscroll-behavior: contain;
 }
 
 .zoomdoc__stage {
-  /* hotspot(절대위치) 기준점 → 반드시 positioned 여야 스테이지 기준으로 정렬됨
-     (static이면 뷰포트 기준이 되어 타블렛처럼 스테이지<뷰포트일 때 어긋남) */
-  position: relative;
-  /* 기본 상태에서 A4 전체가 한 화면에 들어오도록 화면 높이 기준으로 폭 제한
-     (폰은 100vw가 이김, 타블렛은 높이 기준으로 축소되어 전체가 보임) */
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
-  max-width: min(760px, calc((100dvh - 200px) * 0.707));
-  margin: 0 auto;
-  transform-origin: top center;
+  transform-origin: 0 0;
   container-type: inline-size;
   background: #fff;
-  box-shadow: var(--shadow-card);
 }
 
 .odoc-image {
   display: block;
   width: 100%;
-  height: auto;
+  height: 100%;
+  object-fit: contain;
   pointer-events: none;
   user-select: none;
 }
 
+/* 타블렛(≥768px)에서만: 박스 폭을 화면 높이에 맞춰 제한 → A4 전체가 박스 안에 들어옴.
+   모바일(<768px)은 위 원본 그대로라 기존 핀치줌이 정상 동작. */
+@media (min-width: 768px) {
+  .zoomdoc__viewport {
+    max-width: calc(68vh * 0.707);
+    margin: 0 auto;
+  }
+}
+
 .zoomdoc__controls {
-  position: fixed;
-  right: 14px;
-  bottom: 84px;
-  z-index: 20;
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 3;
   display: flex;
   align-items: center;
   gap: 6px;
