@@ -87,8 +87,7 @@ function OverlayDocumentFormInner(
 
   const isCompleted = initialStatus === "completed";
   const highlightEdit = editMode || localEdit; // 편집 가능 칸 초록 표시
-  const dateInputRef = useRef<HTMLInputElement | null>(null);
-  const dateGroupRef = useRef<string | null>(null);
+  const [dateGroupOpen, setDateGroupOpen] = useState<string | null>(null);
 
   const fieldByKey = useMemo(() => {
     const m = new Map<string, OverlayField>();
@@ -256,23 +255,8 @@ function OverlayDocumentFormInner(
     }
 
     if (field.dateGroup) {
-      dateGroupRef.current = field.dateGroup;
-      const input = dateInputRef.current;
-      if (input) {
-        input.value =
-          typeof values[`__d_${field.dateGroup}`] === "string"
-            ? (values[`__d_${field.dateGroup}`] as string)
-            : "";
-        if (typeof input.showPicker === "function") {
-          try {
-            input.showPicker();
-          } catch {
-            input.focus();
-          }
-        } else {
-          input.focus();
-        }
-      }
+      // iOS Safari는 showPicker 미지원 → 팝업 안의 보이는 date input을 탭해 네이티브 달력 호출
+      setDateGroupOpen(field.dateGroup);
       return;
     }
 
@@ -695,15 +679,29 @@ function OverlayDocumentFormInner(
         </div>
       )}
 
-      {/* 숨긴 날짜 입력: 파란 날짜 칸 탭 시 네이티브 캘린더 바로 호출 */}
-      <input
-        ref={dateInputRef}
-        type="date"
-        className="odoc-hidden-date"
-        onChange={(e) => {
-          if (e.target.value && dateGroupRef.current) applyDate(dateGroupRef.current, e.target.value);
-        }}
-      />
+      {/* 날짜 선택 팝업 — 보이는 date input을 탭하면 iOS/안드로이드 모두 네이티브 달력이 뜬다 */}
+      {dateGroupOpen && (
+        <div className="sheet-overlay" onClick={() => setDateGroupOpen(null)}>
+          <div className="sheet field-popup" onClick={(e) => e.stopPropagation()}>
+            <div className="field-popup__label">날짜 선택</div>
+            <input
+              type="date"
+              className="odoc-date-input"
+              autoFocus
+              value={typeof values[`__d_${dateGroupOpen}`] === "string" ? (values[`__d_${dateGroupOpen}`] as string) : ""}
+              onChange={(e) => {
+                if (e.target.value) applyDate(dateGroupOpen, e.target.value);
+                setDateGroupOpen(null);
+              }}
+            />
+            <div className="field-popup__actions">
+              <button type="button" onClick={() => setDateGroupOpen(null)}>
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 텍스트 입력 팝업 */}
       {openField && !openField.dateGroup && openField.type === "text" && (

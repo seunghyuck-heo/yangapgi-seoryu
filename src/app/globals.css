@@ -1066,6 +1066,22 @@ input[type="password"]::placeholder {
   pointer-events: none;
 }
 
+/* 날짜 선택 팝업의 보이는 date input (iOS 포함 네이티브 달력) */
+.odoc-date-input {
+  width: 100%;
+  box-sizing: border-box;
+  font-size: 18px;
+  padding: 14px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--ink);
+  margin: 4px 0 14px;
+  -webkit-appearance: none;
+  appearance: none;
+  min-height: 52px;
+}
+
 /* 인쇄 글자 가림 박스 */
 .odoc-hotspot--cover {
   background: #fff;
