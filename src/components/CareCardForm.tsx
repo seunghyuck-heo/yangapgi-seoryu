@@ -592,12 +592,13 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
   // 기기정보 자동 채움(계약서에서)
   const deviceId = typeof contract.device_id === "string" ? contract.device_id : "";
   const contractPeriod = (() => {
-    const y = contract.rental_start_year;
-    const m = contract.rental_start_month;
-    const d = contract.rental_start_day;
-    if (!y && !m && !d) return "";
-    const pad = (v: unknown) => String(v ?? "").padStart(2, "0");
-    return `${y ?? ""}.${pad(m)}.${pad(d)}`;
+    const y = parseInt(String(contract.rental_start_year ?? ""), 10);
+    const m = parseInt(String(contract.rental_start_month ?? ""), 10);
+    const d = parseInt(String(contract.rental_start_day ?? ""), 10);
+    if (!y || !m || !d) return "";
+    const pad = (v: number) => String(v).padStart(2, "0");
+    const start = `${y}.${pad(m)}.${pad(d)}`;
+    return `${start} ~ 계약 종료 시까지`; // 계약서 문구 그대로
   })();
 
   const name = patient
