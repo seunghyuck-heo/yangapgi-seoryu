@@ -21,7 +21,7 @@ export const subsidyOverlay: OverlayDoc = {
     { key: "apply_month", type: "text", x: 48.8, y: 74.37, w: 2.8, h: 1.2, label: "신청 월", align: "right", dateGroup: "apply", datePart: "m", autoToday: true, fontPct: 1.2 },
     { key: "apply_day", type: "text", x: 53.31, y: 74.37, w: 2.8, h: 1.2, label: "신청 일", align: "right", dateGroup: "apply", datePart: "d", autoToday: true, fontPct: 1.2 },
     { key: "applicant_seal", type: "signature", x: 42.05, y: 76.54, w: 14, h: 3.11, label: "서명 (수기)", align: "right" },
-    { key: "applicant_signature", type: "signature", x: 30, y: 76.68, w: 15, h: 2.83, label: "성명 (수기)", confirmText: "성명 확정", align: "right" },
-    { key: "applicant_phone", type: "text", x: 35.47, y: 80.49, w: 15, h: 1.2, label: "신청인 연락처", prefix: "010-", dashPattern: [4, 4], align: "right" },
+    { key: "applicant_signature", type: "signature", x: 31, y: 76.68, w: 13, h: 2.83, label: "성명 (수기)", confirmText: "성명 확정", align: "right" },
+    { key: "applicant_phone", type: "text", x: 40, y: 80.49, w: 11, h: 1.2, label: "신청인 연락처", prefix: "010-", dashPattern: [4, 4], align: "right" },
   ],
 };

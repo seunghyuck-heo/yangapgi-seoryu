@@ -523,13 +523,10 @@ function OverlayDocumentFormInner(
             src={url}
             alt="서명"
             className="odoc-hotspot__sig"
-            style={
-              field.align === "right"
-                ? { marginLeft: "auto" }
-                : field.align === "center"
-                  ? { marginLeft: "auto", marginRight: "auto" }
-                  : undefined
-            }
+            style={{
+              objectPosition:
+                field.align === "right" ? "right center" : field.align === "center" ? "center" : "left center",
+            }}
           />
         );
       }
