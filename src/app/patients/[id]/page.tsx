@@ -3,10 +3,13 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, use } from "react";
+import dynamic from "next/dynamic";
 import { PatientWithDocuments } from "@/lib/db/types";
 import { DOC_TYPE_LABELS, DOC_TYPE_ORDER } from "@/lib/templates/types";
 import { DOC_ICON_STYLES } from "@/components/docIcons";
-import DocumentBundleViewer from "@/components/DocumentBundleViewer";
+
+// PDF 묶음 뷰어는 무거워서(오버레이·렌더링 코드) 필요할 때만 로드 → 상세 진입 속도 개선
+const DocumentBundleViewer = dynamic(() => import("@/components/DocumentBundleViewer"), { ssr: false });
 
 interface PatientDetailPageProps {
   params: Promise<{ id: string }>;
@@ -96,12 +99,11 @@ export default function PatientDetailPage({ params }: PatientDetailPageProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patient]);
 
-  if (loading) return <p className="patient-detail-page">불러오는 중...</p>;
   if (error) return <p className="patient-detail-page error-banner">{error}</p>;
-  if (!patient) return null;
+  // patient가 아직 안 왔어도 골격(제목/문서 행/링크)은 즉시 렌더 → 진입이 빨라 보임. 상태 라벨만 로딩 후 채움.
 
   return (
-    <div className="patient-detail-page">
+    <div className="patient-detail-page" aria-busy={loading}>
       <div className="doc-page__toolbar no-print">
         <button type="button" className="app-header__action" aria-label="뒤로" onClick={() => router.push("/patients")}>
           <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
@@ -113,24 +115,26 @@ export default function PatientDetailPage({ params }: PatientDetailPageProps) {
         </button>
       </div>
       <h1>
-        {patient.name}
-        {patient.customer_no != null && (
+        {patient ? patient.name : " "}
+        {patient?.customer_no != null && (
           <span className="patient-detail-page__no"> (No. {patient.customer_no})</span>
         )}
       </h1>
-      {patient.phone ? <p className="patient-detail-page__meta">{patient.phone}</p> : null}
+      {patient?.phone ? <p className="patient-detail-page__meta">{patient.phone}</p> : null}
 
       <ul className="doc-row-list">
         {DOC_TYPE_ORDER.map((docType) => {
-          const doc = patient.documents.find((d) => d.doc_type === docType);
+          const doc = patient?.documents.find((d) => d.doc_type === docType);
           // 완료 / 작성중(입력 있음·임시저장) / 작성 필요(입력 없이 방문만 or 기록 없음)
-          const state =
-            doc?.status === "completed"
+          const state = !patient
+            ? "loading"
+            : doc?.status === "completed"
               ? "complete"
               : doc && hasFormData(doc.form_data)
                 ? "progress"
                 : "none";
-          const label = state === "complete" ? "완료" : state === "progress" ? "작성중" : "작성 필요";
+          const label =
+            state === "loading" ? "" : state === "complete" ? "완료" : state === "progress" ? "작성중" : "작성 필요";
           const style = DOC_ICON_STYLES[docType];
           return (
             <li key={docType}>
@@ -154,15 +158,16 @@ export default function PatientDetailPage({ params }: PatientDetailPageProps) {
       <h2 className="patient-detail-page__subhead">지속 관리 서류</h2>
       <ul className="doc-row-list">
         {(() => {
-          const careDoc = patient.documents.find((d) => d.doc_type === "care_card");
-          const careState =
-            careDoc?.status === "completed"
+          const careDoc = patient?.documents.find((d) => d.doc_type === "care_card");
+          const careState = !patient
+            ? "loading"
+            : careDoc?.status === "completed"
               ? "complete"
               : careDoc && careCardHasData(careDoc.form_data)
                 ? "progress"
                 : "none";
           const careLabel =
-            careState === "complete" ? "완료" : careState === "progress" ? "작성중" : "작성 필요";
+            careState === "loading" ? "" : careState === "complete" ? "완료" : careState === "progress" ? "작성중" : "작성 필요";
           return (
         <li>
           <Link href={`/patients/${id}/care-card`} className="doc-row">
@@ -188,7 +193,7 @@ export default function PatientDetailPage({ params }: PatientDetailPageProps) {
 
       {toast && <div className="toast no-print">{toast}</div>}
 
-      {showBundle && (
+      {showBundle && patient && (
         <DocumentBundleViewer
           patientId={patient.id}
           patientName={patient.name}

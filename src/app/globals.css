@@ -1907,6 +1907,10 @@ input[type="password"]::placeholder {
 .doc-row__status--progress {
   color: var(--danger);
 }
+/* 로딩 중 상태 라벨: 자리만 차지하지 않게 숨김 */
+.doc-row__status--loading {
+  min-width: 40px;
+}
 .doc-row__chevron {
   display: flex;
   align-items: center;
