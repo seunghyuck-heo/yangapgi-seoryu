@@ -307,8 +307,8 @@ function OverlayDocumentFormInner(
     if (!field) return;
     // 완료된 서류는 '수정' 모드에서만 편집 가능(보기 모드에선 탭 무시)
     if (!embedded && isCompleted && !localEdit) return;
-    // 고정 체크·오늘날짜 자동 필드는 편집 불가
-    if (field.fixedChecked || field.autoToday) return;
+    // 고정 체크·오늘날짜 자동·도장 필드는 편집 불가
+    if (field.fixedChecked || field.autoToday || field.stampImage) return;
     // 조건부 편집: 지정 체크박스가 선택되지 않았으면 편집 불가(예: 은행계좌 선택 시 카드 유효기간)
     if (field.editableIf && values[field.editableIf] !== true) return;
 
@@ -568,7 +568,7 @@ function OverlayDocumentFormInner(
         }
         return true; // 그 외 체크박스는 필수 아님
       }
-      if (f.cover || f.staticText) return true; // 가림 박스·표시용 라벨은 입력 대상 아님
+      if (f.cover || f.staticText || f.stampImage) return true; // 가림 박스·표시 라벨·도장은 입력 대상 아님
       if (f.optional) return true; // 선택 입력 항목(예: 자택 전화)
       if (f.requiredIf && values[f.requiredIf] !== true) return true; // 조건부 필수(예: 카드 선택 시에만)
       // 그룹 조건부 필수: 해당 group의 체크박스가 하나도 선택 안 됐으면 필수 아님
@@ -628,6 +628,15 @@ function OverlayDocumentFormInner(
     // 인쇄 글자 가림 박스 (편집 불가·탭 불가)
     if (field.cover) {
       return <div key={field.key} className="odoc-hotspot odoc-hotspot--cover" style={style} aria-hidden />;
+    }
+    // 도장(직인) 이미지 (항상 표시·편집 불가·탭 불가). multiply로 뒤 글자 비침
+    if (field.stampImage) {
+      return (
+        <div key={field.key} className="odoc-hotspot odoc-hotspot--stamp" style={style} aria-hidden>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={field.stampImage} alt="" className="odoc-hotspot__stamp" draggable={false} />
+        </div>
+      );
     }
     // 고정 표시 텍스트 (편집 불가·탭 불가)
     if (field.staticText) {

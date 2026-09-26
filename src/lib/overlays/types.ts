@@ -38,6 +38,9 @@ export interface OverlayField {
   parenMark?: boolean;
   /** 인쇄된 글자를 가리는 흰색 박스(편집 불가) — 위에 새 레이아웃을 얹을 때 사용 */
   cover?: boolean;
+  /** 항상 표시되는 도장(직인) 이미지 URL(편집 불가). 실제 찍힌 것처럼 multiply 블렌드로
+   *  흰 배경은 투명해지고 뒤 글자가 비쳐 보임. */
+  stampImage?: string;
   /** 고정 표시 텍스트(편집 불가) — 예: 재배치한 모델명 라벨 */
   staticText?: string;
   /** 주소: 텍스트 직접입력 대신 도로명/지번 검색(다음 우편번호)으로 입력 */

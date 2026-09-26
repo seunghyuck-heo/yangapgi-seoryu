@@ -1029,6 +1029,23 @@ input[type="password"]::placeholder {
   border-radius: 999px;
 }
 
+/* 도장(직인) 이미지: 실제 찍힌 것처럼 흰 배경 투명 + 뒤 글자 비침(multiply) */
+.odoc-hotspot--stamp {
+  background: transparent;
+  outline: none;
+  cursor: default;
+  pointer-events: none;
+  overflow: visible;
+}
+.odoc-hotspot__stamp {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  mix-blend-mode: multiply;
+  opacity: 0.92;
+  user-select: none;
+}
+
 /* 조건부 편집 불가 필드(예: 은행계좌 선택 시 카드 유효기간): 아무 표시 없이 비활성 */
 .odoc-hotspot--blocked {
   background: transparent;

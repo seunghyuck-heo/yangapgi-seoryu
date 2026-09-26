@@ -24,5 +24,7 @@ export const subsidyOverlay: OverlayDoc = {
     { key: "applicant_seal", type: "signature", x: 84, y: 76.54, w: 9, h: 3.11, label: "서명 (수기)" },
     { key: "applicant_signature", type: "signature", x: 68, y: 76.68, w: 12, h: 2.83, label: "성명 (수기)", confirmText: "성명 확정", align: "center" },
     { key: "applicant_phone", type: "text", x: 74, y: 80.49, w: 15.5, h: 1.2, label: "신청인 연락처", prefix: "010-", dashPattern: [4, 4], align: "center" },
+    // 요양기관 직인: (요양기관 직인) 위치에 병원 도장이 실제 찍힌 것처럼(multiply 블렌드) 표시. 문서 안쪽 배치.
+    { key: "clinic_stamp", type: "text", x: 57.7, y: 61.2, w: 37.8, h: 10.0, stampImage: "/stamps/clinic-stamp.png" },
   ],
 };

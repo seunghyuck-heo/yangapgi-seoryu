@@ -254,6 +254,20 @@ export async function renderOverlayPage(
       })
   );
 
+  // 도장(직인) 이미지 선로드
+  const stampImgs: Record<string, HTMLImageElement> = {};
+  await Promise.all(
+    overlay.fields
+      .filter((f) => f.stampImage)
+      .map(async (f) => {
+        try {
+          stampImgs[f.key] = await loadImage(f.stampImage!);
+        } catch {
+          /* 도장 없음 무시 */
+        }
+      })
+  );
+
   for (const field of overlay.fields) {
     const bx = (field.x / 100) * W;
     const by = (field.y / 100) * H;
@@ -272,6 +286,24 @@ export async function renderOverlayPage(
     // 고정 표시 텍스트
     if (field.staticText) {
       drawText(ctx, field.staticText, bx, by, bw, bh, fontPx, field.align);
+      continue;
+    }
+
+    // 도장(직인) 이미지: multiply로 실제 찍힌 것처럼(흰 배경 투명·뒤 글자 비침)
+    if (field.stampImage) {
+      const img = stampImgs[field.key];
+      if (img) {
+        const r = Math.min(bw / img.width, bh / img.height); // object-fit: contain
+        const dw = img.width * r;
+        const dh = img.height * r;
+        const dx = bx + (bw - dw) / 2;
+        const dy = by + (bh - dh) / 2;
+        ctx.save();
+        ctx.globalCompositeOperation = "multiply";
+        ctx.globalAlpha = 0.92;
+        ctx.drawImage(img, dx, dy, dw, dh);
+        ctx.restore();
+      }
       continue;
     }
 
