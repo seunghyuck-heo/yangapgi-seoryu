@@ -6,6 +6,7 @@ import Link from "next/link";
 import BottomTabs from "@/components/BottomTabs";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useUser } from "@/lib/supabase/useUser";
+import { APP_VERSION } from "@/lib/version";
 
 // 설정 재진입 시 이름 플래시 방지용 클라이언트 캐시
 let cachedProfileName: string | null = null;
@@ -279,6 +280,8 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
+
+      <p className="app-version">양압기 서류계약 {APP_VERSION}</p>
 
       <BottomTabs />
     </div>

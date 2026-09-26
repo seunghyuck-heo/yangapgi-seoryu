@@ -682,6 +682,15 @@ input[type="password"]::placeholder {
 
 /* ---------- Bottom tab bar ---------- */
 
+/* 설정 화면 하단 개발 버전 표시 */
+.app-version {
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted);
+  margin: 24px 0 96px; /* 고정 하단탭에 가리지 않게 여백 */
+  letter-spacing: 0.02em;
+}
+
 .bottom-tabs {
   position: fixed;
   bottom: 0;
