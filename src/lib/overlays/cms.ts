@@ -41,11 +41,9 @@ export const BANK_DASH: Record<string, number[]> = {
   "토스뱅크": [4, 4, 4],
 };
 
-// 카드 유효기간 선택 옵션: 월 01~12, 년 현재연도(2자리)부터 +15년
+// 카드 유효기간 선택 옵션: 월 01~12, 년 현재연도부터 +20년(4자리 표기, 예: 2026)
 export const CARD_EXP_MONTHS = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0"));
-export const CARD_EXP_YEARS = Array.from({ length: 16 }, (_, i) =>
-  String((new Date().getFullYear() + i) % 100).padStart(2, "0")
-);
+export const CARD_EXP_YEARS = Array.from({ length: 21 }, (_, i) => String(new Date().getFullYear() + i));
 
 // 국내 카드사 목록(신용카드 선택 시)
 export const KOREA_CARDS = [
@@ -86,8 +84,8 @@ export const cmsOverlay: OverlayDoc = {
       optionsByCheckbox: { cb_bank: KOREA_BANKS, cb_card: KOREA_CARDS },
       requiredIfGroup: "paymethod",
     },
-    { key: "card_exp_m", type: "text", x: 46.04, y: 31.03, w: 3.4, h: 1.2, label: "유효기간 (월)", align: "center", requiredIf: "cb_card", options: CARD_EXP_MONTHS },
-    { key: "card_exp_y", type: "text", x: 50.76, y: 31.03, w: 3.4, h: 1.2, label: "유효기간 (년)", align: "center", requiredIf: "cb_card", options: CARD_EXP_YEARS },
+    { key: "card_exp_m", type: "text", x: 46.04, y: 31.03, w: 3.4, h: 1.2, label: "유효기간 (월)", align: "center", requiredIf: "cb_card", options: CARD_EXP_MONTHS, fontPct: 1.3 },
+    { key: "card_exp_y", type: "text", x: 50.6, y: 31.03, w: 4.0, h: 1.2, label: "유효기간 (년)", align: "center", requiredIf: "cb_card", options: CARD_EXP_YEARS, fontPct: 1.2 },
     { key: "payer_name", type: "text", x: 74.4, y: 31.03, w: 18, h: 1.2, label: "결제자명", align: "left", requiredIf: "cb_card" },
     // 계좌·카드번호: 신용카드 선택 시 16자리 4-4-4-4 자동 하이픈. 은행계좌는 자유 입력(자릿수 강제 X)
     {
