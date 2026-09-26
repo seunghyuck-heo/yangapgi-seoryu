@@ -32,21 +32,72 @@ function formatBoxPattern(raw: string, pattern: number[]): string {
   return out;
 }
 
-/** autoToday 날짜 필드가 비어 있으면 완료일(없으면 오늘)로 채운 값 반환 */
-function effectiveDateValue(field: OverlayField, stored: unknown, when: Date): string | null {
-  if (typeof stored === "string" && stored.trim()) return stored;
-  if (!field.autoToday || !field.datePart) return null;
-  const base = new Date(when);
-  if (field.autoTodayOffsetYears) base.setFullYear(base.getFullYear() + field.autoTodayOffsetYears);
-  if (field.autoTodayOffsetDays) base.setDate(base.getDate() + field.autoTodayOffsetDays);
-  const y = base.getFullYear();
-  const m = base.getMonth() + 1;
-  const d = base.getDate();
+function formatDatePart(field: OverlayField, dt: Date): string | null {
+  const y = dt.getFullYear();
+  const m = dt.getMonth() + 1;
+  const d = dt.getDate();
   if (field.datePart === "y") return field.fullYear ? String(y) : String(y).slice(-2);
   if (field.datePart === "m") return String(m);
   if (field.datePart === "d") return String(d);
   if (field.datePart === "full") return `${y}.${m}.${d}`;
   return null;
+}
+
+/** 지정한 dateGroup의 y/m/d 저장값으로 Date를 구성(없으면 null) */
+function readGroupDate(
+  group: string,
+  fields: OverlayField[],
+  values: Record<string, unknown>
+): Date | null {
+  let ys: string | undefined, ms: string | undefined, ds: string | undefined, full: string | undefined;
+  for (const f of fields) {
+    if (f.dateGroup !== group) continue;
+    const v = values[f.key];
+    if (typeof v !== "string" || !v.trim()) continue;
+    if (f.datePart === "y") ys = v;
+    else if (f.datePart === "m") ms = v;
+    else if (f.datePart === "d") ds = v;
+    else if (f.datePart === "full") full = v;
+  }
+  if (full) {
+    const [a, b, c] = full.split(".").map((s) => parseInt(s, 10));
+    if (a && b && c) return new Date(a < 100 ? 2000 + a : a, b - 1, c);
+  }
+  if (ys && ms && ds) {
+    const a = parseInt(ys, 10), b = parseInt(ms, 10), c = parseInt(ds, 10);
+    if (a && b && c) return new Date(a < 100 ? 2000 + a : a, b - 1, c);
+  }
+  return null;
+}
+
+/** autoToday/baseGroup 날짜 필드 값 계산.
+ *  - baseGroup: 기준 그룹 날짜 + 오프셋으로 항상 파생(저장값 덮어씀)
+ *  - autoToday: 비어 있으면 완료일(없으면 오늘) + 오프셋으로 채움 */
+function effectiveDateValue(
+  field: OverlayField,
+  stored: unknown,
+  when: Date,
+  fields: OverlayField[],
+  values: Record<string, unknown>
+): string | null {
+  // 기준 그룹에서 파생(이미 저장된 문서도 자동 보정)
+  if (field.baseGroup && field.datePart) {
+    const bd = readGroupDate(field.baseGroup, fields, values);
+    if (bd) {
+      if (field.autoTodayOffsetYears) bd.setFullYear(bd.getFullYear() + field.autoTodayOffsetYears);
+      if (field.autoTodayOffsetDays) bd.setDate(bd.getDate() + field.autoTodayOffsetDays);
+      return formatDatePart(field, bd);
+    }
+    // 기준 그룹이 비어 있으면 저장값이라도 사용
+    if (typeof stored === "string" && stored.trim()) return stored;
+    return null;
+  }
+  if (typeof stored === "string" && stored.trim()) return stored;
+  if (!field.autoToday || !field.datePart) return null;
+  const base = new Date(when);
+  if (field.autoTodayOffsetYears) base.setFullYear(base.getFullYear() + field.autoTodayOffsetYears);
+  if (field.autoTodayOffsetDays) base.setDate(base.getDate() + field.autoTodayOffsetDays);
+  return formatDatePart(field, base);
 }
 
 function drawText(
@@ -293,7 +344,7 @@ export async function renderOverlayPage(
 
     // 일반 텍스트 / 날짜
     const val = field.dateGroup
-      ? effectiveDateValue(field, raw, completedAt)
+      ? effectiveDateValue(field, raw, completedAt, overlay.fields, values)
       : typeof raw === "string" && raw.trim()
         ? raw
         : null;

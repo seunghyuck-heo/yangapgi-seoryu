@@ -647,12 +647,15 @@ input[type="password"]::placeholder {
 
 .login-required__btn {
   margin-top: 6px;
-  padding: 13px 22px;
-  border-radius: var(--radius-sm);
+  padding: 14px 28px;
+  border-radius: 999px; /* 타원형(pill) */
   background: var(--brand);
   color: #fff;
   font-weight: 700;
   font-size: 15px;
+  display: block;
+  text-align: center; /* 버튼 위 텍스트 중앙 */
+  text-decoration: none;
 }
 
 .tab-page__body {

@@ -105,14 +105,13 @@ export default function SubmitPage() {
       </header>
 
       <div className="tab-page__body">
-        {!preview && (
-          <DocSubmitList
-            patientId={patientId}
-            preview={false}
-            fromSubmit={true}
-            ensurePatientId={ensurePatientId}
-          />
-        )}
+        {/* 로그아웃 상태에서도 서류 리스트를 미리보기(dim 배경)로 보여준다 */}
+        <DocSubmitList
+          patientId={preview ? "preview-patient" : patientId}
+          preview={preview}
+          fromSubmit={!preview}
+          ensurePatientId={preview ? undefined : ensurePatientId}
+        />
       </div>
 
       {/* 로그인 안 한 상태로 서식제출 탭 진입 시: 먼저 로그인 안내 팝업 */}

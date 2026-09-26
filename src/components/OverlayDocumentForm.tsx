@@ -148,29 +148,92 @@ function OverlayDocumentFormInner(
           changed = true;
         }
       }
-      const groups = new Set<string>();
-      for (const f of overlay.fields) if (f.autoToday && f.dateGroup) groups.add(f.dateGroup);
-      for (const g of groups) {
+      // 그룹의 y/m/d 값에서 Date 재구성
+      const readGroupDate = (g: string): Date | null => {
         const parts = overlay.fields.filter((f) => f.dateGroup === g);
-        const anyFilled = parts.some((f) => typeof next[f.key] === "string" && (next[f.key] as string).trim());
-        if (anyFilled) continue;
-        // 그룹별로 오늘(+오프셋 연수) 날짜 계산 (예: 위임 종료일 = 오늘+5년)
-        const offY = parts.find((f) => f.autoTodayOffsetYears != null)?.autoTodayOffsetYears ?? 0;
-        const offD = parts.find((f) => f.autoTodayOffsetDays != null)?.autoTodayOffsetDays ?? 0;
-        const dt = new Date();
-        dt.setFullYear(dt.getFullYear() + offY);
-        if (offD) dt.setDate(dt.getDate() + offD);
+        let y = "";
+        let m = "";
+        let d = "";
+        for (const f of parts) {
+          const v = next[f.key];
+          if (typeof v !== "string" || !v.trim()) continue;
+          if (f.datePart === "y") y = f.fullYear ? v : "20" + v.padStart(2, "0");
+          else if (f.datePart === "m") m = v;
+          else if (f.datePart === "d") d = v;
+          else if (f.datePart === "full") {
+            const mm = /(\d{4})\.(\d{1,2})\.(\d{1,2})/.exec(v);
+            if (mm) {
+              y = mm[1];
+              m = mm[2];
+              d = mm[3];
+            }
+          }
+        }
+        if (!y || !m || !d) {
+          const iso = next[`__d_${g}`];
+          if (typeof iso === "string" && /^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+            [y, m, d] = iso.split("-");
+          }
+        }
+        if (!y || !m || !d) return null;
+        return new Date(Number(y), Number(m) - 1, Number(d));
+      };
+
+      const setGroupFromDate = (parts: OverlayField[], g: string, dt: Date) => {
         const y = String(dt.getFullYear());
         const m = String(dt.getMonth() + 1).padStart(2, "0");
         const d = String(dt.getDate()).padStart(2, "0");
         next[`__d_${g}`] = `${y}-${m}-${d}`;
         for (const f of parts) {
-          if (f.datePart === "y") next[f.key] = f.fullYear ? y : y.slice(2);
-          else if (f.datePart === "m") next[f.key] = String(Number(m));
-          else if (f.datePart === "d") next[f.key] = String(Number(d));
-          else if (f.datePart === "full") next[f.key] = `${y}.${m}.${d}`;
+          const nv =
+            f.datePart === "y"
+              ? f.fullYear
+                ? y
+                : y.slice(2)
+              : f.datePart === "m"
+                ? String(Number(m))
+                : f.datePart === "d"
+                  ? String(Number(d))
+                  : f.datePart === "full"
+                    ? `${y}.${m}.${d}`
+                    : null;
+          if (nv != null && next[f.key] !== nv) {
+            next[f.key] = nv;
+            changed = true;
+          }
         }
-        changed = true;
+      };
+
+      const groups = new Set<string>();
+      for (const f of overlay.fields) if (f.autoToday && f.dateGroup) groups.add(f.dateGroup);
+      // baseGroup 파생 그룹은 기준 그룹 처리 후 계산되도록 뒤로
+      const sortedGroups = [...groups].sort((a, b) => {
+        const aBase = overlay.fields.some((f) => f.dateGroup === a && f.baseGroup);
+        const bBase = overlay.fields.some((f) => f.dateGroup === b && f.baseGroup);
+        return aBase === bBase ? 0 : aBase ? 1 : -1;
+      });
+      for (const g of sortedGroups) {
+        const parts = overlay.fields.filter((f) => f.dateGroup === g);
+        const offY = parts.find((f) => f.autoTodayOffsetYears != null)?.autoTodayOffsetYears ?? 0;
+        const offD = parts.find((f) => f.autoTodayOffsetDays != null)?.autoTodayOffsetDays ?? 0;
+        const baseG = parts.find((f) => f.baseGroup)?.baseGroup;
+
+        if (baseG) {
+          // 기준 그룹 날짜 + 오프셋으로 항상 재계산(이미 저장된 문서도 보정)
+          const bd = readGroupDate(baseG);
+          if (!bd) continue;
+          bd.setFullYear(bd.getFullYear() + offY);
+          if (offD) bd.setDate(bd.getDate() + offD);
+          setGroupFromDate(parts, g, bd);
+          continue;
+        }
+
+        const anyFilled = parts.some((f) => typeof next[f.key] === "string" && (next[f.key] as string).trim());
+        if (anyFilled) continue;
+        const dt = new Date();
+        dt.setFullYear(dt.getFullYear() + offY);
+        if (offD) dt.setDate(dt.getDate() + offD);
+        setGroupFromDate(parts, g, dt);
       }
       return changed ? next : prev;
     });

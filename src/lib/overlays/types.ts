@@ -54,6 +54,9 @@ export interface OverlayField {
   autoTodayOffsetYears?: number;
   /** autoToday에 더할 일수(예: -1 → 하루 전). 위임 종료일 = 시작+5년-1일 등에 사용 */
   autoTodayOffsetDays?: number;
+  /** 이 날짜 그룹을 다른 그룹(baseGroup)의 날짜 + 오프셋으로 항상 파생(저장값도 덮어씀).
+   *  예: 위임 종료일 = 위임 시작일 + 5년 - 1일 (이미 저장된 문서도 자동 보정) */
+  baseGroup?: string;
 }
 
 export interface OverlayDoc {
