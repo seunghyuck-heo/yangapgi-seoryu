@@ -2055,15 +2055,23 @@ input[type="password"]::placeholder {
   color: #333;
 }
 
-/* ===== 환자관리카드 줌 래퍼 (세로는 페이지 기본 스크롤 사용) ===== */
+/* ===== 환자관리카드 줌 래퍼 (transform scale + 기본 스크롤, 정비율 확대) ===== */
 .carecard-zoom {
   position: relative;
   width: 100%;
-  overflow-x: auto; /* 확대 시 가로 스크롤 */
-  /* 하단 고정 액션바에 마지막 내용이 가리지 않도록 여백 */
-  padding-bottom: 96px;
+  height: calc(100dvh - 150px); /* 상단 툴바 + 하단 액션바 공간 확보 */
+  overflow: auto; /* 확대 시 가로·세로 스크롤(팬) */
+  touch-action: pan-x pan-y; /* 한 손가락 스크롤 허용, 두 손가락 핀치는 JS가 처리 */
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  background: var(--bg, #eef1f6);
+}
+.carecard-zoom__sizer {
+  margin: 0 auto; /* 화면보다 좁으면 가운데, 넓으면(확대) 스크롤 */
+  position: relative;
 }
 .carecard-zoom__content {
+  transform-origin: 0 0; /* 좌상단 기준으로 스케일(스크롤로 초점 보정) */
   width: 100%;
 }
 .carecard-zoom .carecard-wrap {
@@ -2959,6 +2967,11 @@ input[type="password"]::placeholder {
     touch-action: auto !important;
     background: #fff !important;
     padding-bottom: 0 !important;
+  }
+  .carecard-zoom__sizer {
+    width: auto !important;
+    height: auto !important;
+    margin: 0 !important;
   }
   .carecard-zoom__content {
     zoom: 1 !important;

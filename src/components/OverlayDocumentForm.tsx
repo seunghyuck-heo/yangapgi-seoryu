@@ -335,6 +335,14 @@ function OverlayDocumentFormInner(
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ form_data: values, status: "draft" }),
         });
+        try {
+          window.dispatchEvent(new Event(PATIENTS_CHANGED_EVENT));
+        } catch {
+          // 무시
+        }
+        showToast("임시저장 되었습니다.");
+        setTimeout(() => router.push(backHref), 650); // 토스트 잠깐 보여주고 이동
+        return;
       } catch {
         // 저장 실패해도 이동은 진행
       }

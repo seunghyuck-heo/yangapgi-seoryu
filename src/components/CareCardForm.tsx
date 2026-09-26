@@ -240,7 +240,7 @@ const CareCardBody = memo(function CareCardBody({
                 <th className="cc-cat cc-cat--xs">날짜</th>
                 <td className="cc-val cc-date" />
                 <th className="cc-cat cc-cat--xs">점검내용</th>
-                <td className="cc-check cc-check--wide">[ ] 장비기능 &nbsp; [ ] 알람기능 &nbsp; [ ] 소독·세척</td>
+                <td className="cc-check cc-check--wide">[O] 장비기능 &nbsp; [O] 알람기능 &nbsp; [O] 소독·세척</td>
                 <th className="cc-cat cc-cat--xs">점검자 서명</th>
                 <td className="cc-val cc-sign" />
               </tr>
@@ -255,7 +255,7 @@ const CareCardBody = memo(function CareCardBody({
                 <th className="cc-cat cc-cat--xs">날짜</th>
                 <td className="cc-val cc-date" />
                 <th className="cc-cat cc-cat--xs">교육내용</th>
-                <td className="cc-check cc-check--wide">[ ] 장비사용법 &nbsp; [ ] 응급상황 시 대처요령 &nbsp; [ ] 기타</td>
+                <td className="cc-check cc-check--wide">[O] 장비사용법 &nbsp; [O] 응급상황 시 대처요령 &nbsp; [O] 기타</td>
                 <th className="cc-cat cc-cat--xs">환자 서명</th>
                 <td className="cc-val cc-sign" />
               </tr>
@@ -599,6 +599,24 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
     showToast("수정사항이 반영되었습니다.");
   }
 
+  // 상단 '목록으로': 작성 중(미완료)이면 임시저장 후 토스트 보여주고 이동
+  async function handleBack() {
+    if (!isCompleted) {
+      const ok = await putCard("draft");
+      if (ok) {
+        try {
+          window.dispatchEvent(new Event(PATIENTS_CHANGED_EVENT));
+        } catch {
+          // 무시
+        }
+        showToast("임시저장 되었습니다.");
+        setTimeout(() => router.push(backHref), 650);
+        return;
+      }
+    }
+    router.push(backHref);
+  }
+
   const docs = patient?.documents ?? [];
   const subsidy = fd(docs, "subsidy_application");
   const poa = fd(docs, "power_of_attorney");
@@ -637,7 +655,7 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
   return (
     <div className="doc-page">
       <div className="doc-page__toolbar no-print">
-        <button type="button" className="doc-page__back" onClick={() => router.push(backHref)}>
+        <button type="button" className="doc-page__back" onClick={handleBack}>
           ← 목록으로
         </button>
         <div className="doc-page__toolbar-right">
