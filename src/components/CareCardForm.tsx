@@ -599,9 +599,18 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
     showToast("수정사항이 반영되었습니다.");
   }
 
-  // 상단 '목록으로': 작성 중(미완료)이면 임시저장 후 토스트 보여주고 이동
+  // 사용자가 실제로 입력한 게 하나라도 있는지 (방문점검·제품명·상호명)
+  function hasUserInput(): boolean {
+    if (product || providerOrg) return true;
+    return visits.some(
+      (v) =>
+        v.date || v.cpap || v.supply || v.hygiene || v.alarm || v.pressure || v.usage || v.action || v.provider || v.guardianSign
+    );
+  }
+
+  // 상단 '목록으로': 작성 중이고 입력이 있을 때만 임시저장 후 토스트 보여주고 이동
   async function handleBack() {
-    if (!isCompleted) {
+    if (!isCompleted && hasUserInput()) {
       const ok = await putCard("draft");
       if (ok) {
         try {

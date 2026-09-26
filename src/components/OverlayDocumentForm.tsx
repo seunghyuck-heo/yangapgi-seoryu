@@ -327,8 +327,19 @@ function OverlayDocumentFormInner(
 
   // 나갈 때: 완료 문서가 아니면 방문 기록을 draft로 저장한다.
   // (입력이 하나도 없으면 '작성 필요', 하나라도 있으면 '작성중'으로 표시됨)
+  // 사용자가 실제로 입력한 값이 하나라도 있는지 (자동 오늘날짜·고정체크·가림·표시라벨은 제외)
+  function hasUserInput(): boolean {
+    return overlay.fields.some((f) => {
+      if (f.autoToday || f.fixedChecked || f.cover || f.staticText) return false;
+      const v = values[f.key];
+      if (f.type === "checkbox") return v === true;
+      return typeof v === "string" ? v.trim() !== "" : !!v;
+    });
+  }
+
   async function handleBack() {
-    if (!preview && initialStatus !== "completed") {
+    // 아무것도 입력 안 했으면 저장하지 않고 그냥 이동
+    if (!preview && initialStatus !== "completed" && hasUserInput()) {
       try {
         await fetch(`/api/documents/${patientId}/${docType}`, {
           method: "PUT",
