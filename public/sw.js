@@ -1,7 +1,7 @@
 // 양압기 서류계약 PWA 서비스워커
 // - 해시된 정적 자산(_next/static)은 캐시 우선(즉시 응답) → 앱 진입 속도 개선(파일명이 바뀌므로 stale 위험 없음)
 // - HTML/문서 이미지 등은 네트워크 우선(최신 유지), 오프라인이면 캐시
-const VERSION = "v145";
+const VERSION = "v146";
 const RUNTIME_CACHE = `runtime-${VERSION}`;
 
 // 설치 시 최소 셸만 캐시(오프라인 대비)

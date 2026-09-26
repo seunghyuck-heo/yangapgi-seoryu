@@ -22,7 +22,7 @@ export const subsidyOverlay: OverlayDoc = {
     { key: "apply_day", type: "text", x: 53.31, y: 74.37, w: 2.8, h: 1.2, label: "신청 일", align: "right", dateGroup: "apply", datePart: "d", autoToday: true, fontPct: 1.2 },
     // 신청인 영역: 원본 서식에 맞춰 우측 배치(이미지 baked 텍스트도 +39% 이동됨)
     { key: "applicant_seal", type: "signature", x: 84, y: 76.54, w: 9, h: 3.11, label: "서명 (수기)" },
-    { key: "applicant_signature", type: "signature", x: 73, y: 76.68, w: 11, h: 2.83, label: "성명 (수기)", confirmText: "성명 확정", align: "right" },
-    { key: "applicant_phone", type: "text", x: 73.5, y: 80.49, w: 16, h: 1.2, label: "신청인 연락처", prefix: "010-", dashPattern: [4, 4], align: "right" },
+    { key: "applicant_signature", type: "signature", x: 68, y: 76.68, w: 12, h: 2.83, label: "성명 (수기)", confirmText: "성명 확정", align: "center" },
+    { key: "applicant_phone", type: "text", x: 74, y: 80.49, w: 15.5, h: 1.2, label: "신청인 연락처", prefix: "010-", dashPattern: [4, 4], align: "center" },
   ],
 };
