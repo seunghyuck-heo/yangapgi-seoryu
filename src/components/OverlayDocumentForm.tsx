@@ -796,15 +796,19 @@ function OverlayDocumentFormInner(
 
     // 조건부 편집 불가(예: 은행계좌 선택 시 카드 필드) → 빈 블록도 숨기고 탭 불가
     const blocked = !!field.editableIf && values[field.editableIf] !== true;
+    // 빈 입력칸(파란 블록)은 작성 중(미완료)이거나 완료문서에서 '수정'을 눌렀을 때만 표시.
+    // 완료문서 보기모드에선 빈 블록을 숨겨 도장/서명만 깔끔하게 보이게 함.
+    const showEmpty = !blocked && (!isCompleted || localEdit);
     const editable = highlightEdit && !field.fixedChecked && !field.autoToday && !blocked;
+    const hideEmpty = !filled && !showEmpty; // 빈 칸인데 표시 안 함
     return (
       <div
         key={field.key}
         data-field={field.key}
-        className={`odoc-hotspot ${filled ? "odoc-hotspot--filled" : blocked ? "odoc-hotspot--blocked" : "odoc-hotspot--empty"}${editable ? " odoc-hotspot--editable" : ""}`}
+        className={`odoc-hotspot ${filled ? "odoc-hotspot--filled" : showEmpty ? "odoc-hotspot--empty" : "odoc-hotspot--blocked"}${editable ? " odoc-hotspot--editable" : ""}`}
         style={style}
       >
-        {blocked && !filled ? null : content}
+        {hideEmpty ? null : content}
       </div>
     );
   }
