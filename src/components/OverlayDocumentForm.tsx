@@ -936,11 +936,9 @@ function OverlayDocumentFormInner(
                     }
                     placeholder={
                       eff
-                        ? eff.hard
-                          ? openField.prefix
-                            ? `뒤 ${eff.pattern.reduce((a, b) => a + b, 0)}자리 입력`
-                            : `${eff.pattern.reduce((a, b) => a + b, 0)}자리 숫자 입력`
-                          : "숫자 입력 (자동 하이픈)"
+                        ? openField.prefix
+                          ? `뒤 ${eff.pattern.reduce((a, b) => a + b, 0)}자리 입력`
+                          : `${eff.pattern.reduce((a, b) => a + b, 0)}자리 숫자 입력`
                         : openField.boxPattern
                           ? `${openField.boxPattern.reduce((a, b) => a + b, 0)}자리 숫자 입력`
                           : openField.boxes
@@ -953,9 +951,9 @@ function OverlayDocumentFormInner(
                     onChange={(e) => {
                       if (eff) {
                         const digits = e.target.value.replace(/\D/g, "");
-                        // hard(카드): 총 자릿수 제한. soft(은행): 숫자 안 자름(과도한 길이만 방지)
+                        // 카드·은행 모두 해당 형식의 표준 자릿수까지만 입력 허용(초과 입력 차단)
                         const total = eff.pattern.reduce((a, b) => a + b, 0);
-                        setTextDraft(eff.hard ? digits.slice(0, total) : digits.slice(0, 20));
+                        setTextDraft(digits.slice(0, total));
                       } else if (openField.boxPattern) {
                         const total = openField.boxPattern.reduce((a, b) => a + b, 0);
                         setTextDraft(e.target.value.replace(/\D/g, "").slice(0, total));
