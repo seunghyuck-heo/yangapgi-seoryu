@@ -104,6 +104,14 @@ export async function listPatients(opts?: {
   }
 
   const rows = pageRows as Patient[];
+
+  // 자가복구: RPC가 첫 페이지에서 0명을 돌려줬지만 실제로는 저장된 문서가 있는 환자가
+  // 있을 수 있음(RPC 함수 상태 불일치 대비) → 문서 상태 기반 폴백으로 교차 확인.
+  if (rows.length === 0 && offset === 0) {
+    const fb = await listPatientsFallback(supabase, search);
+    if (fb.patients.length > 0) return fb;
+  }
+
   const patients = await attachDocsAndInfo(supabase, rows);
 
   let total = offset + rows.length;
@@ -120,7 +128,13 @@ export async function countRegisteredPatients(search?: string): Promise<number> 
   const supabase = await getSupabaseServerClient();
   const s = search?.trim() || null;
   const { data: cnt, error } = await supabase.rpc("count_registered_patients", { p_search: s });
-  if (!error && cnt != null) return Number(cnt);
+  if (!error && cnt != null) {
+    const n = Number(cnt);
+    if (n > 0) return n;
+    // 0이면 RPC 상태 불일치 가능성 → 폴백으로 교차 확인
+    const fb = await listPatientsFallback(supabase, s);
+    return fb.total > 0 ? fb.total : n;
+  }
   // 폴백: 전체 조회 후 필터 개수
   const fb = await listPatientsFallback(supabase, s);
   return fb.total;
