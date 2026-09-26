@@ -67,6 +67,8 @@ export interface OverlayField {
   /** 조건부 자릿수 하이픈: 지정한 체크박스가 선택돼 있으면 그 패턴으로 자동 '-' 삽입.
    *  예: { cb_card: [4,4,4,4] } — 신용카드 선택 시 계좌번호를 4-4-4-4로 입력 */
   dashPatternByCheckbox?: Record<string, number[]>;
+  /** 체크박스에 따라 팝업 라벨을 다르게 표시. 예: { cb_bank: "계좌번호", cb_card: "카드번호" } */
+  labelByCheckbox?: Record<string, string>;
   /** 다른 필드(예: 결제사명)의 선택값에 따라 자동 하이픈. 자릿수는 강제하지 않음(soft):
    *  표준 형식대로 '-'를 넣되, 자릿수가 달라도 숫자는 잘리지 않음.
    *  예: { field: "pay_company", map: { "신한은행": [3,3,6], ... } } */

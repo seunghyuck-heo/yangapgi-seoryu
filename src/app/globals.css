@@ -1199,8 +1199,9 @@ input[type="password"]::placeholder {
 
 .field-popup__label {
   font-weight: 700;
-  font-size: 15px;
+  font-size: 16px;
   text-align: center;
+  margin: 8px 0 14px;
 }
 
 .field-popup input[type="text"],

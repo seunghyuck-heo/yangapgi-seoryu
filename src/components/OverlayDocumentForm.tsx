@@ -399,6 +399,16 @@ function OverlayDocumentFormInner(
     setOpenField(null);
   }
 
+  // 체크박스에 따라 달라지는 팝업 라벨(예: 계좌번호/카드번호)
+  function effLabel(field: OverlayField): string | undefined {
+    if (field.labelByCheckbox) {
+      for (const [cb, lbl] of Object.entries(field.labelByCheckbox)) {
+        if (values[cb] === true) return lbl;
+      }
+    }
+    return field.label;
+  }
+
   // 실제 적용할 자릿수 하이픈 패턴. hard=true면 자릿수 제한(카드), false면 soft(은행: 숫자 안 잘림). 없으면 자유 입력.
   function effDash(field: OverlayField): { pattern: number[]; hard: boolean } | undefined {
     if (field.dashPattern) return { pattern: field.dashPattern, hard: true };
@@ -875,7 +885,7 @@ function OverlayDocumentFormInner(
                   : values["cb_bank"] === true
                     ? "은행 선택"
                     : "결제수단을 먼저 선택하세요"
-                : openField.label ?? "선택"}
+                : effLabel(openField) ?? "선택"}
             </div>
             {(() => {
               const opts = resolveOptions(openField) ?? [];
@@ -915,7 +925,7 @@ function OverlayDocumentFormInner(
       {openField && !openField.dateGroup && openField.type === "text" && !openField.options && !openField.optionsByCheckbox && (
         <div className="sheet-overlay" ref={popupRef} onClick={() => setOpenField(null)}>
           <div className="sheet field-popup" onClick={(e) => e.stopPropagation()}>
-            <div className="field-popup__label">{openField.label ?? "입력"}</div>
+            <div className="field-popup__label">{effLabel(openField) ?? "입력"}</div>
             <div className={openField.prefix ? "field-popup__prefixrow" : undefined}>
               {openField.prefix && (
                 <span className="field-popup__prefix">{openField.prefix}</span>
