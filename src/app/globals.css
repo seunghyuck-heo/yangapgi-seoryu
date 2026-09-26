@@ -1029,6 +1029,14 @@ input[type="password"]::placeholder {
   border-radius: 999px;
 }
 
+/* 조건부 편집 불가 필드(예: 은행계좌 선택 시 카드 유효기간): 아무 표시 없이 비활성 */
+.odoc-hotspot--blocked {
+  background: transparent;
+  outline: none;
+  cursor: default;
+  pointer-events: none;
+}
+
 .odoc-hotspot__text {
   width: 100%;
   display: flex;

@@ -84,9 +84,9 @@ export const cmsOverlay: OverlayDoc = {
       optionsByCheckbox: { cb_bank: KOREA_BANKS, cb_card: KOREA_CARDS },
       requiredIfGroup: "paymethod",
     },
-    { key: "card_exp_m", type: "text", x: 46.04, y: 31.03, w: 3.4, h: 1.2, label: "유효기간 (월)", align: "center", requiredIf: "cb_card", options: CARD_EXP_MONTHS, fontPct: 1.3 },
-    { key: "card_exp_y", type: "text", x: 50.6, y: 31.03, w: 4.0, h: 1.2, label: "유효기간 (년)", align: "center", requiredIf: "cb_card", options: CARD_EXP_YEARS, fontPct: 1.2 },
-    { key: "payer_name", type: "text", x: 74.4, y: 31.03, w: 18, h: 1.2, label: "결제자명", align: "left", requiredIf: "cb_card" },
+    { key: "card_exp_m", type: "text", x: 46.04, y: 31.03, w: 3.4, h: 1.2, label: "유효기간 (월)", align: "center", requiredIf: "cb_card", editableIf: "cb_card", options: CARD_EXP_MONTHS, fontPct: 1.3 },
+    { key: "card_exp_y", type: "text", x: 50.6, y: 31.03, w: 4.0, h: 1.2, label: "유효기간 (년)", align: "center", requiredIf: "cb_card", editableIf: "cb_card", options: CARD_EXP_YEARS, fontPct: 1.2 },
+    { key: "payer_name", type: "text", x: 74.4, y: 31.03, w: 18, h: 1.2, label: "결제자명", align: "left", requiredIf: "cb_card", editableIf: "cb_card" },
     // 계좌·카드번호: 신용카드 선택 시 16자리 4-4-4-4 자동 하이픈. 은행계좌는 자유 입력(자릿수 강제 X)
     {
       key: "account_number", type: "text", x: 24.5, y: 34.94, w: 42, h: 1.2, label: "계좌·카드번호", align: "left",

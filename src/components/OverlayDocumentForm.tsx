@@ -309,6 +309,8 @@ function OverlayDocumentFormInner(
     if (!embedded && isCompleted && !localEdit) return;
     // 고정 체크·오늘날짜 자동 필드는 편집 불가
     if (field.fixedChecked || field.autoToday) return;
+    // 조건부 편집: 지정 체크박스가 선택되지 않았으면 편집 불가(예: 은행계좌 선택 시 카드 유효기간)
+    if (field.editableIf && values[field.editableIf] !== true) return;
 
     // 주소 검색(도로명/지번) 필드
     if (field.addressSearch) {
@@ -335,6 +337,8 @@ function OverlayDocumentFormInner(
           for (const f of overlay.fields) {
             const cond = f.optionsByCheckbox ?? f.dashPatternByCheckbox;
             if (cond && Object.keys(cond).some(inSameGroup)) next[f.key] = "";
+            // 결제수단 전용 필드(카드 유효기간·결제자명 등)도 결제수단 변경 시 초기화
+            if (f.editableIf && inSameGroup(f.editableIf)) next[f.key] = "";
           }
         }
         next[key] = !currently;
@@ -781,15 +785,17 @@ function OverlayDocumentFormInner(
       }
     }
 
-    const editable = highlightEdit && !field.fixedChecked && !field.autoToday;
+    // 조건부 편집 불가(예: 은행계좌 선택 시 카드 필드) → 빈 블록도 숨기고 탭 불가
+    const blocked = !!field.editableIf && values[field.editableIf] !== true;
+    const editable = highlightEdit && !field.fixedChecked && !field.autoToday && !blocked;
     return (
       <div
         key={field.key}
         data-field={field.key}
-        className={`odoc-hotspot ${filled ? "odoc-hotspot--filled" : "odoc-hotspot--empty"}${editable ? " odoc-hotspot--editable" : ""}`}
+        className={`odoc-hotspot ${filled ? "odoc-hotspot--filled" : blocked ? "odoc-hotspot--blocked" : "odoc-hotspot--empty"}${editable ? " odoc-hotspot--editable" : ""}`}
         style={style}
       >
-        {content}
+        {blocked && !filled ? null : content}
       </div>
     );
   }

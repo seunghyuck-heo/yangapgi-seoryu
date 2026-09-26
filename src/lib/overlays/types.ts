@@ -64,6 +64,9 @@ export interface OverlayField {
   optionsByCheckbox?: Record<string, string[]>;
   /** 같은 group의 체크박스가 하나라도 선택되면 필수(빈 칸이면 작성완료 불가) */
   requiredIfGroup?: string;
+  /** 지정한 체크박스가 선택됐을 때만 편집 가능. 아니면 탭·편집 불가(빈 블록도 숨김).
+   *  예: card_exp_* 는 editableIf: "cb_card" → 은행계좌 선택 시 편집 불가 */
+  editableIf?: string;
   /** 조건부 자릿수 하이픈: 지정한 체크박스가 선택돼 있으면 그 패턴으로 자동 '-' 삽입.
    *  예: { cb_card: [4,4,4,4] } — 신용카드 선택 시 계좌번호를 4-4-4-4로 입력 */
   dashPatternByCheckbox?: Record<string, number[]>;
