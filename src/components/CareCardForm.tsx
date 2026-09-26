@@ -17,6 +17,7 @@ const CALL_CENTER = "010-5966-2460";
 const VISIT_COUNT = 12;
 const PROVIDERS = ["한혜리", "백영신"];
 const PRODUCTS = ["Prisma Smart", "Smart Max"];
+const PROVIDER_ORGS = ["엔큐에스", "엠와이메디칼"];
 const ACTION_MAX = 150;
 
 interface Visit {
@@ -126,7 +127,9 @@ interface BodyProps {
   deviceId: string;
   contractPeriod: string;
   product: string;
+  providerOrg: string;
   onOpenProduct: () => void;
+  onOpenProviderOrg: () => void;
   onUpdate: (i: number, patch: Partial<Visit>) => void;
   onOpenAction: (i: number) => void;
   onOpenProvider: (i: number) => void;
@@ -145,7 +148,9 @@ const CareCardBody = memo(function CareCardBody({
   deviceId,
   contractPeriod,
   product,
+  providerOrg,
   onOpenProduct,
+  onOpenProviderOrg,
   onUpdate,
   onOpenAction,
   onOpenProvider,
@@ -164,11 +169,11 @@ const CareCardBody = memo(function CareCardBody({
     return c;
   };
 
-  // 기기정보 제품명(기본정보 표) 편집 블록 클래스
-  const productCls = () => {
+  // 기본정보 표 편집 셀(제품명·상호명) 블록 클래스
+  const basicEditCls = (filled: boolean) => {
     let c = "cc-val cc-basic-edit";
-    if (editing && mode === "green" && product) c += " cc-edit--green";
-    else if (editing && !product) c += " cc-edit--empty";
+    if (editing && mode === "green" && filled) c += " cc-edit--green";
+    else if (editing && !filled) c += " cc-edit--empty";
     return c;
   };
 
@@ -205,7 +210,9 @@ const CareCardBody = memo(function CareCardBody({
               <tr>
                 <th className="cc-cat">준요양기관</th>
                 <td className="cc-lbl">상호명</td>
-                <td className="cc-val" />
+                <td className={basicEditCls(!!providerOrg)} onClick={() => editing && onOpenProviderOrg()}>
+                  {providerOrg}
+                </td>
                 <td className="cc-lbl">연락처</td>
                 <td className="cc-val" />
                 <td className="cc-lbl">콜센터 번호</td>
@@ -216,7 +223,7 @@ const CareCardBody = memo(function CareCardBody({
                 <td className="cc-lbl">기기 관리번호</td>
                 <td className="cc-val">{deviceId}</td>
                 <td className="cc-lbl">제품명</td>
-                <td className={productCls()} onClick={() => editing && onOpenProduct()}>
+                <td className={basicEditCls(!!product)} onClick={() => editing && onOpenProduct()}>
                   {product}
                 </td>
                 <td className="cc-lbl">계약기간</td>
@@ -424,6 +431,9 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
   // 기기정보 제품명(편집): Prisma Smart / Smart Max 중 선택
   const [product, setProduct] = useState("");
   const [productOpen, setProductOpen] = useState(false);
+  // 준요양기관 상호명(편집): 엔큐에스 / 엠와이메디칼 중 선택
+  const [providerOrg, setProviderOrg] = useState("");
+  const [providerOrgOpen, setProviderOrgOpen] = useState(false);
 
   // 편집 팝업들 (본문과 분리되어 열림 → 표 리렌더 없음)
   const [actionRow, setActionRow] = useState<number | null>(null);
@@ -447,6 +457,7 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
             const cfd = cc.form_data as Record<string, unknown>;
             if (cfd?.visits) setVisits(normalizeVisits(cfd.visits));
             if (typeof cfd?.product === "string") setProduct(cfd.product);
+            if (typeof cfd?.providerOrg === "string") setProviderOrg(cfd.providerOrg);
           }
           if (p.signedUrls) setSignUrls(p.signedUrls);
         }
@@ -522,7 +533,7 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
       const res = await fetch(`/api/documents/${patientId}/care_card`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ form_data: { visits, product }, status: targetStatus }),
+        body: JSON.stringify({ form_data: { visits, product, providerOrg }, status: targetStatus }),
       });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
@@ -552,12 +563,12 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
   }
 
   function startLocalEdit() {
-    editSnapshotRef.current = JSON.stringify({ visits, product });
+    editSnapshotRef.current = JSON.stringify({ visits, product, providerOrg });
     setLocalEdit(true);
   }
 
   function handleEditDone() {
-    if (JSON.stringify({ visits, product }) === editSnapshotRef.current) {
+    if (JSON.stringify({ visits, product, providerOrg }) === editSnapshotRef.current) {
       setLocalEdit(false);
       return;
     }
@@ -566,9 +577,14 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
 
   function cancelEdits() {
     try {
-      const snap = JSON.parse(editSnapshotRef.current) as { visits?: unknown; product?: unknown };
+      const snap = JSON.parse(editSnapshotRef.current) as {
+        visits?: unknown;
+        product?: unknown;
+        providerOrg?: unknown;
+      };
       setVisits(normalizeVisits(snap.visits));
       if (typeof snap.product === "string") setProduct(snap.product);
+      if (typeof snap.providerOrg === "string") setProviderOrg(snap.providerOrg);
     } catch {
       // 무시
     }
@@ -648,7 +664,9 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
         deviceId={deviceId}
         contractPeriod={contractPeriod}
         product={product}
+        providerOrg={providerOrg}
         onOpenProduct={() => setProductOpen(true)}
+        onOpenProviderOrg={() => setProviderOrgOpen(true)}
         onUpdate={update}
         onOpenAction={openAction}
         onOpenProvider={openProvider}
@@ -717,6 +735,20 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
           onConfirm={(p) => {
             setProduct(p);
             setProductOpen(false);
+          }}
+        />
+      )}
+
+      {/* 준요양기관 상호명 선택 팝업 (엔큐에스 / 엠와이메디칼) */}
+      {providerOrgOpen && (
+        <ProductEditor
+          title="준요양기관 상호명"
+          options={PROVIDER_ORGS}
+          initial={providerOrg}
+          onCancel={() => setProviderOrgOpen(false)}
+          onConfirm={(v) => {
+            setProviderOrg(v);
+            setProviderOrgOpen(false);
           }}
         />
       )}
@@ -838,23 +870,27 @@ function ProviderEditor({
   );
 }
 
-// 제품명 선택 팝업 (Prisma Smart / Smart Max)
+// 단일 선택 팝업(체크박스형) — 제품명/상호명 등에 재사용
 function ProductEditor({
   initial,
   onCancel,
   onConfirm,
+  title = "제품명 선택",
+  options = PRODUCTS,
 }: {
   initial: string;
   onCancel: () => void;
   onConfirm: (p: string) => void;
+  title?: string;
+  options?: string[];
 }) {
   const [pick, setPick] = useState(initial);
   return (
     <div className="sheet-overlay sheet-overlay--center" onClick={onCancel}>
       <div className="sheet sheet--center" onClick={(e) => e.stopPropagation()}>
-        <div className="sheet__title sheet__title--name">제품명 선택</div>
+        <div className="sheet__title sheet__title--name">{title}</div>
         <div className="cc-provider-list">
-          {PRODUCTS.map((p) => (
+          {options.map((p) => (
             <button
               key={p}
               type="button"

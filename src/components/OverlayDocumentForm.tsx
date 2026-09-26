@@ -156,8 +156,10 @@ function OverlayDocumentFormInner(
         if (anyFilled) continue;
         // 그룹별로 오늘(+오프셋 연수) 날짜 계산 (예: 위임 종료일 = 오늘+5년)
         const offY = parts.find((f) => f.autoTodayOffsetYears != null)?.autoTodayOffsetYears ?? 0;
+        const offD = parts.find((f) => f.autoTodayOffsetDays != null)?.autoTodayOffsetDays ?? 0;
         const dt = new Date();
         dt.setFullYear(dt.getFullYear() + offY);
+        if (offD) dt.setDate(dt.getDate() + offD);
         const y = String(dt.getFullYear());
         const m = String(dt.getMonth() + 1).padStart(2, "0");
         const d = String(dt.getDate()).padStart(2, "0");
@@ -498,7 +500,18 @@ function OverlayDocumentFormInner(
         filled = true;
         content = (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={url} alt="서명" className="odoc-hotspot__sig" />
+          <img
+            src={url}
+            alt="서명"
+            className="odoc-hotspot__sig"
+            style={
+              field.align === "right"
+                ? { marginLeft: "auto" }
+                : field.align === "center"
+                  ? { marginLeft: "auto", marginRight: "auto" }
+                  : undefined
+            }
+          />
         );
       }
     } else if (field.type === "checkbox") {

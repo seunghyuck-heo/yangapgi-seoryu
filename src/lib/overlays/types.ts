@@ -52,6 +52,8 @@ export interface OverlayField {
   autoToday?: boolean;
   /** autoToday에 더할 연수(예: 5 → 오늘+5년). 위임 종료일 등에 사용 */
   autoTodayOffsetYears?: number;
+  /** autoToday에 더할 일수(예: -1 → 하루 전). 위임 종료일 = 시작+5년-1일 등에 사용 */
+  autoTodayOffsetDays?: number;
 }
 
 export interface OverlayDoc {

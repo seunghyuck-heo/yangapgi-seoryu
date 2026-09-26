@@ -38,6 +38,7 @@ function effectiveDateValue(field: OverlayField, stored: unknown, when: Date): s
   if (!field.autoToday || !field.datePart) return null;
   const base = new Date(when);
   if (field.autoTodayOffsetYears) base.setFullYear(base.getFullYear() + field.autoTodayOffsetYears);
+  if (field.autoTodayOffsetDays) base.setDate(base.getDate() + field.autoTodayOffsetDays);
   const y = base.getFullYear();
   const m = base.getMonth() + 1;
   const d = base.getDate();

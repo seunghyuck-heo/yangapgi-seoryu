@@ -105,13 +105,30 @@ export default function SubmitPage() {
       </header>
 
       <div className="tab-page__body">
-        <DocSubmitList
-          patientId={preview ? "preview-patient" : patientId}
-          preview={preview}
-          fromSubmit={!preview}
-          ensurePatientId={preview ? undefined : ensurePatientId}
-        />
+        {!preview && (
+          <DocSubmitList
+            patientId={patientId}
+            preview={false}
+            fromSubmit={true}
+            ensurePatientId={ensurePatientId}
+          />
+        )}
       </div>
+
+      {/* 로그인 안 한 상태로 서식제출 탭 진입 시: 먼저 로그인 안내 팝업 */}
+      {preview && (
+        <div className="sheet-overlay sheet-overlay--center">
+          <div className="sheet sheet--center">
+            <div className="sheet__title sheet__title--name">먼저 로그인을 하세요</div>
+            <p style={{ textAlign: "center", color: "var(--ink-soft)", fontSize: 14, margin: "-4px 0 16px" }}>
+              서류 작성은 로그인 후 이용할 수 있습니다.
+            </p>
+            <Link href="/settings" className="login-required__btn">
+              로그인 하러 가기
+            </Link>
+          </div>
+        </div>
+      )}
 
       <BottomTabs />
     </div>
