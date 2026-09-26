@@ -28,6 +28,19 @@ export const KOREA_BANKS = [
   "저축은행",
 ];
 
+// 대표 은행의 흔한(현재 신규 계좌 기준) 계좌번호 구분 형식.
+// soft 적용: 자릿수가 달라도 숫자는 잘리지 않고, 표준 길이일 때만 이 위치에 '-'가 들어감.
+export const BANK_DASH: Record<string, number[]> = {
+  "KB국민은행": [6, 2, 6],
+  "신한은행": [3, 3, 6],
+  "우리은행": [4, 3, 6],
+  "하나은행": [3, 6, 5],
+  "NH농협은행": [3, 4, 4, 2],
+  "IBK기업은행": [3, 6, 2, 3],
+  "카카오뱅크": [4, 2, 7],
+  "토스뱅크": [4, 4, 4],
+};
+
 // 국내 카드사 목록(신용카드 선택 시)
 export const KOREA_CARDS = [
   "신한카드",
@@ -71,7 +84,11 @@ export const cmsOverlay: OverlayDoc = {
     { key: "card_exp_y", type: "text", x: 50.76, y: 31.03, w: 3.4, h: 1.2, label: "카드 유효기간(년)", align: "center", requiredIf: "cb_card" },
     { key: "payer_name", type: "text", x: 74.4, y: 31.03, w: 18, h: 1.2, label: "결제자명", align: "left", requiredIf: "cb_card" },
     // 계좌·카드번호: 신용카드 선택 시 16자리 4-4-4-4 자동 하이픈. 은행계좌는 자유 입력(자릿수 강제 X)
-    { key: "account_number", type: "text", x: 24.5, y: 34.94, w: 42, h: 1.2, label: "계좌·카드번호", align: "left", dashPatternByCheckbox: { cb_card: [4, 4, 4, 4] } },
+    {
+      key: "account_number", type: "text", x: 24.5, y: 34.94, w: 42, h: 1.2, label: "계좌·카드번호", align: "left",
+      dashPatternByCheckbox: { cb_card: [4, 4, 4, 4] },
+      dashPatternByOptionOf: { field: "pay_company", map: BANK_DASH },
+    },
     { key: "payer_birth", type: "text", x: 24.5, y: 38.56, w: 16, h: 1.7, label: "결제자 생년월일", boxPattern: [6, 1], optional: true },
     { key: "account_holder_phone", type: "text", x: 24.5, y: 46.39, w: 25.6, h: 1.7, label: "예금주 휴대전화번호", boxPattern: [3, 4, 4], optional: true },
     { key: "cb_privacy_agree", type: "checkbox", x: 82.74, y: 56.93, w: 1.4, h: 0.99, fixedChecked: true },

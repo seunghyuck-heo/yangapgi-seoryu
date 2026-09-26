@@ -41,6 +41,22 @@ function formatBoxPattern(raw: string, pattern: number[]): string {
   return out;
 }
 
+// soft 하이픈: 패턴대로 '-'를 넣되 자릿수를 강제하지 않음(초과 숫자도 잘리지 않고 뒤에 붙음).
+// 은행 계좌처럼 대부분은 표준 형식이지만 예외 계좌가 있을 수 있는 경우에 사용.
+function formatSoftPattern(raw: string, pattern: number[]): string {
+  const digits = raw.replace(/\D/g, "");
+  let out = "";
+  let i = 0;
+  for (const seg of pattern) {
+    const part = digits.slice(i, i + seg);
+    if (!part) return out;
+    out += (out ? "-" : "") + part;
+    i += seg;
+  }
+  if (i < digits.length) out += "-" + digits.slice(i); // 표준보다 긴 예외 계좌: 남는 숫자도 보존
+  return out;
+}
+
 function OverlayDocumentFormInner(
   {
     overlay,
@@ -383,12 +399,19 @@ function OverlayDocumentFormInner(
     setOpenField(null);
   }
 
-  // 실제 적용할 자릿수 하이픈 패턴(체크박스에 따라 달라질 수 있음). 없으면 자유 입력.
-  function effDash(field: OverlayField): number[] | undefined {
-    if (field.dashPattern) return field.dashPattern;
+  // 실제 적용할 자릿수 하이픈 패턴. hard=true면 자릿수 제한(카드), false면 soft(은행: 숫자 안 잘림). 없으면 자유 입력.
+  function effDash(field: OverlayField): { pattern: number[]; hard: boolean } | undefined {
+    if (field.dashPattern) return { pattern: field.dashPattern, hard: true };
     if (field.dashPatternByCheckbox) {
       for (const [cb, pat] of Object.entries(field.dashPatternByCheckbox)) {
-        if (values[cb] === true) return pat;
+        if (values[cb] === true) return { pattern: pat, hard: true };
+      }
+    }
+    if (field.dashPatternByOptionOf) {
+      const sel = values[field.dashPatternByOptionOf.field];
+      if (typeof sel === "string") {
+        const pat = field.dashPatternByOptionOf.map[sel];
+        if (pat) return { pattern: pat, hard: false };
       }
     }
     return undefined;
@@ -688,14 +711,14 @@ function OverlayDocumentFormInner(
           {cells}
         </span>
       );
-    } else if (effDash(field)?.length) {
-      // 전화번호·카드번호 등: 문서엔 접두어 + 하이픈 텍스트로 표시(네모칸 아님)
-      const dash = effDash(field)!;
+    } else if (effDash(field)) {
+      // 전화번호·카드번호·계좌번호 등: 문서엔 접두어 + 하이픈 텍스트로 표시(네모칸 아님)
+      const eff = effDash(field)!;
       const str = typeof value === "string" ? value : "";
       if (str.trim()) {
         filled = true;
         const docPrefix = field.prefix && !field.hidePrefixOnDoc ? field.prefix : "";
-        const display = docPrefix + formatBoxPattern(str, dash);
+        const display = docPrefix + (eff.hard ? formatBoxPattern(str, eff.pattern) : formatSoftPattern(str, eff.pattern));
         content = (
           <span
             className="odoc-hotspot__text"
@@ -898,22 +921,26 @@ function OverlayDocumentFormInner(
                 <span className="field-popup__prefix">{openField.prefix}</span>
               )}
               {(() => {
-                const dash = effDash(openField);
+                const eff = effDash(openField);
                 return (
                   <input
                     type="text"
                     value={
-                      dash
-                        ? formatBoxPattern(textDraft, dash)
+                      eff
+                        ? eff.hard
+                          ? formatBoxPattern(textDraft, eff.pattern)
+                          : formatSoftPattern(textDraft, eff.pattern)
                         : openField.boxPattern
                           ? formatBoxPattern(textDraft, openField.boxPattern)
                           : textDraft
                     }
                     placeholder={
-                      dash
-                        ? openField.prefix
-                          ? `뒤 ${dash.reduce((a, b) => a + b, 0)}자리 입력`
-                          : `${dash.reduce((a, b) => a + b, 0)}자리 숫자 입력`
+                      eff
+                        ? eff.hard
+                          ? openField.prefix
+                            ? `뒤 ${eff.pattern.reduce((a, b) => a + b, 0)}자리 입력`
+                            : `${eff.pattern.reduce((a, b) => a + b, 0)}자리 숫자 입력`
+                          : "숫자 입력 (자동 하이픈)"
                         : openField.boxPattern
                           ? `${openField.boxPattern.reduce((a, b) => a + b, 0)}자리 숫자 입력`
                           : openField.boxes
@@ -921,12 +948,14 @@ function OverlayDocumentFormInner(
                             : openField.placeholder
                     }
                     inputMode={
-                      dash || openField.boxPattern || openField.boxes ? "numeric" : undefined
+                      eff || openField.boxPattern || openField.boxes ? "numeric" : undefined
                     }
                     onChange={(e) => {
-                      if (dash) {
-                        const total = dash.reduce((a, b) => a + b, 0);
-                        setTextDraft(e.target.value.replace(/\D/g, "").slice(0, total));
+                      if (eff) {
+                        const digits = e.target.value.replace(/\D/g, "");
+                        // hard(카드): 총 자릿수 제한. soft(은행): 숫자 안 자름(과도한 길이만 방지)
+                        const total = eff.pattern.reduce((a, b) => a + b, 0);
+                        setTextDraft(eff.hard ? digits.slice(0, total) : digits.slice(0, 20));
                       } else if (openField.boxPattern) {
                         const total = openField.boxPattern.reduce((a, b) => a + b, 0);
                         setTextDraft(e.target.value.replace(/\D/g, "").slice(0, total));
