@@ -14,10 +14,12 @@ interface CareCardZoomProps {
 // - 두 손가락 핀치는 손가락 중심(초점) 기준으로 커지고 작아짐, 더블탭으로 원래 크기
 export default function CareCardZoom({ children, minScale = 1, maxScale = 3 }: CareCardZoomProps) {
   const wrapRef = useRef<HTMLDivElement | null>(null); // 스크롤 컨테이너
+  const sizerRef = useRef<HTMLDivElement | null>(null); // 확대 공간 확보용
   const contentRef = useRef<HTMLDivElement | null>(null); // transform 대상(카드)
   const [scale, setScale] = useState(1);
   const scaleRef = useRef(1);
   const [base, setBase] = useState({ w: 0, h: 0 }); // 1배 기준 크기
+  const baseRef = useRef({ w: 0, h: 0 });
   const pinchStart = useRef<{ dist: number; startScale: number } | null>(null);
   const lastTap = useRef(0);
 
@@ -31,7 +33,11 @@ export default function CareCardZoom({ children, minScale = 1, maxScale = 3 }: C
     if (!host) return;
     const measure = () => {
       const card = host.querySelector<HTMLElement>(".carecard-page");
-      if (card) setBase({ w: card.offsetWidth, h: card.offsetHeight });
+      if (card) {
+        const next = { w: card.offsetWidth, h: card.offsetHeight };
+        baseRef.current = next;
+        setBase(next);
+      }
     };
     measure();
     const card = host.querySelector<HTMLElement>(".carecard-page");
@@ -61,18 +67,27 @@ export default function CareCardZoom({ children, minScale = 1, maxScale = 3 }: C
         const midClientX = (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left;
         const midClientY = (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top;
         const oldScale = scaleRef.current;
-        // 초점 아래의 콘텐츠 좌표(1배 기준)
-        const focalX = (el.scrollLeft + midClientX) / oldScale;
+        const b = baseRef.current;
+        const cw = el.clientWidth;
+        // 카드가 컨테이너보다 좁으면 margin:auto 로 가운데 정렬됨 → 그 오프셋을 반영해야 초점이 정확
+        const offOld = Math.max(0, (cw - b.w * oldScale) / 2);
+        // 초점(두 손가락 중심) 아래의 콘텐츠 좌표(1배 기준)
+        const focalX = (el.scrollLeft + midClientX - offOld) / oldScale;
         const focalY = (el.scrollTop + midClientY) / oldScale;
         const d = dist(e.touches[0], e.touches[1]);
         const ns = Math.min(maxScale, Math.max(minScale, pinchStart.current.startScale * (d / pinchStart.current.dist)));
         scaleRef.current = ns;
+        // 동기적으로 sizer 크기·transform을 먼저 갱신한 뒤 스크롤을 보정해야
+        // 초점(가운데)이 손가락 아래에 유지됨. (rAF 비동기 시 sizer가 아직 안 커져 좌상단으로 쏠림)
+        if (sizerRef.current && b.w) {
+          sizerRef.current.style.width = `${b.w * ns}px`;
+          sizerRef.current.style.height = `${b.h * ns}px`;
+        }
+        if (contentRef.current) contentRef.current.style.transform = `scale(${ns})`;
+        const offNew = Math.max(0, (cw - b.w * ns) / 2);
+        el.scrollLeft = focalX * ns - midClientX + offNew;
+        el.scrollTop = focalY * ns - midClientY;
         setScale(ns);
-        // 초점이 손가락 아래에 계속 오도록 스크롤 보정(리렌더로 sizer 크기 바뀐 뒤)
-        requestAnimationFrame(() => {
-          el.scrollLeft = focalX * ns - midClientX;
-          el.scrollTop = focalY * ns - midClientY;
-        });
       }
     };
     const onEnd = (e: TouchEvent) => {
@@ -100,6 +115,7 @@ export default function CareCardZoom({ children, minScale = 1, maxScale = 3 }: C
   return (
     <div ref={wrapRef} className="carecard-zoom">
       <div
+        ref={sizerRef}
         className="carecard-zoom__sizer"
         style={base.w ? { width: base.w * scale, height: base.h * scale } : undefined}
       >
