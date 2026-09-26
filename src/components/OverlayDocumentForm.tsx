@@ -313,14 +313,12 @@ function OverlayDocumentFormInner(
           for (const f of overlay.fields) {
             if (f.type === "checkbox" && f.group === field.group) next[f.key] = false;
           }
-          // 결제수단(은행/카드) 변경 시: 결제수단에 따라 목록이 바뀌는 필드는 초기화
+          // 결제수단(은행/카드) 변경 시: 결제수단에 따라 목록/형식이 바뀌는 필드는 초기화
+          const inSameGroup = (cb: string) =>
+            overlay.fields.find((x) => x.key === cb)?.group === field.group;
           for (const f of overlay.fields) {
-            if (f.optionsByCheckbox && Object.keys(f.optionsByCheckbox).some((cb) => {
-              const cbField = overlay.fields.find((x) => x.key === cb);
-              return cbField?.group === field.group;
-            })) {
-              next[f.key] = "";
-            }
+            const cond = f.optionsByCheckbox ?? f.dashPatternByCheckbox;
+            if (cond && Object.keys(cond).some(inSameGroup)) next[f.key] = "";
           }
         }
         next[key] = !currently;
@@ -383,6 +381,17 @@ function OverlayDocumentFormInner(
   function selectOption(field: OverlayField, opt: string) {
     setValues((prev) => ({ ...prev, [field.key]: opt }));
     setOpenField(null);
+  }
+
+  // 실제 적용할 자릿수 하이픈 패턴(체크박스에 따라 달라질 수 있음). 없으면 자유 입력.
+  function effDash(field: OverlayField): number[] | undefined {
+    if (field.dashPattern) return field.dashPattern;
+    if (field.dashPatternByCheckbox) {
+      for (const [cb, pat] of Object.entries(field.dashPatternByCheckbox)) {
+        if (values[cb] === true) return pat;
+      }
+    }
+    return undefined;
   }
 
   async function handleSignatureSave(field: OverlayField, dataUrl: string) {
@@ -679,13 +688,14 @@ function OverlayDocumentFormInner(
           {cells}
         </span>
       );
-    } else if (field.dashPattern && field.dashPattern.length) {
-      // 전화번호 등: 문서엔 접두어 + 하이픈 텍스트로 표시(네모칸 아님)
+    } else if (effDash(field)?.length) {
+      // 전화번호·카드번호 등: 문서엔 접두어 + 하이픈 텍스트로 표시(네모칸 아님)
+      const dash = effDash(field)!;
       const str = typeof value === "string" ? value : "";
       if (str.trim()) {
         filled = true;
         const docPrefix = field.prefix && !field.hidePrefixOnDoc ? field.prefix : "";
-        const display = docPrefix + formatBoxPattern(str, field.dashPattern);
+        const display = docPrefix + formatBoxPattern(str, dash);
         content = (
           <span
             className="odoc-hotspot__text"
@@ -887,47 +897,52 @@ function OverlayDocumentFormInner(
               {openField.prefix && (
                 <span className="field-popup__prefix">{openField.prefix}</span>
               )}
-              <input
-                type="text"
-                value={
-                  openField.dashPattern
-                    ? formatBoxPattern(textDraft, openField.dashPattern)
-                    : openField.boxPattern
-                      ? formatBoxPattern(textDraft, openField.boxPattern)
-                      : textDraft
-                }
-                placeholder={
-                  openField.dashPattern
-                    ? `뒤 ${openField.dashPattern.reduce((a, b) => a + b, 0)}자리 입력`
-                    : openField.boxPattern
-                      ? `${openField.boxPattern.reduce((a, b) => a + b, 0)}자리 숫자 입력`
-                      : openField.boxes
-                        ? `${openField.boxes}자리 숫자 입력`
-                        : openField.placeholder
-                }
-                inputMode={
-                  openField.dashPattern || openField.boxPattern || openField.boxes
-                    ? "numeric"
-                    : undefined
-                }
-                onChange={(e) => {
-                  if (openField.dashPattern) {
-                    const total = openField.dashPattern.reduce((a, b) => a + b, 0);
-                    setTextDraft(e.target.value.replace(/\D/g, "").slice(0, total));
-                  } else if (openField.boxPattern) {
-                    const total = openField.boxPattern.reduce((a, b) => a + b, 0);
-                    setTextDraft(e.target.value.replace(/\D/g, "").slice(0, total));
-                  } else if (openField.boxes) {
-                    setTextDraft(e.target.value.replace(/\D/g, "").slice(0, openField.boxes));
-                  } else {
-                    setTextDraft(e.target.value);
-                  }
-                }}
-                autoFocus
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") commitText();
-                }}
-              />
+              {(() => {
+                const dash = effDash(openField);
+                return (
+                  <input
+                    type="text"
+                    value={
+                      dash
+                        ? formatBoxPattern(textDraft, dash)
+                        : openField.boxPattern
+                          ? formatBoxPattern(textDraft, openField.boxPattern)
+                          : textDraft
+                    }
+                    placeholder={
+                      dash
+                        ? openField.prefix
+                          ? `뒤 ${dash.reduce((a, b) => a + b, 0)}자리 입력`
+                          : `${dash.reduce((a, b) => a + b, 0)}자리 숫자 입력`
+                        : openField.boxPattern
+                          ? `${openField.boxPattern.reduce((a, b) => a + b, 0)}자리 숫자 입력`
+                          : openField.boxes
+                            ? `${openField.boxes}자리 숫자 입력`
+                            : openField.placeholder
+                    }
+                    inputMode={
+                      dash || openField.boxPattern || openField.boxes ? "numeric" : undefined
+                    }
+                    onChange={(e) => {
+                      if (dash) {
+                        const total = dash.reduce((a, b) => a + b, 0);
+                        setTextDraft(e.target.value.replace(/\D/g, "").slice(0, total));
+                      } else if (openField.boxPattern) {
+                        const total = openField.boxPattern.reduce((a, b) => a + b, 0);
+                        setTextDraft(e.target.value.replace(/\D/g, "").slice(0, total));
+                      } else if (openField.boxes) {
+                        setTextDraft(e.target.value.replace(/\D/g, "").slice(0, openField.boxes));
+                      } else {
+                        setTextDraft(e.target.value);
+                      }
+                    }}
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") commitText();
+                    }}
+                  />
+                );
+              })()}
             </div>
             <div className="field-popup__actions">
               <button type="button" onClick={() => setOpenField(null)}>

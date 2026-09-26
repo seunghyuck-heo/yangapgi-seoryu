@@ -70,7 +70,8 @@ export const cmsOverlay: OverlayDoc = {
     { key: "card_exp_m", type: "text", x: 46.04, y: 31.03, w: 3.4, h: 1.2, label: "카드 유효기간(월)", align: "center", requiredIf: "cb_card" },
     { key: "card_exp_y", type: "text", x: 50.76, y: 31.03, w: 3.4, h: 1.2, label: "카드 유효기간(년)", align: "center", requiredIf: "cb_card" },
     { key: "payer_name", type: "text", x: 74.4, y: 31.03, w: 18, h: 1.2, label: "결제자명", align: "left", requiredIf: "cb_card" },
-    { key: "account_number", type: "text", x: 24.5, y: 34.94, w: 42, h: 1.2, label: "계좌·카드번호", align: "left" },
+    // 계좌·카드번호: 신용카드 선택 시 16자리 4-4-4-4 자동 하이픈. 은행계좌는 자유 입력(자릿수 강제 X)
+    { key: "account_number", type: "text", x: 24.5, y: 34.94, w: 42, h: 1.2, label: "계좌·카드번호", align: "left", dashPatternByCheckbox: { cb_card: [4, 4, 4, 4] } },
     { key: "payer_birth", type: "text", x: 24.5, y: 38.56, w: 16, h: 1.7, label: "결제자 생년월일", boxPattern: [6, 1], optional: true },
     { key: "account_holder_phone", type: "text", x: 24.5, y: 46.39, w: 25.6, h: 1.7, label: "예금주 휴대전화번호", boxPattern: [3, 4, 4], optional: true },
     { key: "cb_privacy_agree", type: "checkbox", x: 82.74, y: 56.93, w: 1.4, h: 0.99, fixedChecked: true },
