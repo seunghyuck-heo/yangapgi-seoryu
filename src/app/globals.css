@@ -682,12 +682,16 @@ input[type="password"]::placeholder {
 
 /* ---------- Bottom tab bar ---------- */
 
-/* 설정 화면 하단 개발 버전 표시 */
+/* 설정 화면: 버전 텍스트 + 로그아웃 버튼을 하단에 함께 배치 */
+.settings-bottom {
+  margin-top: auto; /* 화면 하단으로 밀기(로그아웃 원래 위치 유지) */
+  margin-bottom: 8px;
+}
 .app-version {
   text-align: center;
   font-size: 12px;
   color: var(--muted);
-  margin: 24px 0 96px; /* 고정 하단탭에 가리지 않게 여백 */
+  margin: 0 0 12px; /* 로그아웃 버튼 위 여백 */
   letter-spacing: 0.02em;
 }
 

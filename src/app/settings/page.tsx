@@ -194,9 +194,12 @@ export default function SettingsPage() {
               <span className="settings-menu-item__chev" aria-hidden>›</span>
             </Link>
 
-            <button type="button" className="logout-btn logout-btn--bottom" onClick={handleLogout}>
-              로그아웃
-            </button>
+            <div className="settings-bottom">
+              <p className="app-version">양압기 서류계약 {APP_VERSION}</p>
+              <button type="button" className="logout-btn" onClick={handleLogout}>
+                로그아웃
+              </button>
+            </div>
           </>
         ) : (
           /* ── 로그아웃 상태: 로그인 / 계정 만들기 ── */
@@ -280,8 +283,6 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
-
-      <p className="app-version">양압기 서류계약 {APP_VERSION}</p>
 
       <BottomTabs />
     </div>
