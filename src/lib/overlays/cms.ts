@@ -1,5 +1,54 @@
 import { OverlayDoc } from "./types";
 
+// 국내 은행 목록(자동이체 은행계좌 선택 시)
+export const KOREA_BANKS = [
+  "KB국민은행",
+  "신한은행",
+  "우리은행",
+  "하나은행",
+  "NH농협은행",
+  "IBK기업은행",
+  "SC제일은행",
+  "한국씨티은행",
+  "KDB산업은행",
+  "수협은행",
+  "카카오뱅크",
+  "케이뱅크",
+  "토스뱅크",
+  "iM뱅크(대구은행)",
+  "부산은행",
+  "경남은행",
+  "광주은행",
+  "전북은행",
+  "제주은행",
+  "새마을금고",
+  "신협",
+  "우체국예금",
+  "산림조합",
+  "저축은행",
+];
+
+// 국내 카드사 목록(신용카드 선택 시)
+export const KOREA_CARDS = [
+  "신한카드",
+  "삼성카드",
+  "현대카드",
+  "KB국민카드",
+  "롯데카드",
+  "우리카드",
+  "하나카드",
+  "BC카드",
+  "NH농협카드",
+  "IBK기업은행카드",
+  "씨티카드",
+  "카카오뱅크카드",
+  "케이뱅크카드",
+  "수협카드",
+  "광주카드",
+  "전북카드",
+  "제주카드",
+];
+
 // 효성 CMS 자동이체신청서 — 실제 서식(사진) 기준 A4 재현본. 마커 DOM 측정 자동 생성.
 // 수납업체 기재란·라벨 음영 인쇄. 편집 불가: 납부금액·납부일·연락처·사업자번호. 생년월일/전화 boxPattern.
 // 신청인·예금주: 성명(수기)+서명 분리.
@@ -11,8 +60,13 @@ export const cmsOverlay: OverlayDoc = {
     { key: "account_relation", type: "text", x: 47.99, y: 21.39, w: 6, h: 1.2, staticText: "본인", align: "center", fontPct: 1.2 },
     { key: "cb_bank", type: "checkbox", x: 25.21, y: 27.74, w: 1.4, h: 0.99, group: "paymethod" },
     { key: "cb_card", type: "checkbox", x: 37.69, y: 27.74, w: 1.4, h: 0.99, group: "paymethod" },
-    // 카드 관련 칸: 신용카드(cb_card) 선택 시에만 필수. 은행계좌 선택이면 비어도 작성완료 가능
-    { key: "pay_company", type: "text", x: 24.5, y: 31.03, w: 12, h: 1.2, label: "결제사명", align: "left", requiredIf: "cb_card" },
+    // 결제사명: 은행계좌 선택 시 은행 목록, 신용카드 선택 시 카드사 목록에서 고름(직접 입력 대신)
+    // 결제수단(은행/카드)을 하나라도 고르면 필수
+    {
+      key: "pay_company", type: "text", x: 24.5, y: 31.03, w: 12, h: 1.2, label: "결제사명", align: "left",
+      optionsByCheckbox: { cb_bank: KOREA_BANKS, cb_card: KOREA_CARDS },
+      requiredIfGroup: "paymethod",
+    },
     { key: "card_exp_m", type: "text", x: 46.04, y: 31.03, w: 3.4, h: 1.2, label: "카드 유효기간(월)", align: "center", requiredIf: "cb_card" },
     { key: "card_exp_y", type: "text", x: 50.76, y: 31.03, w: 3.4, h: 1.2, label: "카드 유효기간(년)", align: "center", requiredIf: "cb_card" },
     { key: "payer_name", type: "text", x: 74.4, y: 31.03, w: 18, h: 1.2, label: "결제자명", align: "left", requiredIf: "cb_card" },

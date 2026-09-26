@@ -57,6 +57,13 @@ export interface OverlayField {
   /** 이 날짜 그룹을 다른 그룹(baseGroup)의 날짜 + 오프셋으로 항상 파생(저장값도 덮어씀).
    *  예: 위임 종료일 = 위임 시작일 + 5년 - 1일 (이미 저장된 문서도 자동 보정) */
   baseGroup?: string;
+  /** 목록에서 고르는 선택 필드: 탭하면 옵션 목록 팝업이 뜬다(직접 입력 대신) */
+  options?: string[];
+  /** 조건부 옵션: 지정한 체크박스 key가 선택돼 있으면 해당 목록을 보여줌.
+   *  예: { cb_bank: 은행목록, cb_card: 카드사목록 } — 결제수단에 따라 결제사명 목록이 바뀜 */
+  optionsByCheckbox?: Record<string, string[]>;
+  /** 같은 group의 체크박스가 하나라도 선택되면 필수(빈 칸이면 작성완료 불가) */
+  requiredIfGroup?: string;
 }
 
 export interface OverlayDoc {

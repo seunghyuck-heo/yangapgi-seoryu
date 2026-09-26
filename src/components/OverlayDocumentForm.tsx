@@ -313,6 +313,15 @@ function OverlayDocumentFormInner(
           for (const f of overlay.fields) {
             if (f.type === "checkbox" && f.group === field.group) next[f.key] = false;
           }
+          // 결제수단(은행/카드) 변경 시: 결제수단에 따라 목록이 바뀌는 필드는 초기화
+          for (const f of overlay.fields) {
+            if (f.optionsByCheckbox && Object.keys(f.optionsByCheckbox).some((cb) => {
+              const cbField = overlay.fields.find((x) => x.key === cb);
+              return cbField?.group === field.group;
+            })) {
+              next[f.key] = "";
+            }
+          }
         }
         next[key] = !currently;
         return next;
@@ -357,6 +366,22 @@ function OverlayDocumentFormInner(
   function commitText() {
     if (!openField) return;
     setValues((prev) => ({ ...prev, [openField.key]: textDraft }));
+    setOpenField(null);
+  }
+
+  // 선택 필드의 현재 옵션 목록 계산(체크박스에 따라 달라질 수 있음)
+  function resolveOptions(field: OverlayField): string[] | null {
+    if (field.optionsByCheckbox) {
+      for (const [cbKey, list] of Object.entries(field.optionsByCheckbox)) {
+        if (values[cbKey] === true) return list;
+      }
+      return []; // 결제수단 미선택: 빈 목록 → 안내 문구 표시
+    }
+    return field.options ?? null;
+  }
+
+  function selectOption(field: OverlayField, opt: string) {
+    setValues((prev) => ({ ...prev, [field.key]: opt }));
     setOpenField(null);
   }
 
@@ -500,6 +525,9 @@ function OverlayDocumentFormInner(
       if (f.cover || f.staticText) return true; // 가림 박스·표시용 라벨은 입력 대상 아님
       if (f.optional) return true; // 선택 입력 항목(예: 자택 전화)
       if (f.requiredIf && values[f.requiredIf] !== true) return true; // 조건부 필수(예: 카드 선택 시에만)
+      // 그룹 조건부 필수: 해당 group의 체크박스가 하나도 선택 안 됐으면 필수 아님
+      if (f.requiredIfGroup && !overlay.fields.some((g) => g.group === f.requiredIfGroup && values[g.key] === true))
+        return true;
       const v = values[f.key];
       return typeof v === "string" ? v.trim() !== "" : !!v;
     });
@@ -803,8 +831,55 @@ function OverlayDocumentFormInner(
         </div>
       )}
 
+      {/* 목록 선택 팝업 (결제사명 등: 은행/카드사 목록) */}
+      {openField && (openField.options || openField.optionsByCheckbox) && (
+        <div className="sheet-overlay" onClick={() => setOpenField(null)}>
+          <div className="sheet field-popup" onClick={(e) => e.stopPropagation()}>
+            <div className="field-popup__label">
+              {openField.optionsByCheckbox
+                ? values["cb_card"] === true
+                  ? "카드사 선택"
+                  : values["cb_bank"] === true
+                    ? "은행 선택"
+                    : "결제수단을 먼저 선택하세요"
+                : openField.label ?? "선택"}
+            </div>
+            {(() => {
+              const opts = resolveOptions(openField) ?? [];
+              if (opts.length === 0) {
+                return (
+                  <p style={{ textAlign: "center", color: "var(--ink-soft)", fontSize: 14, padding: "8px 0 4px" }}>
+                    상단에서 은행계좌 또는 신용카드를 먼저 선택해 주세요.
+                  </p>
+                );
+              }
+              const cur = typeof values[openField.key] === "string" ? (values[openField.key] as string) : "";
+              return (
+                <div className="opt-list">
+                  {opts.map((o) => (
+                    <button
+                      key={o}
+                      type="button"
+                      className={`opt-list__item${o === cur ? " opt-list__item--sel" : ""}`}
+                      onClick={() => selectOption(openField, o)}
+                    >
+                      {o}
+                    </button>
+                  ))}
+                </div>
+              );
+            })()}
+            <div className="field-popup__actions">
+              <button type="button" onClick={() => setOpenField(null)}>
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 텍스트 입력 팝업 */}
-      {openField && !openField.dateGroup && openField.type === "text" && (
+      {openField && !openField.dateGroup && openField.type === "text" && !openField.options && !openField.optionsByCheckbox && (
         <div className="sheet-overlay" ref={popupRef} onClick={() => setOpenField(null)}>
           <div className="sheet field-popup" onClick={(e) => e.stopPropagation()}>
             <div className="field-popup__label">{openField.label ?? "입력"}</div>
