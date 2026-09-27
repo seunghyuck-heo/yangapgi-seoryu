@@ -1042,6 +1042,12 @@ input[type="password"]::placeholder {
   border-radius: 999px;
 }
 
+/* 선택(optional) 입력칸: 빈 상태 블록을 오렌지색으로 구분(동작은 동일) */
+.odoc-hotspot--optional {
+  background: rgba(245, 158, 11, 0.18);
+  outline: 1px solid rgba(217, 119, 6, 0.7);
+}
+
 /* 도장(직인) 이미지: 실제 찍힌 것처럼 흰 배경 투명 + 뒤 글자 비침(multiply) */
 .odoc-hotspot--stamp {
   background: transparent;
