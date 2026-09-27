@@ -15,7 +15,9 @@ interface PointerInfo {
   y: number;
 }
 
-const TAP_MOVE_THRESHOLD = 8; // px
+// 탭으로 인정하는 최대 이동 거리. 정전식 펜은 접촉이 불안정해 손가락보다 흔들림이 커서,
+// 값이 작으면 탭이 자주 '드래그'로 오인되어 필드가 안 열림(키보드 안 뜸). 넉넉히 잡음.
+const TAP_MOVE_THRESHOLD = 20; // px
 
 export default function ZoomableDocument({
   aspectRatio,
