@@ -300,7 +300,9 @@ export async function renderOverlayPage(
         const dy = by + (bh - dh) / 2;
         ctx.save();
         ctx.globalCompositeOperation = "multiply";
-        ctx.globalAlpha = 0.92;
+        ctx.globalAlpha = 1;
+        // 화면과 동일하게 약간 또렷하게(대비·채도 보정)
+        ctx.filter = "contrast(1.18) saturate(1.25)";
         ctx.drawImage(img, dx, dy, dw, dh);
         ctx.restore();
       }

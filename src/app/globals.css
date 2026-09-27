@@ -1061,7 +1061,9 @@ input[type="password"]::placeholder {
   height: 100%;
   object-fit: contain;
   mix-blend-mode: multiply;
-  opacity: 0.92;
+  opacity: 1;
+  /* 실제 찍힌 느낌은 유지하되 약간 또렷하게(대비·채도 살짝 보정) */
+  filter: contrast(1.18) saturate(1.25);
   user-select: none;
 }
 
