@@ -2202,6 +2202,21 @@ input[type="password"]::placeholder {
 .cc-date-cell .cc-vr__val {
   pointer-events: none;
 }
+/* ②성능검사·③안전교육 날짜 편집 셀(파란/초록 블록) */
+.cc-insp .cc-date-cell {
+  position: relative;
+}
+.cc-insp .cc-date-cell--edit {
+  cursor: pointer;
+}
+.cc-insp .cc-edit--empty {
+  background: rgba(47, 95, 221, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(47, 95, 221, 0.5);
+}
+.cc-insp .cc-edit--green {
+  background: rgba(34, 197, 94, 0.3);
+  box-shadow: inset 0 0 0 1.5px rgba(22, 163, 74, 0.9);
+}
 .cc-usage-select,
 .cc-date-input {
   position: absolute;

@@ -128,6 +128,10 @@ interface BodyProps {
   contractPeriod: string;
   product: string;
   providerOrg: string;
+  perfDate: string;
+  eduDate: string;
+  onPerfDate: (v: string) => void;
+  onEduDate: (v: string) => void;
   onOpenProduct: () => void;
   onOpenProviderOrg: () => void;
   onUpdate: (i: number, patch: Partial<Visit>) => void;
@@ -149,6 +153,10 @@ const CareCardBody = memo(function CareCardBody({
   contractPeriod,
   product,
   providerOrg,
+  perfDate,
+  eduDate,
+  onPerfDate,
+  onEduDate,
   onOpenProduct,
   onOpenProviderOrg,
   onUpdate,
@@ -238,7 +246,18 @@ const CareCardBody = memo(function CareCardBody({
             <tbody>
               <tr>
                 <th className="cc-cat cc-cat--xs">날짜</th>
-                <td className="cc-val cc-date" />
+                <td className={`cc-val cc-date cc-date-cell${editing ? " cc-date-cell--edit" : ""}${editing && mode === "green" && perfDate ? " cc-edit--green" : editing && !perfDate ? " cc-edit--empty" : ""}`}>
+                  <span className="cc-vr__val">{perfDate ? fmtVisitDate(perfDate) : ""}</span>
+                  {editing && (
+                    <input
+                      type="date"
+                      className="cc-date-input"
+                      value={perfDate}
+                      onChange={(e) => onPerfDate(e.target.value)}
+                      aria-label="성능검사 날짜"
+                    />
+                  )}
+                </td>
                 <th className="cc-cat cc-cat--xs">점검내용</th>
                 <td className="cc-check cc-check--wide">[O] 장비기능 &nbsp; [O] 알람기능 &nbsp; [O] 소독·세척</td>
                 <th className="cc-cat cc-cat--xs">점검자 서명</th>
@@ -253,7 +272,18 @@ const CareCardBody = memo(function CareCardBody({
             <tbody>
               <tr>
                 <th className="cc-cat cc-cat--xs">날짜</th>
-                <td className="cc-val cc-date" />
+                <td className={`cc-val cc-date cc-date-cell${editing ? " cc-date-cell--edit" : ""}${editing && mode === "green" && eduDate ? " cc-edit--green" : editing && !eduDate ? " cc-edit--empty" : ""}`}>
+                  <span className="cc-vr__val">{eduDate ? fmtVisitDate(eduDate) : ""}</span>
+                  {editing && (
+                    <input
+                      type="date"
+                      className="cc-date-input"
+                      value={eduDate}
+                      onChange={(e) => onEduDate(e.target.value)}
+                      aria-label="안전교육 날짜"
+                    />
+                  )}
+                </td>
                 <th className="cc-cat cc-cat--xs">교육내용</th>
                 <td className="cc-check cc-check--wide">[O] 장비사용법 &nbsp; [O] 응급상황 시 대처요령 &nbsp; [O] 기타</td>
                 <th className="cc-cat cc-cat--xs">환자 서명</th>
@@ -434,6 +464,9 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
   // 준요양기관 상호명(편집): 엔큐에스 / 엠와이메디칼 중 선택
   const [providerOrg, setProviderOrg] = useState("");
   const [providerOrgOpen, setProviderOrgOpen] = useState(false);
+  // ② 성능검사 / ③ 안전교육 날짜(편집)
+  const [perfDate, setPerfDate] = useState("");
+  const [eduDate, setEduDate] = useState("");
 
   // 편집 팝업들 (본문과 분리되어 열림 → 표 리렌더 없음)
   const [actionRow, setActionRow] = useState<number | null>(null);
@@ -458,6 +491,8 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
             if (cfd?.visits) setVisits(normalizeVisits(cfd.visits));
             if (typeof cfd?.product === "string") setProduct(cfd.product);
             if (typeof cfd?.providerOrg === "string") setProviderOrg(cfd.providerOrg);
+            if (typeof cfd?.perfDate === "string") setPerfDate(cfd.perfDate);
+            if (typeof cfd?.eduDate === "string") setEduDate(cfd.eduDate);
           }
           if (p.signedUrls) setSignUrls(p.signedUrls);
         }
@@ -533,7 +568,7 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
       const res = await fetch(`/api/documents/${patientId}/care_card`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ form_data: { visits, product, providerOrg }, status: targetStatus }),
+        body: JSON.stringify({ form_data: { visits, product, providerOrg, perfDate, eduDate }, status: targetStatus }),
       });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
@@ -563,12 +598,12 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
   }
 
   function startLocalEdit() {
-    editSnapshotRef.current = JSON.stringify({ visits, product, providerOrg });
+    editSnapshotRef.current = JSON.stringify({ visits, product, providerOrg, perfDate, eduDate });
     setLocalEdit(true);
   }
 
   function handleEditDone() {
-    if (JSON.stringify({ visits, product, providerOrg }) === editSnapshotRef.current) {
+    if (JSON.stringify({ visits, product, providerOrg, perfDate, eduDate }) === editSnapshotRef.current) {
       setLocalEdit(false);
       return;
     }
@@ -581,10 +616,14 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
         visits?: unknown;
         product?: unknown;
         providerOrg?: unknown;
+        perfDate?: unknown;
+        eduDate?: unknown;
       };
       setVisits(normalizeVisits(snap.visits));
       if (typeof snap.product === "string") setProduct(snap.product);
       if (typeof snap.providerOrg === "string") setProviderOrg(snap.providerOrg);
+      setPerfDate(typeof snap.perfDate === "string" ? snap.perfDate : "");
+      setEduDate(typeof snap.eduDate === "string" ? snap.eduDate : "");
     } catch {
       // 무시
     }
@@ -601,7 +640,7 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
 
   // 사용자가 실제로 입력한 게 하나라도 있는지 (방문점검·제품명·상호명)
   function hasUserInput(): boolean {
-    if (product || providerOrg) return true;
+    if (product || providerOrg || perfDate || eduDate) return true;
     return visits.some(
       (v) =>
         v.date || v.cpap || v.supply || v.hygiene || v.alarm || v.pressure || v.usage || v.action || v.provider || v.guardianSign
@@ -692,6 +731,10 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
         contractPeriod={contractPeriod}
         product={product}
         providerOrg={providerOrg}
+        perfDate={perfDate}
+        eduDate={eduDate}
+        onPerfDate={setPerfDate}
+        onEduDate={setEduDate}
         onOpenProduct={() => setProductOpen(true)}
         onOpenProviderOrg={() => setProviderOrgOpen(true)}
         onUpdate={update}
