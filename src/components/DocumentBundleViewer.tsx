@@ -6,6 +6,7 @@ import { PatientDocument } from "@/lib/db/types";
 import { DOC_TYPE_LABELS, DOC_TYPE_ORDER } from "@/lib/templates/types";
 import { getOverlayDoc } from "@/lib/overlays";
 import { renderOverlayPage, renderImagePage } from "@/lib/pdf/renderBundle";
+import { downloadCanvasesAsPdf, safeFileName, todayStamp } from "@/lib/pdf/download";
 
 interface Props {
   patientId: string;
@@ -36,7 +37,7 @@ export default function DocumentBundleViewer({
   const pagesRef = useRef<HTMLDivElement | null>(null);
   const zoomRef = useRef<HTMLDivElement | null>(null);
 
-  const fileBase = `${patientName || "환자"}_양압기서류`;
+  const fileBase = `양압기 환자서류 모음_${safeFileName(patientName || "환자")}_${todayStamp()}`;
 
   // 두 손가락 핀치 줌 (세로 스크롤은 네이티브 유지, zoom CSS로 확대/축소)
   useEffect(() => {
@@ -149,15 +150,17 @@ export default function DocumentBundleViewer({
     };
   }, [patientId, documents]);
 
-  function handlePrint() {
-    document.body.classList.add("bundle-printing");
-    const cleanup = () => {
-      document.body.classList.remove("bundle-printing");
-      window.removeEventListener("afterprint", cleanup);
-    };
-    window.addEventListener("afterprint", cleanup);
-    window.print();
-    setTimeout(cleanup, 1000);
+  // 서류 묶음을 하나의 PDF로 다운로드(내 파일에 저장)
+  async function handleDownloadBundle() {
+    if (busy || pages.length === 0) return;
+    setBusy(true);
+    try {
+      await downloadCanvasesAsPdf(pages.map((p) => p.canvas), `${fileBase}.pdf`);
+    } catch {
+      showToast("다운로드 준비 중 오류가 발생했습니다.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function buildPdfFile(): Promise<File> {
@@ -230,11 +233,13 @@ export default function DocumentBundleViewer({
 
       {!loading && !error && (
         <div className="bundle-viewer__bar bundle-viewer__bar--bottom no-print">
-          <button type="button" className="bundle-viewer__action" onClick={handlePrint} disabled={busy}>
+          <button type="button" className="bundle-viewer__action" onClick={handleDownloadBundle} disabled={busy}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-              <path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z" />
+              <path d="M12 3v12" />
+              <path d="m7 10 5 5 5-5" />
+              <path d="M5 21h14" />
             </svg>
-            출력하기
+            다운받기
           </button>
           <button type="button" className="bundle-viewer__action" onClick={() => handleShare("email")} disabled={busy}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">

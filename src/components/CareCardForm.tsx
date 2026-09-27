@@ -454,6 +454,7 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
 
   const editSnapshotRef = useRef<string>("");
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -504,6 +505,43 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
     setToast(msg);
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(null), 2200);
+  }
+
+  // 환자관리카드를 PDF로 다운로드: 양압기 환자관리카드_환자이름_오늘날짜.pdf
+  async function handleDownload(patientName: string) {
+    if (downloading) return;
+    setDownloading(true);
+    const content = document.querySelector(".carecard-zoom__content") as HTMLElement | null;
+    const sizer = document.querySelector(".carecard-zoom__sizer") as HTMLElement | null;
+    const page = document.querySelector(".carecard-page") as HTMLElement | null;
+    const prevT = content?.style.transform ?? "";
+    const prevW = sizer?.style.width ?? "";
+    const prevH = sizer?.style.height ?? "";
+    try {
+      // 캡처 왜곡 방지: 핀치 줌 초기화
+      if (content) content.style.transform = "none";
+      if (sizer) {
+        sizer.style.width = "auto";
+        sizer.style.height = "auto";
+      }
+      if (!page) throw new Error("no page");
+      const [{ default: html2canvas }, dl] = await Promise.all([
+        import("html2canvas"),
+        import("@/lib/pdf/download"),
+      ]);
+      const canvas = await html2canvas(page, { scale: 2, backgroundColor: "#ffffff", useCORS: true });
+      const nm = dl.safeFileName(patientName || "환자");
+      await dl.downloadCanvasAsPdf(canvas, `양압기 환자관리카드_${nm}_${dl.todayStamp()}.pdf`);
+    } catch {
+      showToast("다운로드 준비 중 오류가 발생했습니다.");
+    } finally {
+      if (content) content.style.transform = prevT;
+      if (sizer) {
+        sizer.style.width = prevW;
+        sizer.style.height = prevH;
+      }
+      setDownloading(false);
+    }
   }
 
   const isCompleted = status === "completed";
@@ -710,8 +748,8 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
           <button type="button" className="doc-page__edit" onClick={startLocalEdit}>
             수정
           </button>
-          <button type="button" onClick={() => window.print()}>
-            인쇄 (A4)
+          <button type="button" onClick={() => handleDownload(name)} disabled={downloading}>
+            {downloading ? "준비 중…" : "다운받기"}
           </button>
         </div>
       </div>

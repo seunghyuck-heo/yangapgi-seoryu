@@ -89,6 +89,7 @@ function OverlayDocumentFormInner(
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [localEdit, setLocalEdit] = useState(false); // 완료 서류 화면에서 '수정' 눌렀을 때
+  const [downloading, setDownloading] = useState(false);
   const [confirmSave, setConfirmSave] = useState(false);
   const [pdfPromptOpen, setPdfPromptOpen] = useState(false); // 저장 후 PDF도 업데이트할지
   // 주소 검색(도로명/지번)
@@ -504,6 +505,46 @@ function OverlayDocumentFormInner(
     window.setTimeout(() => setToast(null), 2200);
   }
 
+  // 이 문서를 PDF로 다운로드: 제목_환자이름_오늘날짜.pdf
+  async function handleDownload() {
+    if (downloading) return;
+    setDownloading(true);
+    try {
+      const [{ renderOverlayPage }, { downloadCanvasAsPdf, safeFileName, todayStamp }] = await Promise.all([
+        import("@/lib/pdf/renderBundle"),
+        import("@/lib/pdf/download"),
+      ]);
+      // 서명 이미지 맵: 저장경로 → URL(또는 방금 그린 dataURL)
+      const imgMap: Record<string, string> = {};
+      for (const f of overlay.fields) {
+        if (f.type === "signature") {
+          const v = values[f.key];
+          if (typeof v === "string" && v) imgMap[v] = sigUrls[f.key] || initialSignedUrls[v] || v;
+        }
+      }
+      const canvas = await renderOverlayPage(overlay, values, imgMap, new Date());
+      // 환자 이름(파일명용)
+      let name = "환자";
+      if (!preview) {
+        try {
+          const res = await fetch(`/api/patients/${patientId}`);
+          if (res.ok) {
+            const j = await res.json();
+            if (j?.patient?.name) name = j.patient.name as string;
+          }
+        } catch {
+          // 이름 없으면 기본값
+        }
+      }
+      const filename = `${safeFileName(overlay.title)}_${safeFileName(name)}_${todayStamp()}.pdf`;
+      await downloadCanvasAsPdf(canvas, filename);
+    } catch {
+      showToast("다운로드 준비 중 오류가 발생했습니다.");
+    } finally {
+      setDownloading(false);
+    }
+  }
+
   // '수정' 진입: 현재 값 스냅샷 저장 후 편집 모드 시작
   function startLocalEdit() {
     editSnapshotRef.current = JSON.stringify(values);
@@ -828,8 +869,8 @@ function OverlayDocumentFormInner(
             <button type="button" className="doc-page__edit" onClick={startLocalEdit}>
               수정
             </button>
-            <button type="button" onClick={() => window.print()}>
-              인쇄 (A4)
+            <button type="button" onClick={handleDownload} disabled={downloading}>
+              {downloading ? "준비 중…" : "다운받기"}
             </button>
           </div>
         </div>
