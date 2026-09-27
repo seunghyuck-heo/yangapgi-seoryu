@@ -25,10 +25,12 @@ function hasFormData(fd: Record<string, unknown> | null | undefined): boolean {
   });
 }
 
-// 환자관리카드: 제품명 또는 방문점검 중 하나라도 입력됐는지 (빈 visits 배열은 제외)
+// 환자관리카드: 제품명·상호명·성능검사/안전교육 날짜 또는 방문점검 중 하나라도 입력됐는지
 function careCardHasData(fd: Record<string, unknown> | null | undefined): boolean {
   if (!fd) return false;
-  if (typeof fd.product === "string" && fd.product.trim() !== "") return true;
+  for (const k of ["product", "providerOrg", "perfDate", "eduDate"]) {
+    if (typeof fd[k] === "string" && (fd[k] as string).trim() !== "") return true;
+  }
   const visits = fd.visits;
   if (Array.isArray(visits)) {
     return visits.some(
