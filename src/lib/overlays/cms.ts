@@ -103,7 +103,7 @@ export const cmsOverlay: OverlayDoc = {
     { key: "sign_d", type: "text", x: 91.44, y: 78.19, w: 3, h: 1.2, label: "작성 일", align: "right", dateGroup: "sign", datePart: "d", autoToday: true, fontPct: 1.2 },
     { key: "applicant_seal", type: "signature", x: 71.03, y: 80.31, w: 11, h: 3.11, label: "서명 (수기)" },
     { key: "applicant_signature", type: "signature", x: 60.2, y: 80.45, w: 15, h: 2.83, label: "성명 (수기)", confirmText: "성명 확정" },
-    { key: "account_holder_seal", type: "signature", x: 71.6, y: 84.2, w: 15, h: 3.11, label: "서명 (수기)", optional: true },
-    { key: "account_holder_signature", type: "signature", x: 60.2, y: 84.34, w: 15, h: 2.83, label: "성명 (수기)", confirmText: "성명 확정", optional: true },
+    { key: "account_holder_seal", type: "signature", x: 71.6, y: 84.2, w: 15, h: 3.11, label: "서명 (수기)", optional: true, orangeBlock: true },
+    { key: "account_holder_signature", type: "signature", x: 60.2, y: 84.34, w: 15, h: 2.83, label: "성명 (수기)", confirmText: "성명 확정", optional: true, orangeBlock: true },
   ],
 };

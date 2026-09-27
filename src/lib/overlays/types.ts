@@ -47,6 +47,8 @@ export interface OverlayField {
   addressSearch?: boolean;
   /** 작성완료 시 필수 아님(빈 칸이어도 완료 가능) */
   optional?: boolean;
+  /** 빈 상태 블록을 오렌지색으로 표시(예: 신청인과 예금주가 다를 경우의 예금주 칸) */
+  orangeBlock?: boolean;
   /** 지정한 체크박스 key가 체크됐을 때만 필수. 아니면 선택(빈 칸 허용) */
   requiredIf?: string;
   /** 필수 선택 그룹(양자택일): 같은 group에서 하나도 선택 안 되면 작성완료 불가 */

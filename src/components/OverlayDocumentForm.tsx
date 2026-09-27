@@ -850,7 +850,7 @@ function OverlayDocumentFormInner(
       <div
         key={field.key}
         data-field={field.key}
-        className={`odoc-hotspot ${filled ? "odoc-hotspot--filled" : showEmpty ? (field.optional ? "odoc-hotspot--empty odoc-hotspot--optional" : "odoc-hotspot--empty") : "odoc-hotspot--blocked"}${editable ? " odoc-hotspot--editable" : ""}`}
+        className={`odoc-hotspot ${filled ? "odoc-hotspot--filled" : showEmpty ? (field.orangeBlock ? "odoc-hotspot--empty odoc-hotspot--optional" : "odoc-hotspot--empty") : "odoc-hotspot--blocked"}${editable ? " odoc-hotspot--editable" : ""}`}
         style={style}
       >
         {hideEmpty ? null : content}
