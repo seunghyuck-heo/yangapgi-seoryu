@@ -11,6 +11,7 @@ import { downloadCanvasesAsPdf, safeFileName, todayStamp } from "@/lib/pdf/downl
 interface Props {
   patientId: string;
   patientName: string;
+  customerNo?: number | null;
   documents: PatientDocument[];
   onClose: () => void;
 }
@@ -25,6 +26,7 @@ interface Page {
 export default function DocumentBundleViewer({
   patientId,
   patientName,
+  customerNo,
   documents,
   onClose,
 }: Props) {
@@ -37,7 +39,9 @@ export default function DocumentBundleViewer({
   const pagesRef = useRef<HTMLDivElement | null>(null);
   const zoomRef = useRef<HTMLDivElement | null>(null);
 
-  const fileBase = `양압기 환자서류 모음_${safeFileName(patientName || "환자")}_${todayStamp()}`;
+  // 파일명: No.{고유번호}_{이름}. 고유번호 없으면 이름_날짜로 폴백.
+  const nm = safeFileName(patientName || "환자");
+  const fileBase = customerNo != null ? `No.${customerNo}_${nm}` : `${nm}_${todayStamp()}`;
 
   // 두 손가락 핀치 줌 (세로 스크롤은 네이티브 유지, zoom CSS로 확대/축소)
   useEffect(() => {

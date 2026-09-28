@@ -199,6 +199,7 @@ export default function PatientDetailPage({ params }: PatientDetailPageProps) {
         <DocumentBundleViewer
           patientId={patient.id}
           patientName={patient.name}
+          customerNo={patient.customer_no}
           documents={patient.documents}
           onClose={() => setShowBundle(false)}
         />
