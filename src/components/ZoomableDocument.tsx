@@ -42,6 +42,34 @@ export default function ZoomableDocument({
     stateRef.current = { scale, tx, ty };
   }, [scale, tx, ty]);
 
+  // 마우스 휠로 확대/축소(커서 위치 기준). passive:false 로 스크롤 기본동작 차단.
+  useEffect(() => {
+    const el = viewportRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const rect = el.getBoundingClientRect();
+      const fx = e.clientX - rect.left;
+      const fy = e.clientY - rect.top;
+      const { scale: s, tx: cx, ty: cy } = stateRef.current;
+      const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+      const nextScale = Math.min(maxScale, Math.max(minScale, s * factor));
+      const contentX = (fx - cx) / s;
+      const contentY = (fy - cy) / s;
+      let ntx = fx - contentX * nextScale;
+      let nty = fy - contentY * nextScale;
+      if (nextScale <= minScale + 0.001) {
+        ntx = 0;
+        nty = 0;
+      }
+      setScale(nextScale);
+      setTx(ntx);
+      setTy(nty);
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [minScale, maxScale]);
+
   const clampScale = useCallback(
     (s: number) => Math.min(maxScale, Math.max(minScale, s)),
     [minScale, maxScale]
@@ -173,7 +201,12 @@ export default function ZoomableDocument({
         >
           {children}
         </div>
-        <div className="zoomdoc__controls no-print">
+        <div
+          className="zoomdoc__controls no-print"
+          onPointerDown={(e) => e.stopPropagation()}
+          onPointerUp={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+        >
           <button type="button" onClick={() => zoomButton(-0.5)} aria-label="축소">
             −
           </button>
