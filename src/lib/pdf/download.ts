@@ -28,12 +28,27 @@ async function buildPdfBlob(canvases: HTMLCanvasElement[]): Promise<Blob> {
   return pdf.output("blob");
 }
 
-// PDF 저장: 모바일(특히 iPad)에선 공유시트의 '파일에 저장'을 우선 제공, 아니면 직접 다운로드
+// 터치 기기(모바일/태블릿)인지: 공유시트('파일에 저장')를 쓸지 판단.
+// PC(마우스, 미세 포인터)에서는 공유팝업 없이 곧바로 '다운로드' 폴더로 저장.
+function isTouchDevice(): boolean {
+  try {
+    return (
+      typeof matchMedia === "function" &&
+      matchMedia("(pointer: coarse)").matches &&
+      (navigator.maxTouchPoints ?? 0) > 0
+    );
+  } catch {
+    return false;
+  }
+}
+
+// PDF 저장: 모바일/태블릿(특히 iPad)에선 공유시트의 '파일에 저장', PC에선 바로 다운로드 폴더로 저장
 export async function downloadCanvasesAsPdf(canvases: HTMLCanvasElement[], filename: string): Promise<void> {
   const blob = await buildPdfBlob(canvases);
-  const file = new File([blob], filename, { type: "application/pdf" });
   const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean };
-  if (nav.canShare && nav.canShare({ files: [file] }) && navigator.share) {
+  const file = new File([blob], filename, { type: "application/pdf" });
+  // PC가 아니라 터치 기기일 때만 공유시트 사용(파일에 저장). PC는 공유 건너뛰고 직접 다운로드.
+  if (isTouchDevice() && nav.canShare && nav.canShare({ files: [file] }) && navigator.share) {
     try {
       await navigator.share({ files: [file], title: filename });
       return;
