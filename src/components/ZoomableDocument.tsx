@@ -69,6 +69,13 @@ export default function ZoomableDocument({
   }
 
   function handlePointerDown(e: React.PointerEvent) {
+    // 포인터 캡처: 드래그(팬)·핀치 중 pointermove가 계속 이 요소로 오게 한다.
+    // (클릭 판정은 elementFromPoint로 좌표 기반 처리하므로 캡처가 있어도 필드 클릭이 정상 동작)
+    try {
+      viewportRef.current?.setPointerCapture?.(e.pointerId);
+    } catch {
+      /* 무시 */
+    }
     const p = viewportPoint(e.clientX, e.clientY);
     pointers.current.set(e.pointerId, p);
 
@@ -76,17 +83,7 @@ export default function ZoomableDocument({
       lastPan.current = p;
       startPoint.current = p;
       moved.current = false;
-      // 확대 상태(팬 가능)에서만 포인터 캡처. 1배에선 캡처하지 않아야 마우스 click(탭)이 정상 동작
-      if (stateRef.current.scale > minScale + 0.001) viewportRef.current?.setPointerCapture?.(e.pointerId);
     } else if (pointers.current.size === 2) {
-      // 핀치: 두 포인터 캡처(제스처 안정화)
-      for (const id of pointers.current.keys()) {
-        try {
-          viewportRef.current?.setPointerCapture?.(id);
-        } catch {
-          /* 무시 */
-        }
-      }
       const pts = Array.from(pointers.current.values());
       const dx = pts[0].x - pts[1].x;
       const dy = pts[0].y - pts[1].y;

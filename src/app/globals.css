@@ -956,6 +956,9 @@ input[type="password"]::placeholder {
   border-radius: var(--radius-md);
   touch-action: none;
   overscroll-behavior: contain;
+  /* 마우스로 드래그(팬)할 때 문서 텍스트가 선택되지 않도록 */
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .zoomdoc__stage {
