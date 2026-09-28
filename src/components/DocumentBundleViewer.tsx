@@ -157,6 +157,11 @@ export default function DocumentBundleViewer({
   // 서류 묶음을 하나의 PDF로 다운로드(내 파일에 저장)
   async function handleDownloadBundle() {
     if (busy || pages.length === 0) return;
+    // 고유번호가 없으면(고객 리스트와 싱크 안 됨) 파일명을 만들 수 없으므로 안내 후 중단
+    if (customerNo == null) {
+      showToast("설정 > 양압기 환자 리스트에서 sync하고 오세요.");
+      return;
+    }
     setBusy(true);
     try {
       await downloadCanvasesAsPdf(pages.map((p) => p.canvas), `${fileBase}.pdf`);
@@ -186,6 +191,10 @@ export default function DocumentBundleViewer({
 
   async function handleShare(mode: "email" | "fax") {
     if (busy || pages.length === 0) return;
+    if (customerNo == null) {
+      showToast("설정 > 양압기 환자 리스트에서 sync하고 오세요.");
+      return;
+    }
     setBusy(true);
     try {
       const file = await buildPdfFile();
