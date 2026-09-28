@@ -15,10 +15,10 @@ export const contractOverlay: OverlayDoc = {
     { key: "rental_start_day", type: "text", x: 59.2, y: 12.1, w: 5, h: 1.4, label: "대여 시작일", dateGroup: "rental_start", datePart: "d" },
     // 대여료 지급일자 (매월 __일)
     { key: "pay_day", type: "text", x: 63.5, y: 14.0, w: 5, h: 1.4, label: "대여료 지급일 (매월)", placeholder: "25" },
-    // 소모품(마스크) 지급일자
-    { key: "mask_year", type: "text", x: 58.6, y: 15.9, w: 5, h: 1.4, label: "소모품 지급일", dateGroup: "mask", datePart: "y" },
-    { key: "mask_month", type: "text", x: 64.1, y: 15.9, w: 5, h: 1.4, label: "소모품 지급일", dateGroup: "mask", datePart: "m" },
-    { key: "mask_day", type: "text", x: 69.6, y: 15.9, w: 5, h: 1.4, label: "소모품 지급일", dateGroup: "mask", datePart: "d" },
+    // 소모품(마스크) 지급일자 — 예외: 입력 안 해도 작성완료 가능(선택). 빈 블록은 오렌지색
+    { key: "mask_year", type: "text", x: 58.6, y: 15.9, w: 5, h: 1.4, label: "소모품 지급일", dateGroup: "mask", datePart: "y", optional: true, orangeBlock: true },
+    { key: "mask_month", type: "text", x: 64.1, y: 15.9, w: 5, h: 1.4, label: "소모품 지급일", dateGroup: "mask", datePart: "m", optional: true, orangeBlock: true },
+    { key: "mask_day", type: "text", x: 69.6, y: 15.9, w: 5, h: 1.4, label: "소모품 지급일", dateGroup: "mask", datePart: "d", optional: true, orangeBlock: true },
     // 서비스 제공 등 방문일자
     { key: "visit_year", type: "text", x: 58.6, y: 17.9, w: 5, h: 1.4, label: "방문일", dateGroup: "visit", datePart: "y" },
     { key: "visit_month", type: "text", x: 64.1, y: 17.9, w: 5, h: 1.4, label: "방문일", dateGroup: "visit", datePart: "m" },
