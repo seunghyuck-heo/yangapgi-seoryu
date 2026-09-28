@@ -69,7 +69,6 @@ export default function ZoomableDocument({
   }
 
   function handlePointerDown(e: React.PointerEvent) {
-    viewportRef.current?.setPointerCapture?.(e.pointerId);
     const p = viewportPoint(e.clientX, e.clientY);
     pointers.current.set(e.pointerId, p);
 
@@ -77,7 +76,17 @@ export default function ZoomableDocument({
       lastPan.current = p;
       startPoint.current = p;
       moved.current = false;
+      // 확대 상태(팬 가능)에서만 포인터 캡처. 1배에선 캡처하지 않아야 마우스 click(탭)이 정상 동작
+      if (stateRef.current.scale > minScale + 0.001) viewportRef.current?.setPointerCapture?.(e.pointerId);
     } else if (pointers.current.size === 2) {
+      // 핀치: 두 포인터 캡처(제스처 안정화)
+      for (const id of pointers.current.keys()) {
+        try {
+          viewportRef.current?.setPointerCapture?.(id);
+        } catch {
+          /* 무시 */
+        }
+      }
       const pts = Array.from(pointers.current.values());
       const dx = pts[0].x - pts[1].x;
       const dy = pts[0].y - pts[1].y;
@@ -128,13 +137,15 @@ export default function ZoomableDocument({
     if (pointers.current.size === 0) lastPan.current = null;
   }
 
+  // 탭한 위치의 실제 최상단 요소(elementFromPoint)로 필드를 찾는다.
+  // 마우스 click은 포인터 캡처로 e.target이 뷰포트로 리타겟될 수 있어, e.target 대신 좌표로 판정한다.
   function handleClick(e: React.MouseEvent) {
     if (moved.current) {
       moved.current = false;
       return;
     }
-    const fieldEl = (e.target as Element).closest("[data-field]");
-    const key = fieldEl?.getAttribute("data-field");
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    const key = el?.closest?.("[data-field]")?.getAttribute?.("data-field");
     if (key) onTapField(key);
   }
 
