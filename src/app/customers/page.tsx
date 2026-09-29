@@ -78,13 +78,16 @@ export default function CustomersPage() {
   }, [searchMode]);
 
   const q = search.trim().toLowerCase();
-  const visible = q
-    ? customers.filter((c) =>
-        [c.customer_no, c.name, c.region, c.chart, c.birth6, c.phone, c.insurance]
-          .map((v) => (v == null ? "" : String(v)).toLowerCase())
-          .some((s) => s.includes(q))
-      )
-    : customers;
+  const isNum = /^\d+$/.test(q); // 숫자만 입력 → 고유번호(파란 박스)로만 검색
+  const visible = !q
+    ? customers
+    : isNum
+      ? customers.filter((c) => String(c.customer_no).startsWith(q))
+      : customers.filter((c) =>
+          [c.name, c.region]
+            .map((v) => (v == null ? "" : String(v)).toLowerCase())
+            .some((s) => s.includes(q))
+        );
 
   return (
     <div className="tab-page">
@@ -110,7 +113,7 @@ export default function CustomersPage() {
                 ref={searchRef}
                 type="text"
                 className="search-box__input"
-                placeholder="이름·번호·전화·지사 검색"
+                placeholder="이름 또는 고유번호 검색"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />

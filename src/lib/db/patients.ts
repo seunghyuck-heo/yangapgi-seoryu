@@ -169,7 +169,7 @@ async function listPatientsByCustomerNo(
   const all = await attachDocsAndInfo(supabase, (patientsRaw ?? []) as Patient[]);
   const matched = all
     .filter(isRegisteredPatient)
-    .filter((p) => p.customer_no != null && String(p.customer_no).includes(numQuery));
+    .filter((p) => p.customer_no != null && String(p.customer_no).startsWith(numQuery));
   return { patients: matched, total: matched.length, hasMore: false };
 }
 
