@@ -9,29 +9,69 @@ export interface ListPatientsResult {
   hasMore: boolean;
 }
 
-// 고객 매칭 키: 이름(공백제거) + 생년월일6자리
-function matchKey(name: string | null | undefined, birth6: string | null | undefined): string {
-  return `${(name ?? "").replace(/\s/g, "")}|${(birth6 ?? "").replace(/\D/g, "").slice(0, 6)}`;
-}
+// 고객 매칭용 정규화 헬퍼
+const normName = (s: string | null | undefined) => (s ?? "").replace(/\s/g, "");
+const norm6 = (s: string | null | undefined) => (s ?? "").replace(/\D/g, "").slice(0, 6);
+const phoneTail = (s: string | null | undefined) => {
+  const d = (s ?? "").replace(/\D/g, "");
+  return d.length >= 8 ? d.slice(-8) : d; // 끝 8자리로 비교(접두어·하이픈·010 유무 무시)
+};
 
-// customers(구글시트 동기화) 테이블을 이름+생년월일6 → customer_no 맵으로 로드
-async function buildCustomerMatchMap(
+interface CustomerRec {
+  customer_no: number;
+  birth6: string;
+  phoneTail: string;
+}
+export type CustomerIndex = Map<string, CustomerRec[]>; // 이름(공백제거) → 후보 목록
+
+// customers(구글시트 동기화) 테이블을 이름 기준 인덱스로 로드(동명이인 대비 후보 배열)
+async function buildCustomerIndex(
   supabase: Awaited<ReturnType<typeof getSupabaseServerClient>>
-): Promise<Map<string, number>> {
-  const map = new Map<string, number>();
+): Promise<CustomerIndex> {
+  const index: CustomerIndex = new Map();
   try {
     const { data, error } = await supabase
       .from("customers")
-      .select("customer_no,name,birth6")
+      .select("customer_no,name,birth6,phone")
       .range(0, 9999);
-    if (error || !data) return map;
-    for (const c of data as { customer_no: number; name: string; birth6: string }[]) {
-      if (c.name && c.birth6) map.set(matchKey(c.name, c.birth6), c.customer_no);
+    if (error || !data) return index;
+    for (const c of data as { customer_no: number; name: string; birth6: string; phone: string }[]) {
+      if (!c.name) continue;
+      const key = normName(c.name);
+      const rec: CustomerRec = { customer_no: c.customer_no, birth6: norm6(c.birth6), phoneTail: phoneTail(c.phone) };
+      const list = index.get(key);
+      if (list) list.push(rec);
+      else index.set(key, [rec]);
     }
   } catch {
     // customers 테이블 없거나 조회 실패 → 매칭 생략(저장된 번호만 사용)
   }
-  return map;
+  return index;
+}
+
+// 이름 → 후보 중 생년월일·전화번호로 좁혀 고유번호 결정. 확정 못 하면 null.
+function matchCustomerNo(
+  index: CustomerIndex,
+  name: string | null | undefined,
+  birth6: string | null | undefined,
+  phone: string | null | undefined
+): number | null {
+  const list = index.get(normName(name));
+  if (!list || list.length === 0) return null;
+  if (list.length === 1) return list[0].customer_no; // 동명이인 없음 → 바로 확정
+
+  // 동명이인: 생년월일6 → 전화번호로 좁힌다
+  const b6 = norm6(birth6);
+  let pool = b6 ? list.filter((c) => c.birth6 === b6) : list;
+  if (pool.length === 1) return pool[0].customer_no;
+  if (pool.length === 0) pool = list; // 생년월일 불일치면 이름 전체 후보로 되돌려 전화번호로 시도
+
+  const pt = phoneTail(phone);
+  if (pt) {
+    const byPhone = pool.filter((c) => c.phoneTail && c.phoneTail === pt);
+    if (byPhone.length === 1) return byPhone[0].customer_no;
+  }
+  return null; // 여전히 모호 → 잘못된 번호를 표시하지 않음
 }
 
 // 주어진 환자 행들에 문서(경량)·고객번호·증명사진 URL을 붙인다. (form_data 본문은 제외해 속도/용량 최적화)
@@ -66,8 +106,8 @@ async function attachDocsAndInfo(
     });
   }
 
-  // 고객 시트(customers)와 이름+생년월일6으로 실시간 매칭 → 시트를 나중에 갱신해도 목록 번호가 반영됨
-  const custByKey = await buildCustomerMatchMap(supabase);
+  // 고객 시트(customers)와 이름·생년월일6·전화번호로 실시간 매칭 → 시트를 나중에 갱신해도 목록 번호가 반영됨
+  const custIndex = await buildCustomerIndex(supabase);
 
   const documentsByPatient = new Map<string, PatientDocument[]>();
   for (const doc of documents ?? []) {
@@ -78,8 +118,8 @@ async function attachDocsAndInfo(
 
   const result: PatientWithDocuments[] = patientsRows.map((p) => {
     const info = idInfo.get(p.id);
-    // 실시간 매칭(이름+생년월일6) 우선, 없으면 저장된 번호 사용
-    const liveNo = info?.birth6 ? custByKey.get(matchKey(p.name, info.birth6)) ?? null : null;
+    // 실시간 매칭(이름 → 생년월일6 → 전화번호로 동명이인 구분) 우선, 없으면 저장된 번호 사용
+    const liveNo = matchCustomerNo(custIndex, p.name, info?.birth6, p.phone);
     return {
       ...(p as Patient),
       documents: documentsByPatient.get(p.id) ?? [],
@@ -193,13 +233,10 @@ export async function getPatient(id: string): Promise<PatientWithDocuments | nul
   const docs = (documents ?? []) as PatientDocument[];
   const idDoc = docs.find((d) => d.doc_type === "id_card");
   const cn = idDoc?.form_data?.customer_no;
-  // 실시간 매칭: 고객시트(이름+생년월일6)로 현재 번호 조회 → 시트 갱신 즉시 반영
+  // 실시간 매칭: 고객시트(이름·생년월일6·전화번호)로 현재 번호 조회 → 시트 갱신 즉시 반영, 동명이인 구분
   const idBirth6 = typeof idDoc?.form_data?.birth6 === "string" ? (idDoc.form_data.birth6 as string) : null;
-  let liveCn: number | null = null;
-  if (idBirth6) {
-    const custByKey = await buildCustomerMatchMap(supabase);
-    liveCn = custByKey.get(matchKey((patient as Patient).name, idBirth6)) ?? null;
-  }
+  const custIndex = await buildCustomerIndex(supabase);
+  const liveCn = matchCustomerNo(custIndex, (patient as Patient).name, idBirth6, (patient as Patient).phone);
 
   // 환자관리카드 방문점검 서명(guardianSign)이 스토리지 경로면 서명 URL로 변환
   const STORAGE_PATH = /^[0-9a-f-]{36}\/[0-9a-f-]{36}\//i;
