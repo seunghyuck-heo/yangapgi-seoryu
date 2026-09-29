@@ -33,7 +33,7 @@ async function buildCustomerIndex(
     const { data, error } = await supabase
       .from("customers")
       .select("customer_no,name,birth6,phone")
-      .range(0, 9999);
+      .range(0, 19999);
     if (error || !data) return index;
     for (const c of data as { customer_no: number; name: string; birth6: string; phone: string }[]) {
       if (!c.name) continue;

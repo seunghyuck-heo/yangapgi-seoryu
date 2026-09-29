@@ -8,7 +8,8 @@ export async function GET() {
     const { data, error } = await supabase
       .from("customers")
       .select("customer_no,name,region,chart,birth6,phone,insurance")
-      .order("customer_no", { ascending: true });
+      .order("customer_no", { ascending: true })
+      .range(0, 19999); // Supabase 기본 1000행 제한 회피(전체 로드) → 1000번 이후 번호도 검색 가능
     if (error) return NextResponse.json({ customers: [], error: error.message });
     return NextResponse.json({ customers: data ?? [] });
   } catch (e) {
