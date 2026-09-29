@@ -156,6 +156,23 @@ async function listPatientsFallback(
   return { patients: registered, total: registered.length, hasMore: false };
 }
 
+// 고유번호(customer_no)로 검색: 번호는 customers 매칭으로 파생되므로 전체 로드 후 계산·필터.
+async function listPatientsByCustomerNo(
+  supabase: Awaited<ReturnType<typeof getSupabaseServerClient>>,
+  numQuery: string
+): Promise<ListPatientsResult> {
+  const { data: patientsRaw, error } = await supabase
+    .from("patients")
+    .select("*")
+    .order("updated_at", { ascending: false });
+  if (error) throw new Error(error.message);
+  const all = await attachDocsAndInfo(supabase, (patientsRaw ?? []) as Patient[]);
+  const matched = all
+    .filter(isRegisteredPatient)
+    .filter((p) => p.customer_no != null && String(p.customer_no).includes(numQuery));
+  return { patients: matched, total: matched.length, hasMore: false };
+}
+
 // 등록 환자 목록(서버 페이지네이션 + 검색 + 총원). RPC가 있으면 사용하고, 없으면 폴백.
 export async function listPatients(opts?: {
   search?: string;
@@ -166,6 +183,16 @@ export async function listPatients(opts?: {
   const search = opts?.search?.trim() || null;
   const limit = opts?.limit ?? 50;
   const offset = opts?.offset ?? 0;
+
+  // 숫자만 입력하면 고유번호 검색으로 처리(번호는 customers 매칭으로 파생되어 SQL 검색 불가)
+  if (search && /^\d+$/.test(search)) {
+    if (offset > 0) return { patients: [], total: 0, hasMore: false }; // 번호검색은 한 번에 반환
+    try {
+      return await listPatientsByCustomerNo(supabase, search);
+    } catch {
+      // 실패 시 아래 일반 검색으로 진행
+    }
+  }
 
   const { data: pageRows, error: rpcErr } = await supabase.rpc("list_registered_patients", {
     p_search: search,
