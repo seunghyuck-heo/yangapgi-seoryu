@@ -178,8 +178,8 @@ export default function CustomersPage() {
           <div className="customer-list-wrap">
             <p className="customer-list__count">총 {visible.length}명</p>
             <ul className="customer-list">
-              {visible.map((c) => (
-                <li key={c.customer_no} className="customer-row">
+              {visible.map((c, i) => (
+                <li key={`${c.customer_no}-${i}`} className="customer-row">
                   <span className="customer-row__no">{c.customer_no}</span>
                   <div className="customer-row__body">
                     <div className="customer-row__top">
