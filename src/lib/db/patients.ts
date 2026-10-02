@@ -10,7 +10,9 @@ export interface ListPatientsResult {
 }
 
 // 고객 매칭용 정규화 헬퍼
-const normName = (s: string | null | undefined) => (s ?? "").replace(/\s/g, "");
+// 이름 끝의 "(숫자)" 접미사(수동으로 붙인 동명이인 표기 등)와 공백을 제거해 '기본 이름'으로 묶는다.
+const normName = (s: string | null | undefined) =>
+  (s ?? "").replace(/\s*\(\s*\d+\s*\)\s*$/, "").replace(/\s/g, "");
 const norm6 = (s: string | null | undefined) => (s ?? "").replace(/\D/g, "").slice(0, 6);
 const phoneTail = (s: string | null | undefined) => {
   const d = (s ?? "").replace(/\D/g, "");

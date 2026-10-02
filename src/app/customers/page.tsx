@@ -77,14 +77,17 @@ export default function CustomersPage() {
     if (searchMode) searchRef.current?.focus();
   }, [searchMode]);
 
-  // 동명이인 라벨: 같은 이름이 2명 이상이면 고유번호(=등록 순서) 작은 쪽부터 (1)(2)…
+  // 이름 끝의 "(숫자)" 접미사 제거 → 기본 이름으로 묶기(수동 표기된 동명이인도 함께 인식)
+  const baseName = (s: string) => (s ?? "").replace(/\s*\(\s*\d+\s*\)\s*$/, "").trim();
+  // 동명이인 라벨: 같은 기본이름이 2명 이상이면 고유번호(=등록 순서) 작은 쪽부터 (1)(2)…
   const dupRank = (() => {
     const byName = new Map<string, number[]>();
     for (const c of customers) {
       if (!c.name) continue;
-      const arr = byName.get(c.name) ?? [];
+      const key = baseName(c.name);
+      const arr = byName.get(key) ?? [];
       if (!arr.includes(c.customer_no)) arr.push(c.customer_no);
-      byName.set(c.name, arr);
+      byName.set(key, arr);
     }
     const rank = new Map<number, number>(); // customer_no → 순번(1부터). 중복 이름만 등록
     for (const nos of byName.values()) {
@@ -96,7 +99,7 @@ export default function CustomersPage() {
   })();
   const displayName = (c: Customer) => {
     const r = dupRank.get(c.customer_no);
-    return r ? `${c.name}(${r})` : c.name;
+    return r ? `${baseName(c.name)}(${r})` : c.name;
   };
 
   const q = search.trim().toLowerCase();
