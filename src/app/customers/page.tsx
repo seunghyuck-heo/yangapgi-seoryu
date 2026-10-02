@@ -77,6 +77,28 @@ export default function CustomersPage() {
     if (searchMode) searchRef.current?.focus();
   }, [searchMode]);
 
+  // 동명이인 라벨: 같은 이름이 2명 이상이면 고유번호(=등록 순서) 작은 쪽부터 (1)(2)…
+  const dupRank = (() => {
+    const byName = new Map<string, number[]>();
+    for (const c of customers) {
+      if (!c.name) continue;
+      const arr = byName.get(c.name) ?? [];
+      if (!arr.includes(c.customer_no)) arr.push(c.customer_no);
+      byName.set(c.name, arr);
+    }
+    const rank = new Map<number, number>(); // customer_no → 순번(1부터). 중복 이름만 등록
+    for (const nos of byName.values()) {
+      if (nos.length <= 1) continue;
+      nos.sort((a, b) => a - b);
+      nos.forEach((no, i) => rank.set(no, i + 1));
+    }
+    return rank;
+  })();
+  const displayName = (c: Customer) => {
+    const r = dupRank.get(c.customer_no);
+    return r ? `${c.name}(${r})` : c.name;
+  };
+
   const q = search.trim().toLowerCase();
   const isNum = /^\d+$/.test(q); // 숫자만 입력 → 고유번호(파란 박스)로만 검색
   const visible = !q
@@ -183,7 +205,7 @@ export default function CustomersPage() {
                   <span className="customer-row__no">{c.customer_no}</span>
                   <div className="customer-row__body">
                     <div className="customer-row__top">
-                      <span className="customer-row__name">{c.name}</span>
+                      <span className="customer-row__name">{displayName(c)}</span>
                       {c.region ? <span className="customer-row__region">{c.region}</span> : null}
                     </div>
                     <div className="customer-row__meta">
