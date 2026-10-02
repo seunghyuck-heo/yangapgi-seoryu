@@ -339,7 +339,7 @@ export default function PatientsPage() {
                     )}
                   </div>
                   <div className="patient-list__name">
-                    {patient.name}
+                    {patient.name_dup_rank ? `${patient.name}(${patient.name_dup_rank})` : patient.name}
                     {patient.customer_no != null && (
                       <span className="patient-list__no">(No. {patient.customer_no})</span>
                     )}

@@ -117,7 +117,7 @@ export default function PatientDetailPage({ params }: PatientDetailPageProps) {
         </button>
       </div>
       <h1>
-        {patient ? patient.name : " "}
+        {patient ? (patient.name_dup_rank ? `${patient.name}(${patient.name_dup_rank})` : patient.name) : " "}
         {patient?.customer_no != null && (
           <span className="patient-detail-page__no"> (No. {patient.customer_no})</span>
         )}

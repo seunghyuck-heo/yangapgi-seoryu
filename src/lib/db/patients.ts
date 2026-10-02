@@ -74,6 +74,36 @@ function matchCustomerNo(
   return null; // 여전히 모호 → 잘못된 번호를 표시하지 않음
 }
 
+// 이름의 동명이인 수(서로 다른 고유번호 기준)
+function distinctNosForName(index: CustomerIndex, name: string | null | undefined): number[] {
+  const list = index.get(normName(name));
+  if (!list) return [];
+  return [...new Set(list.map((c) => c.customer_no))].sort((a, b) => a - b);
+}
+
+// 동명이인 순번: 고유번호 오름차순에서 몇 번째인지(1부터). 동명이인 아니거나 번호 없으면 null
+function dupRankOf(index: CustomerIndex, name: string | null | undefined, customerNo: number | null): number | null {
+  if (customerNo == null) return null;
+  const nos = distinctNosForName(index, name);
+  if (nos.length <= 1) return null;
+  const i = nos.indexOf(customerNo);
+  return i >= 0 ? i + 1 : null;
+}
+
+// 최종 고유번호 결정: 라이브 매칭 우선. 동명이인이면 옛 저장번호로 폴백하지 않음(엉뚱한 쌍둥이 방지).
+function resolveCustomerNo(
+  index: CustomerIndex,
+  name: string | null | undefined,
+  birth6: string | null | undefined,
+  phone: string | null | undefined,
+  storedNo: number | null
+): number | null {
+  const live = matchCustomerNo(index, name, birth6, phone);
+  if (live != null) return live;
+  const isDup = distinctNosForName(index, name).length > 1;
+  return isDup ? null : storedNo; // 동명이인이면 확정 못 할 때 번호 미표시
+}
+
 // 주어진 환자 행들에 문서(경량)·고객번호·증명사진 URL을 붙인다. (form_data 본문은 제외해 속도/용량 최적화)
 async function attachDocsAndInfo(
   supabase: Awaited<ReturnType<typeof getSupabaseServerClient>>,
@@ -118,12 +148,13 @@ async function attachDocsAndInfo(
 
   const result: PatientWithDocuments[] = patientsRows.map((p) => {
     const info = idInfo.get(p.id);
-    // 실시간 매칭(이름 → 생년월일6 → 전화번호로 동명이인 구분) 우선, 없으면 저장된 번호 사용
-    const liveNo = matchCustomerNo(custIndex, p.name, info?.birth6, p.phone);
+    // 실시간 매칭(이름 → 생년월일6 → 전화번호). 동명이인이면 옛 저장번호로 폴백하지 않음
+    const no = resolveCustomerNo(custIndex, p.name, info?.birth6, p.phone, info?.customerNo ?? null);
     return {
       ...(p as Patient),
       documents: documentsByPatient.get(p.id) ?? [],
-      customer_no: liveNo ?? info?.customerNo ?? null,
+      customer_no: no,
+      name_dup_rank: dupRankOf(custIndex, p.name, no),
     };
   });
 
@@ -263,7 +294,8 @@ export async function getPatient(id: string): Promise<PatientWithDocuments | nul
   // 실시간 매칭: 고객시트(이름·생년월일6·전화번호)로 현재 번호 조회 → 시트 갱신 즉시 반영, 동명이인 구분
   const idBirth6 = typeof idDoc?.form_data?.birth6 === "string" ? (idDoc.form_data.birth6 as string) : null;
   const custIndex = await buildCustomerIndex(supabase);
-  const liveCn = matchCustomerNo(custIndex, (patient as Patient).name, idBirth6, (patient as Patient).phone);
+  const storedCn = typeof cn === "number" ? cn : null;
+  const resolvedCn = resolveCustomerNo(custIndex, (patient as Patient).name, idBirth6, (patient as Patient).phone, storedCn);
 
   // 환자관리카드 방문점검 서명(guardianSign)이 스토리지 경로면 서명 URL로 변환
   const STORAGE_PATH = /^[0-9a-f-]{36}\/[0-9a-f-]{36}\//i;
@@ -289,7 +321,8 @@ export async function getPatient(id: string): Promise<PatientWithDocuments | nul
   return {
     ...(patient as Patient),
     documents: docs,
-    customer_no: liveCn ?? (typeof cn === "number" ? cn : null),
+    customer_no: resolvedCn,
+    name_dup_rank: dupRankOf(custIndex, (patient as Patient).name, resolvedCn),
     signedUrls,
   };
 }
