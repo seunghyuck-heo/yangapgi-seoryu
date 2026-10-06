@@ -52,7 +52,7 @@ create table if not exists documents (
   owner_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
   patient_id uuid not null references patients(id) on delete cascade,
   doc_type text not null check (doc_type in
-    ('id_card', 'contract', 'subsidy_application', 'cms_autopay', 'power_of_attorney', 'care_card')),
+    ('id_card', 'contract', 'subsidy_application', 'cms_autopay', 'power_of_attorney', 'care_card', 'contract_after')),
   status text not null default 'draft' check (status in ('draft', 'completed')),
   form_data jsonb not null default '{}'::jsonb,
   file_path text,
@@ -120,11 +120,12 @@ create policy "own files delete" on storage.objects
 
 -- ────────────────────────────────────────────────────────────
 -- [기존 DB 마이그레이션] 이미 documents 테이블이 있는 경우, 아래를 한 번 실행해
--- care_card(양압기 환자관리카드) 저장을 허용하세요. (신규 생성 시에는 위 정의에 이미 포함)
+-- care_card(양압기 환자관리카드) + contract_after(순응 후 표준계약서) 저장을 허용하세요.
+-- (신규 생성 시에는 위 정의에 이미 포함)
 --   alter table documents drop constraint if exists documents_doc_type_check;
 --   alter table documents add constraint documents_doc_type_check
 --     check (doc_type in
---       ('id_card','contract','subsidy_application','cms_autopay','power_of_attorney','care_card'));
+--       ('id_card','contract','subsidy_application','cms_autopay','power_of_attorney','care_card','contract_after'));
 -- ────────────────────────────────────────────────────────────
 
 -- ────────────────────────────────────────────────────────────

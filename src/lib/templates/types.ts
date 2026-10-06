@@ -37,10 +37,12 @@ export type DocType =
   | "cms_autopay"
   | "power_of_attorney"
   // 지속 관리 서류 — 5개 기본 서류 목록/번들에는 포함하지 않음(DOC_TYPE_ORDER 제외)
-  | "care_card";
+  | "care_card"
+  // 순응 후 재작성용 표준계약서. contract 서식을 그대로 재사용하되 저장 슬롯만 분리
+  | "contract_after";
 
 export interface DocumentTemplate {
-  docType: Exclude<DocType, "id_card" | "care_card">;
+  docType: Exclude<DocType, "id_card" | "care_card" | "contract_after">;
   title: string;
   subtitle?: string;
   sections: TemplateSection[];
@@ -53,6 +55,7 @@ export const DOC_TYPE_LABELS: Record<DocType, string> = {
   cms_autopay: "CMS 자동이체신청서",
   power_of_attorney: "요양비 지급청구 위임장",
   care_card: "양압기 환자관리카드",
+  contract_after: "표준계약서 (순응 후)",
 };
 
 export const DOC_TYPE_ICONS: Record<DocType, string> = {
@@ -62,6 +65,7 @@ export const DOC_TYPE_ICONS: Record<DocType, string> = {
   cms_autopay: "💳",
   power_of_attorney: "🖊️",
   care_card: "🗂️",
+  contract_after: "📄",
 };
 
 export const DOC_TYPE_ORDER: DocType[] = [

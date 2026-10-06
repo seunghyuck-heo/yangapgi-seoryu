@@ -13,7 +13,8 @@ interface DocPageProps {
 }
 
 function isValidDocType(value: string): value is DocType {
-  return (DOC_TYPE_ORDER as string[]).includes(value);
+  // 5개 기본 서류 + 지속관리 서류(contract_after: 순응 후 표준계약서)
+  return (DOC_TYPE_ORDER as string[]).includes(value) || value === "contract_after";
 }
 
 export default async function DocumentPage({ params, searchParams }: DocPageProps) {

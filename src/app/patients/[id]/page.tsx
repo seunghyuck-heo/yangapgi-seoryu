@@ -144,7 +144,9 @@ export default function PatientDetailPage({ params }: PatientDetailPageProps) {
                 <span className="doc-row__icon" style={{ background: style.color, color: "#fff" }}>
                   {style.icon}
                 </span>
-                <span className="doc-row__title">{DOC_TYPE_LABELS[docType]}</span>
+                <span className="doc-row__title">
+                  {docType === "contract" ? "표준계약서 (순응 전)" : DOC_TYPE_LABELS[docType]}
+                </span>
                 <span className={`doc-row__status doc-row__status--${state}`}>{label}</span>
                 <span className="doc-row__chevron" aria-hidden>
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
@@ -189,6 +191,39 @@ export default function PatientDetailPage({ params }: PatientDetailPageProps) {
             </span>
           </Link>
         </li>
+          );
+        })()}
+        {(() => {
+          // 순응 후 표준계약서 — 표준계약서와 동일 서식, 저장만 분리. 상태는 입력 유무로 판정
+          const afterDoc = patient?.documents.find((d) => d.doc_type === "contract_after");
+          const afterState = !patient
+            ? "loading"
+            : afterDoc?.status === "completed"
+              ? "complete"
+              : afterDoc && hasFormData(afterDoc.form_data)
+                ? "progress"
+                : "none";
+          const afterLabel =
+            afterState === "loading" ? "" : afterState === "complete" ? "완료" : afterState === "progress" ? "작성중" : "작성 필요";
+          return (
+            <li>
+              <Link href={`/patients/${id}/doc/contract_after`} className="doc-row">
+                <span className="doc-row__icon" style={{ background: "#6366f1", color: "#fff" }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <path d="M14 2v6h6" />
+                    <path d="M8 13h8M8 17h5" />
+                  </svg>
+                </span>
+                <span className="doc-row__title">표준계약서 (순응 후)</span>
+                <span className={`doc-row__status doc-row__status--${afterState}`}>{afterLabel}</span>
+                <span className="doc-row__chevron" aria-hidden>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9 18l6-6-6-6" />
+                  </svg>
+                </span>
+              </Link>
+            </li>
           );
         })()}
       </ul>
