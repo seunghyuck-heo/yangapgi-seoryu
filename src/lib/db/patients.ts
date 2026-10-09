@@ -186,6 +186,30 @@ async function attachDocsAndInfo(
       p.photo_url = pp && signed[pp] ? signed[pp] : null;
     }
   }
+
+  // 동명이인 라벨 폴백: 시트 고유번호로 특정이 안 돼 아직 번호가 안 붙은 경우라도,
+  // 같은 이름 환자가 목록에 2명 이상이면 반드시 (1)(2)…를 붙인다(등록순: 먼저 등록=1).
+  // 생년월일/전화/저장번호가 없어 시트 매칭이 불가능한 중복 등록 케이스를 커버.
+  const nameGroups = new Map<string, PatientWithDocuments[]>();
+  for (const p of result) {
+    const key = normName(p.name);
+    if (!key) continue;
+    const g = nameGroups.get(key);
+    if (g) g.push(p);
+    else nameGroups.set(key, [p]);
+  }
+  for (const group of nameGroups.values()) {
+    if (group.length < 2) continue;
+    // 그룹 내 누군가 이미 시트 기반 번호로 rank가 붙었으면(진짜 동명이인) 섞지 않고 그대로 둔다.
+    if (group.some((p) => p.name_dup_rank != null)) continue;
+    const ordered = [...group].sort(
+      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
+    ordered.forEach((p, i) => {
+      p.name_dup_rank = i + 1;
+    });
+  }
+
   return result;
 }
 
