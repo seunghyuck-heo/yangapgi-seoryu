@@ -164,9 +164,10 @@ async function attachDocsAndInfo(
     const idc = docs["id_card"] ?? {};
     const sub = docs["subsidy_application"] ?? {};
     const poa = docs["power_of_attorney"] ?? {};
-    // 생년월일6: 신분증 → 급여신청서 주민번호 → 위임장 주민번호 순(먼저 값이 있는 것)
+    // 생년월일6: 직원이 서류에 수기입력한 주민번호(급여신청서→위임장)를 OCR보다 우선.
+    // 신분증 OCR은 오독 가능성이 있어 맨 뒤로(수기 값이 없을 때만).
     const birth6 =
-      pick6(idc.birth6) || pick6(sub.patient_rrn) || pick6(poa.insured_rrn) || null;
+      pick6(sub.patient_rrn) || pick6(poa.insured_rrn) || pick6(idc.birth6) || null;
     idInfo.set(pid, {
       customerNo: typeof idc.customer_no === "number" ? (idc.customer_no as number) : null,
       photoPath: typeof idc.photo_path === "string" ? (idc.photo_path as string) : null,
@@ -371,11 +372,11 @@ export async function getPatient(id: string): Promise<PatientWithDocuments | nul
   const poaDoc = docs.find((d) => d.doc_type === "power_of_attorney");
   const cn = idDoc?.form_data?.customer_no;
   // 실시간 매칭: 고객시트(이름·생년월일6·전화번호)로 현재 번호 조회 → 시트 갱신 즉시 반영, 동명이인 구분
-  // 생년월일6: 신분증 OCR이 틀릴 수 있어 급여신청서(patient_rrn)·위임장(insured_rrn) 수기 주민번호도 함께 본다.
+  // 생년월일6: 직원 수기입력 주민번호(급여신청서→위임장)를 OCR보다 우선. 신분증 OCR은 맨 뒤.
   const idBirth6 =
-    pick6(idDoc?.form_data?.birth6) ||
     pick6(subDoc?.form_data?.patient_rrn) ||
     pick6(poaDoc?.form_data?.insured_rrn) ||
+    pick6(idDoc?.form_data?.birth6) ||
     pick6((patient as Patient).resident_number) ||
     null;
   const custIndex = await buildCustomerIndex(supabase);
