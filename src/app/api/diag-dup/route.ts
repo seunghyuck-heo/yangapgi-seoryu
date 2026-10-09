@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
   }[];
   const sheet = sheetRaw.map((c) => ({
     customer_no: c.customer_no,
-    birth6_present: !!norm6(c.birth6),
+    sheet_birth_digitlen: (c.birth6 ?? "").replace(/\D/g, "").length, // 값이 아닌 자릿수만
     phone_present: !!phoneTail(c.phone),
   }));
 
@@ -62,13 +62,21 @@ export async function GET(req: NextRequest) {
     const phoneMatchNos = pt
       ? sheetRaw.filter((c) => phoneTail(c.phone) && phoneTail(c.phone) === pt).map((c) => c.customer_no)
       : [];
+    const rawFdBirth6 = typeof fd.birth6 === "string" ? fd.birth6 : "";
+    const idDigitLen = rawFdBirth6.replace(/\D/g, "").length; // 값이 아닌 자릿수만(형식 확인용)
+    // 값 노출 없이, 이 환자 birth6가 각 시트 birth6와 '전체/뒷자리로' 맞는지만 표시
+    const matchFull = sheetRaw.filter((c) => norm6(c.birth6) && norm6(c.birth6) === idB6).map((c) => c.customer_no);
+    const idDigits = rawFdBirth6.replace(/\D/g, "");
+    const idLast6 = idDigits.length >= 6 ? idDigits.slice(-6) : idDigits; // 8자리(YYYYMMDD) 저장 의심 시 뒤6자리 비교
+    const matchLast6 = sheetRaw.filter((c) => norm6(c.birth6) && norm6(c.birth6) === idLast6).map((c) => c.customer_no);
     return {
       created_at: p.created_at,
-      idcard_birth6_present: !!idB6,
+      idcard_birth_digitlen: idDigitLen, // 6이면 정상형식, 8이면 YYYYMMDD로 저장돼 앞6자르기 어긋남
       resident_number_present: !!resB6,
       phone_present: !!pt,
       stored_customer_no: storedNo,
-      birth6_matches_customer_no: b6MatchNos,
+      match_front6_customer_no: matchFull, // 현재 로직(앞6)으로 매칭되는 번호
+      match_last6_customer_no: matchLast6, // 뒤6자리로 매칭되는 번호(형식오류 판별)
       phone_matches_customer_no: phoneMatchNos,
     };
   });
