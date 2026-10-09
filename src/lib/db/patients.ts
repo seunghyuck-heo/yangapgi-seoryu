@@ -72,6 +72,14 @@ function matchCustomerNo(
   if (pt) {
     const byPhone = pool.filter((c) => c.phoneTail && c.phoneTail === pt);
     if (byPhone.length === 1) return byPhone[0].customer_no;
+    if (byPhone.length > 1) pool = byPhone; // 전화로 좁혔지만 여전히 복수 → 그 안에서 판단
+  }
+
+  // 이름+생년월일이 모두 같은 복수 행 = 사실상 같은 사람의 중복 등록(시트에 두 번 들어간 경우).
+  // 이때는 모호가 아니라 '같은 사람'이므로 가장 작은 고유번호로 결정적 확정 → (1) 라벨이 뜸.
+  // (생년월일이 서로 다른 진짜 동명이인은 위 birth6 필터에서 1명으로 좁혀지므로 여기 오지 않음)
+  if (b6 && pool.length > 1 && pool.every((c) => c.birth6 === b6)) {
+    return Math.min(...pool.map((c) => c.customer_no));
   }
   return null; // 여전히 모호 → 잘못된 번호를 표시하지 않음
 }
@@ -102,8 +110,14 @@ function resolveCustomerNo(
 ): number | null {
   const live = matchCustomerNo(index, name, birth6, phone);
   if (live != null) return live;
-  const isDup = distinctNosForName(index, name).length > 1;
-  return isDup ? null : storedNo; // 동명이인이면 확정 못 할 때 번호 미표시
+  const nos = distinctNosForName(index, name);
+  const isDup = nos.length > 1;
+  if (!isDup) return storedNo;
+  // 동명이인 + 라이브 매칭 실패: 생년월일 정보가 아예 없어 좁힐 수 없을 때만,
+  // 저장된 고유번호가 현재 동명이인 그룹의 일원이면 그 번호로 표시(최소한 라벨은 뜨게).
+  // birth6가 있는데도 실패한 경우는 잘못된 번호를 낼 위험이 있어 미표시 유지(김민철류 회귀 방지).
+  if (!norm6(birth6) && storedNo != null && nos.includes(storedNo)) return storedNo;
+  return null; // 동명이인이면 확정 못 할 때 번호 미표시
 }
 
 // 주어진 환자 행들에 문서(경량)·고객번호·증명사진 URL을 붙인다. (form_data 본문은 제외해 속도/용량 최적화)

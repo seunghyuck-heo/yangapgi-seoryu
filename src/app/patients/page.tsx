@@ -15,7 +15,7 @@ interface PatientsCacheShape {
   hasMore: boolean;
 }
 let patientsCache: PatientsCacheShape | null = null;
-const PATIENTS_CACHE_KEY = "patients_cache_v2";
+const PATIENTS_CACHE_KEY = "patients_cache_v3";
 
 export default function PatientsPage() {
   const [patients, setPatients] = useState<PatientWithDocuments[]>(patientsCache?.patients ?? []);
