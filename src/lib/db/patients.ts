@@ -187,30 +187,43 @@ async function attachDocsAndInfo(
     }
   }
 
-  // 동명이인 라벨 폴백: 시트 고유번호로 특정이 안 돼 아직 번호가 안 붙은 경우라도,
-  // 같은 이름 환자가 목록에 2명 이상이면 반드시 (1)(2)…를 붙인다(등록순: 먼저 등록=1).
-  // 생년월일/전화/저장번호가 없어 시트 매칭이 불가능한 중복 등록 케이스를 커버.
-  const nameGroups = new Map<string, PatientWithDocuments[]>();
+  // 동명이인 번호(전역): 환자보기 전체에서 같은 이름이 2명 이상이면 등록순(먼저 등록=1)으로
+  // (1)(2)(3)…을 붙인다. 페이지 분할·시트 매칭과 무관하게 전체 환자 기준으로 계산하므로,
+  // 두 동명이인이 서로 다른 페이지에 있어도 정확히 매겨진다.
+  const globalDupRanks = await buildNameDupRanks(supabase);
   for (const p of result) {
-    const key = normName(p.name);
-    if (!key) continue;
-    const g = nameGroups.get(key);
-    if (g) g.push(p);
-    else nameGroups.set(key, [p]);
-  }
-  for (const group of nameGroups.values()) {
-    if (group.length < 2) continue;
-    // 그룹 내 누군가 이미 시트 기반 번호로 rank가 붙었으면(진짜 동명이인) 섞지 않고 그대로 둔다.
-    if (group.some((p) => p.name_dup_rank != null)) continue;
-    const ordered = [...group].sort(
-      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-    );
-    ordered.forEach((p, i) => {
-      p.name_dup_rank = i + 1;
-    });
+    const r = globalDupRanks.get(p.id);
+    if (r != null) p.name_dup_rank = r; // 전역 등록순이 최우선(사용자 규칙). 단독 환자는 위 시트기반 rank 유지.
   }
 
   return result;
+}
+
+// 환자보기 전체에서 이름이 겹치는(동명이인) 환자들에게 등록순 번호를 매긴다.
+// patientId → 순번(1부터). 같은 이름이 1명뿐이면 포함하지 않음(단독은 시트기반 rank에 맡김).
+async function buildNameDupRanks(
+  supabase: Awaited<ReturnType<typeof getSupabaseServerClient>>
+): Promise<Map<string, number>> {
+  const ranks = new Map<string, number>();
+  const { data, error } = await supabase
+    .from("patients")
+    .select("id, name, created_at")
+    .range(0, 19999);
+  if (error || !data) return ranks;
+  const groups = new Map<string, { id: string; created_at: string }[]>();
+  for (const p of data as { id: string; name: string; created_at: string }[]) {
+    const key = normName(p.name);
+    if (!key) continue;
+    const g = groups.get(key);
+    if (g) g.push({ id: p.id, created_at: p.created_at });
+    else groups.set(key, [{ id: p.id, created_at: p.created_at }]);
+  }
+  for (const g of groups.values()) {
+    if (g.length < 2) continue; // 동명이인 아님
+    g.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    g.forEach((p, i) => ranks.set(p.id, i + 1));
+  }
+  return ranks;
 }
 
 // RPC 미설치(마이그레이션 전) 시 사용하는 폴백: 전체 조회 후 등록 환자만 필터(기존과 동일 동작)
@@ -358,11 +371,15 @@ export async function getPatient(id: string): Promise<PatientWithDocuments | nul
     }
   }
 
+  // 동명이인 번호: 전역 등록순(환자보기와 동일 규칙) 우선, 없으면 시트기반 rank
+  const globalDupRanks = await buildNameDupRanks(supabase);
+  const globalRank = globalDupRanks.get(id) ?? null;
+
   return {
     ...(patient as Patient),
     documents: docs,
     customer_no: resolvedCn,
-    name_dup_rank: dupRankOf(custIndex, (patient as Patient).name, resolvedCn),
+    name_dup_rank: globalRank ?? dupRankOf(custIndex, (patient as Patient).name, resolvedCn),
     signedUrls,
   };
 }
