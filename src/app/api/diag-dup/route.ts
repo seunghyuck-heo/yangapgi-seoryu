@@ -40,15 +40,23 @@ export async function GET(req: NextRequest) {
   }[];
 
   const ids = matched.map((p) => p.id);
-  const { data: idcards } = ids.length
-    ? await supabase.from("documents").select("patient_id,form_data").eq("doc_type", "id_card").in("patient_id", ids)
-    : { data: [] as { patient_id: string; form_data: Record<string, unknown> }[] };
-  const idMap = new Map(
-    (idcards ?? []).map((d) => [
-      (d as { patient_id: string }).patient_id,
-      ((d as { form_data?: Record<string, unknown> }).form_data ?? {}) as Record<string, unknown>,
-    ])
-  );
+  const { data: alldocs } = ids.length
+    ? await supabase
+        .from("documents")
+        .select("patient_id,doc_type,form_data")
+        .in("doc_type", ["id_card", "subsidy_application", "power_of_attorney"])
+        .in("patient_id", ids)
+    : { data: [] as { patient_id: string; doc_type: string; form_data: Record<string, unknown> }[] };
+  const docsByPatient = new Map<string, Record<string, Record<string, unknown>>>();
+  for (const d of alldocs ?? []) {
+    const pid = (d as { patient_id: string }).patient_id;
+    const dt = (d as { doc_type: string }).doc_type;
+    const m = docsByPatient.get(pid) ?? {};
+    m[dt] = ((d as { form_data?: Record<string, unknown> }).form_data ?? {}) as Record<string, unknown>;
+    docsByPatient.set(pid, m);
+  }
+  const idMap = new Map(Array.from(docsByPatient, ([pid, m]) => [pid, m["id_card"] ?? {}]));
+  const pick6 = (v: unknown): string => (typeof v === "string" ? v.replace(/\D/g, "").slice(0, 6) : "");
 
   const patientsDiag = matched.map((p) => {
     const fd = idMap.get(p.id) ?? {};
@@ -69,14 +77,24 @@ export async function GET(req: NextRequest) {
     const idDigits = rawFdBirth6.replace(/\D/g, "");
     const idLast6 = idDigits.length >= 6 ? idDigits.slice(-6) : idDigits; // 8자리(YYYYMMDD) 저장 의심 시 뒤6자리 비교
     const matchLast6 = sheetRaw.filter((c) => norm6(c.birth6) && norm6(c.birth6) === idLast6).map((c) => c.customer_no);
+    // 급여신청서/위임장 주민번호 앞6으로 매칭되는 번호(직원 수기입력 → OCR 우회)
+    const pm = docsByPatient.get(p.id) ?? {};
+    const subB6 = pick6((pm["subsidy_application"] ?? {}).patient_rrn);
+    const poaB6 = pick6((pm["power_of_attorney"] ?? {}).insured_rrn);
+    const subMatch = subB6 ? sheetRaw.filter((c) => norm6(c.birth6) === subB6).map((c) => c.customer_no) : [];
+    const poaMatch = poaB6 ? sheetRaw.filter((c) => norm6(c.birth6) === poaB6).map((c) => c.customer_no) : [];
     return {
       created_at: p.created_at,
       idcard_birth_digitlen: idDigitLen, // 6이면 정상형식, 8이면 YYYYMMDD로 저장돼 앞6자르기 어긋남
       resident_number_present: !!resB6,
       phone_present: !!pt,
       stored_customer_no: storedNo,
-      match_front6_customer_no: matchFull, // 현재 로직(앞6)으로 매칭되는 번호
-      match_last6_customer_no: matchLast6, // 뒤6자리로 매칭되는 번호(형식오류 판별)
+      match_front6_customer_no: matchFull, // 신분증 앞6으로 매칭되는 번호
+      match_last6_customer_no: matchLast6, // 뒤6자리로 매칭(형식오류 판별)
+      subsidy_rrn_present: !!subB6,
+      subsidy_rrn_matches: subMatch, // 급여신청서 주민번호로 매칭되는 번호
+      poa_rrn_present: !!poaB6,
+      poa_rrn_matches: poaMatch, // 위임장 주민번호로 매칭되는 번호
       phone_matches_customer_no: phoneMatchNos,
     };
   });

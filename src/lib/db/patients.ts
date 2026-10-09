@@ -14,6 +14,12 @@ export interface ListPatientsResult {
 const normName = (s: string | null | undefined) =>
   (s ?? "").replace(/\s*\(\s*\d+\s*\)\s*$/, "").replace(/\s/g, "");
 const norm6 = (s: string | null | undefined) => (s ?? "").replace(/\D/g, "").slice(0, 6);
+// 값(문자열/임의 타입)에서 숫자 앞 6자리(생년월일)를 뽑는다. 6자리 미만이면 null.
+const pick6 = (v: unknown): string | null => {
+  if (typeof v !== "string") return null;
+  const d = v.replace(/\D/g, "").slice(0, 6);
+  return d.length === 6 ? d : null;
+};
 const phoneTail = (s: string | null | undefined) => {
   const d = (s ?? "").replace(/\D/g, "");
   return d.length >= 8 ? d.slice(-8) : d; // 끝 8자리로 비교(접두어·하이픈·010 유무 무시)
@@ -134,21 +140,37 @@ async function attachDocsAndInfo(
     .in("patient_id", ids);
   if (docsError) throw new Error(docsError.message);
 
-  // 고객번호·증명사진 경로는 id_card form_data(소용량)에만 있음 → 별도 조회
-  const { data: idDocs, error: idErr } = await supabase
+  // 고객번호·증명사진 경로는 id_card form_data에, 생년월일(주민번호 앞6)은 신분증/급여신청서/위임장에 있을 수 있음.
+  // 신분증 OCR이 틀릴 수 있어, 직원이 수기 입력한 급여신청서(patient_rrn)·위임장(insured_rrn) 주민번호도 함께 본다.
+  const { data: infoDocs, error: idErr } = await supabase
     .from("documents")
-    .select("patient_id, form_data")
-    .eq("doc_type", "id_card")
+    .select("patient_id, doc_type, form_data")
+    .in("doc_type", ["id_card", "subsidy_application", "power_of_attorney"])
     .in("patient_id", ids);
   if (idErr) throw new Error(idErr.message);
 
+  const fdByPatient = new Map<string, Record<string, Record<string, unknown>>>();
+  for (const d of infoDocs ?? []) {
+    const pid = (d as { patient_id: string }).patient_id;
+    const dt = (d as { doc_type: string }).doc_type;
+    const fd = ((d as { form_data?: Record<string, unknown> }).form_data ?? {}) as Record<string, unknown>;
+    const m = fdByPatient.get(pid) ?? {};
+    m[dt] = fd;
+    fdByPatient.set(pid, m);
+  }
+
   const idInfo = new Map<string, { customerNo: number | null; photoPath: string | null; birth6: string | null }>();
-  for (const d of idDocs ?? []) {
-    const fdt = ((d as { form_data?: Record<string, unknown> }).form_data ?? {}) as Record<string, unknown>;
-    idInfo.set((d as { patient_id: string }).patient_id, {
-      customerNo: typeof fdt.customer_no === "number" ? fdt.customer_no : null,
-      photoPath: typeof fdt.photo_path === "string" ? fdt.photo_path : null,
-      birth6: typeof fdt.birth6 === "string" ? fdt.birth6 : null,
+  for (const [pid, docs] of fdByPatient) {
+    const idc = docs["id_card"] ?? {};
+    const sub = docs["subsidy_application"] ?? {};
+    const poa = docs["power_of_attorney"] ?? {};
+    // 생년월일6: 신분증 → 급여신청서 주민번호 → 위임장 주민번호 순(먼저 값이 있는 것)
+    const birth6 =
+      pick6(idc.birth6) || pick6(sub.patient_rrn) || pick6(poa.insured_rrn) || null;
+    idInfo.set(pid, {
+      customerNo: typeof idc.customer_no === "number" ? (idc.customer_no as number) : null,
+      photoPath: typeof idc.photo_path === "string" ? (idc.photo_path as string) : null,
+      birth6,
     });
   }
 
@@ -345,11 +367,16 @@ export async function getPatient(id: string): Promise<PatientWithDocuments | nul
 
   const docs = (documents ?? []) as PatientDocument[];
   const idDoc = docs.find((d) => d.doc_type === "id_card");
+  const subDoc = docs.find((d) => d.doc_type === "subsidy_application");
+  const poaDoc = docs.find((d) => d.doc_type === "power_of_attorney");
   const cn = idDoc?.form_data?.customer_no;
   // 실시간 매칭: 고객시트(이름·생년월일6·전화번호)로 현재 번호 조회 → 시트 갱신 즉시 반영, 동명이인 구분
+  // 생년월일6: 신분증 OCR이 틀릴 수 있어 급여신청서(patient_rrn)·위임장(insured_rrn) 수기 주민번호도 함께 본다.
   const idBirth6 =
-    (typeof idDoc?.form_data?.birth6 === "string" && (idDoc.form_data.birth6 as string)) ||
-    (patient as Patient).resident_number ||
+    pick6(idDoc?.form_data?.birth6) ||
+    pick6(subDoc?.form_data?.patient_rrn) ||
+    pick6(poaDoc?.form_data?.insured_rrn) ||
+    pick6((patient as Patient).resident_number) ||
     null;
   const custIndex = await buildCustomerIndex(supabase);
   const storedCn = typeof cn === "number" ? cn : null;
