@@ -164,8 +164,10 @@ async function attachDocsAndInfo(
 
   const result: PatientWithDocuments[] = patientsRows.map((p) => {
     const info = idInfo.get(p.id);
+    // 생년월일6: 신분증 OCR(birth6) 없으면 환자 주민번호 앞 6자리로 보완 → 동명이인 특정 성공률↑
+    const birth6 = info?.birth6 || (p as Patient).resident_number || null;
     // 실시간 매칭(이름 → 생년월일6 → 전화번호). 동명이인이면 옛 저장번호로 폴백하지 않음
-    const no = resolveCustomerNo(custIndex, p.name, info?.birth6, p.phone, info?.customerNo ?? null);
+    const no = resolveCustomerNo(custIndex, p.name, birth6, p.phone, info?.customerNo ?? null);
     return {
       ...(p as Patient),
       documents: documentsByPatient.get(p.id) ?? [],
@@ -345,7 +347,10 @@ export async function getPatient(id: string): Promise<PatientWithDocuments | nul
   const idDoc = docs.find((d) => d.doc_type === "id_card");
   const cn = idDoc?.form_data?.customer_no;
   // 실시간 매칭: 고객시트(이름·생년월일6·전화번호)로 현재 번호 조회 → 시트 갱신 즉시 반영, 동명이인 구분
-  const idBirth6 = typeof idDoc?.form_data?.birth6 === "string" ? (idDoc.form_data.birth6 as string) : null;
+  const idBirth6 =
+    (typeof idDoc?.form_data?.birth6 === "string" && (idDoc.form_data.birth6 as string)) ||
+    (patient as Patient).resident_number ||
+    null;
   const custIndex = await buildCustomerIndex(supabase);
   const storedCn = typeof cn === "number" ? cn : null;
   const resolvedCn = resolveCustomerNo(custIndex, (patient as Patient).name, idBirth6, (patient as Patient).phone, storedCn);
