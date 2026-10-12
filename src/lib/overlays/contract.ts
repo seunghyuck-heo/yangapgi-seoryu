@@ -15,14 +15,15 @@ export const contractOverlay: OverlayDoc = {
     { key: "rental_start_day", type: "text", x: 59.2, y: 12.1, w: 5, h: 1.4, label: "대여 시작일", dateGroup: "rental_start", datePart: "d" },
     // 대여 종료일: 인쇄된 "계약 종료 시까지"를 가리고, 시작일 + 90일 자동계산 날짜(20 __년 __월 __일)로 표기.
     // baseGroup=rental_start + autoTodayOffsetDays=90 → PDF/폼 모두 시작일 기준 파생. 편집 불가(autoToday).
-    { key: "rental_end_cover", type: "text", x: 67.5, y: 11.4, w: 30, h: 2.5, cover: true },
-    { key: "rental_end_20", type: "text", x: 68.3, y: 12.1, w: 4, h: 1.4, staticText: "20", align: "center", fontPct: 1.5 },
-    { key: "rental_end_year", type: "text", x: 71.6, y: 12.1, w: 5, h: 1.4, label: "대여 종료일", dateGroup: "rental_end", datePart: "y", autoToday: true, baseGroup: "rental_start", autoTodayOffsetDays: 90 },
-    { key: "rental_end_year_lbl", type: "text", x: 76.3, y: 12.1, w: 3, h: 1.4, staticText: "년", align: "center", fontPct: 1.5 },
-    { key: "rental_end_month", type: "text", x: 79.2, y: 12.1, w: 5, h: 1.4, label: "대여 종료일", dateGroup: "rental_end", datePart: "m", autoToday: true, baseGroup: "rental_start", autoTodayOffsetDays: 90 },
-    { key: "rental_end_month_lbl", type: "text", x: 83.6, y: 12.1, w: 3, h: 1.4, staticText: "월", align: "center", fontPct: 1.5 },
-    { key: "rental_end_day", type: "text", x: 86.3, y: 12.1, w: 5, h: 1.4, label: "대여 종료일", dateGroup: "rental_end", datePart: "d", autoToday: true, baseGroup: "rental_start", autoTodayOffsetDays: 90 },
-    { key: "rental_end_day_lbl", type: "text", x: 90.8, y: 12.1, w: 3, h: 1.4, staticText: "일", align: "center", fontPct: 1.5 },
+    // "20"은 우측정렬로 연도에 붙이고(2027처럼), 가림 박스는 글자 높이에 맞춰 낮게(표 가로선 유지).
+    { key: "rental_end_cover", type: "text", x: 66.8, y: 12.15, w: 28.4, h: 1.5, cover: true },
+    { key: "rental_end_20", type: "text", x: 66.5, y: 12.1, w: 5, h: 1.4, staticText: "20", align: "right", fontPct: 1.5 },
+    { key: "rental_end_year", type: "text", x: 71.7, y: 12.1, w: 4, h: 1.4, label: "대여 종료일", dateGroup: "rental_end", datePart: "y", align: "left", autoToday: true, baseGroup: "rental_start", autoTodayOffsetDays: 90 },
+    { key: "rental_end_year_lbl", type: "text", x: 74.4, y: 12.1, w: 3, h: 1.4, staticText: "년", align: "center", fontPct: 1.5 },
+    { key: "rental_end_month", type: "text", x: 77.6, y: 12.1, w: 4, h: 1.4, label: "대여 종료일", dateGroup: "rental_end", datePart: "m", align: "center", autoToday: true, baseGroup: "rental_start", autoTodayOffsetDays: 90 },
+    { key: "rental_end_month_lbl", type: "text", x: 81.6, y: 12.1, w: 3, h: 1.4, staticText: "월", align: "center", fontPct: 1.5 },
+    { key: "rental_end_day", type: "text", x: 84.6, y: 12.1, w: 4, h: 1.4, label: "대여 종료일", dateGroup: "rental_end", datePart: "d", align: "center", autoToday: true, baseGroup: "rental_start", autoTodayOffsetDays: 90 },
+    { key: "rental_end_day_lbl", type: "text", x: 88.6, y: 12.1, w: 3, h: 1.4, staticText: "일", align: "center", fontPct: 1.5 },
     // 대여료 지급일자 (매월 __일)
     { key: "pay_day", type: "text", x: 63.5, y: 14.0, w: 5, h: 1.4, label: "대여료 지급일 (매월)", placeholder: "25" },
     // 소모품(마스크) 지급일자 — 예외: 입력 안 해도 작성완료 가능(선택). 빈 블록은 오렌지색
