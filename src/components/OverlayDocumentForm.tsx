@@ -377,6 +377,28 @@ function OverlayDocumentFormInner(
         else if (f.datePart === "d") next[f.key] = d ? String(Number(d)) : "";
         else if (f.datePart === "full") next[f.key] = y && m && d ? `${y}.${m}.${d}` : "";
       }
+      // 이 그룹을 기준(baseGroup)으로 파생되는 종료일 그룹들을 즉시 재계산(예: 대여 종료일 = 시작일+90일)
+      const derivedGroups = new Set(
+        overlay.fields.filter((f) => f.baseGroup === group && f.dateGroup).map((f) => f.dateGroup as string)
+      );
+      for (const dg of derivedGroups) {
+        const parts = overlay.fields.filter((f) => f.dateGroup === dg);
+        const offY = parts.find((f) => f.autoTodayOffsetYears != null)?.autoTodayOffsetYears ?? 0;
+        const offD = parts.find((f) => f.autoTodayOffsetDays != null)?.autoTodayOffsetDays ?? 0;
+        const bd = new Date(Number(y), Number(m) - 1, Number(d));
+        if (offY) bd.setFullYear(bd.getFullYear() + offY);
+        if (offD) bd.setDate(bd.getDate() + offD);
+        const ey = String(bd.getFullYear());
+        const em = bd.getMonth() + 1;
+        const ed = bd.getDate();
+        next[`__d_${dg}`] = `${ey}-${String(em).padStart(2, "0")}-${String(ed).padStart(2, "0")}`;
+        for (const f of parts) {
+          if (f.datePart === "y") next[f.key] = f.fullYear ? ey : ey.slice(2);
+          else if (f.datePart === "m") next[f.key] = String(em);
+          else if (f.datePart === "d") next[f.key] = String(ed);
+          else if (f.datePart === "full") next[f.key] = `${ey}.${em}.${ed}`;
+        }
+      }
       return next;
     });
     setOpenField(null);
