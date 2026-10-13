@@ -1056,19 +1056,20 @@ input[type="password"]::placeholder {
   background: rgba(47, 95, 221, 0.16);
   outline: 1px solid rgba(47, 95, 221, 0.6);
   border-radius: 6px;
-  gap: 2%;
-  padding: 0 2%;
+  gap: 1%;
+  padding: 0 1%;
 }
 .odoc-hotspot__selecttext {
   flex: 1;
   justify-content: center;
   color: var(--ink);
   font-weight: 700;
+  overflow: visible;
 }
 .odoc-hotspot__caret {
-  width: 9%;
-  max-width: 16px;
-  min-width: 8px;
+  width: 6%;
+  max-width: 11px;
+  min-width: 7px;
   height: auto;
   color: rgba(47, 95, 221, 0.85);
   flex-shrink: 0;
