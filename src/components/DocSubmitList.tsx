@@ -215,7 +215,7 @@ export default function DocSubmitList({
   // 서식 배경 이미지 미리 로드(캐시) → 문서 진입 시 즉시 표시
   useEffect(() => {
     const bgs = [
-      "/documents/contract.jpg",
+      "/documents/contract-2.jpg",
       "/documents/subsidy.jpg",
       "/documents/cms.jpg",
       "/documents/poa.jpg",

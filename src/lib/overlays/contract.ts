@@ -4,7 +4,7 @@ import { OverlayDoc } from "./types";
 // 이미지 글자/표선 픽셀 분석으로 측정한 값.
 // 입력 블록 높이는 급여신청서/위임장과 동일한 얇은 pill 형태로 통일 (세로 중심 유지).
 export const contractOverlay: OverlayDoc = {
-  image: "/documents/contract.jpg",
+  image: "/documents/contract-2.jpg",
   width: 2480,
   height: 3508,
   title: "양압기치료 서비스 표준계약서",
