@@ -1061,7 +1061,7 @@ input[type="password"]::placeholder {
 }
 .odoc-hotspot__selecttext {
   flex: 1;
-  justify-content: flex-end; /* 금액을 오른쪽(꺽쇠 ▼) 쪽으로 붙임 */
+  justify-content: center; /* 금액을 블록 중앙으로 → 위 89,000원과 가로 정렬 */
   color: var(--ink);
   font-weight: 700;
   overflow: visible;
