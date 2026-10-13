@@ -4,7 +4,7 @@ import { OverlayDoc } from "./types";
 // 이미지 글자/표선 픽셀 분석으로 측정한 값.
 // 입력 블록 높이는 급여신청서/위임장과 동일한 얇은 pill 형태로 통일 (세로 중심 유지).
 export const contractOverlay: OverlayDoc = {
-  image: "/documents/contract-2.jpg",
+  image: "/documents/contract-3.jpg",
   width: 2480,
   height: 3508,
   title: "양압기치료 서비스 표준계약서",
@@ -55,7 +55,7 @@ export const contractOverlay: OverlayDoc = {
 
     // 소모품 마스크 금액 — 원본 인쇄 "95,000원"은 이미지에서 삭제됨. 그 자리(셀)에 파란 편집 블록으로
     // 금액을 표시하고, 탭하면 드롭다운으로 95,000 / 105,000 / 110,000 중 선택. 기본값 "95,000원".
-    { key: "mask_amount", type: "text", x: 33.4, y: 26.0, w: 13.7, h: 1.55, label: "마스크 금액", align: "center", options: ["95,000원", "105,000원", "110,000원"], default: "95,000원", selectBlock: true, fontPct: 1.2 },
+    { key: "mask_amount", type: "text", x: 37.5, y: 26.0, w: 13.7, h: 1.55, label: "마스크 금액", align: "center", options: ["95,000원", "105,000원", "110,000원"], default: "95,000원", selectBlock: true, fontPct: 1.2 },
 
     // 개인정보 수집·이용 동의 체크박스
     { key: "consent_yes", type: "checkbox", x: 73.72, y: 88.58, w: 2.6, h: 1.0, label: "개인정보 수집·이용 동의", fixedChecked: true },
