@@ -73,6 +73,17 @@ function OverlayDocumentFormInner(
   ref: React.ForwardedRef<OverlayDocumentFormHandle>
 ) {
   const router = useRouter();
+  // 저장값 위에 기본값(field.default)을 깔아준다(저장값이 우선). 서버·클라 동일하게 결정적으로 채워져
+  // 하이드레이션 불일치 없이 기본값(예: 마스크 금액 95,000원)이 바로 보인다.
+  const seedDefaults = (base: Record<string, unknown>): Record<string, unknown> => {
+    const o: Record<string, unknown> = { ...base };
+    for (const f of overlay.fields) {
+      if (f.default != null && !(f.key in o)) o[f.key] = f.default;
+    }
+    return o;
+  };
+  // SSR 땐 기본값을 넣지 않고(서버·클라 초기 렌더 일치 → 하이드레이션 불일치 방지),
+  // 클라이언트 마운트 이펙트에서 기본값을 채운다(autoToday 날짜 필드와 동일한 방식).
   const [values, setValues] = useState<Record<string, unknown>>({ ...initialFormData });
   const [sigUrls, setSigUrls] = useState<Record<string, string>>(() => {
     const map: Record<string, string> = {};
@@ -162,6 +173,11 @@ function OverlayDocumentFormInner(
       for (const f of overlay.fields) {
         if (f.type === "checkbox" && f.fixedChecked && next[f.key] !== true) {
           next[f.key] = true;
+          changed = true;
+        }
+        // 기본값(field.default) 주입(예: 마스크 금액 95,000원). 저장값이 없을 때만.
+        if (f.default != null && (next[f.key] === undefined || next[f.key] === "")) {
+          next[f.key] = f.default;
           changed = true;
         }
       }
@@ -494,6 +510,8 @@ function OverlayDocumentFormInner(
     };
     return overlay.fields.some((f) => {
       if (f.autoToday || f.fixedChecked || f.cover || f.staticText || f.stampImage) return false;
+      // 저장값이 없던 필드가 기본값 그대로면(사용자가 안 건드림) 변경으로 보지 않음(기존 문서 보호)
+      if (f.default != null && !(f.key in initialFormData) && norm(values[f.key]) === norm(f.default)) return false;
       return norm(values[f.key]) !== norm(initialFormData[f.key]);
     });
   }
@@ -584,7 +602,7 @@ function OverlayDocumentFormInner(
 
   // '수정' 취소: 값·서명을 처음 상태로 되돌리고 편집 모드 종료
   function cancelEdits() {
-    setValues({ ...initialFormData });
+    setValues(seedDefaults(initialFormData));
     const map: Record<string, string> = {};
     for (const f of overlay.fields) {
       if (f.type !== "signature") continue;
@@ -840,7 +858,9 @@ function OverlayDocumentFormInner(
         </span>
       );
     } else {
-      if (typeof value === "string" && value.trim()) {
+      // 값 표시(기본값은 SSR 불일치 방지를 위해 마운트 이펙트에서 values에 주입됨 → 여기선 value만).
+      const shown = typeof value === "string" && value.trim() ? value : "";
+      if (shown) {
         filled = true;
         content = (
           <span
@@ -855,7 +875,7 @@ function OverlayDocumentFormInner(
                     : "center",
             }}
           >
-            {value}
+            {shown}
           </span>
         );
       }

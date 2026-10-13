@@ -374,12 +374,12 @@ export async function renderOverlayPage(
       continue;
     }
 
-    // 일반 텍스트 / 날짜
+    // 일반 텍스트 / 날짜 (저장값 없으면 field.default 사용 — 예: 마스크 금액 기본 95,000원)
     const val = field.dateGroup
       ? effectiveDateValue(field, raw, completedAt, overlay.fields, values)
       : typeof raw === "string" && raw.trim()
         ? raw
-        : null;
+        : field.default ?? null;
     if (val) drawText(ctx, val, bx, by, bw, bh, inputFontPx, field.align);
   }
 

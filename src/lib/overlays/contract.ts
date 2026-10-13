@@ -53,6 +53,11 @@ export const contractOverlay: OverlayDoc = {
     { key: "copay_post", type: "checkbox", x: 77.9, y: 24.05, w: 2.9, h: 1.6, label: "순응후", parenMark: true, group: "copay", requiredGroup: true },
     { key: "copay_post_lbl", type: "text", x: 80.7, y: 24.05, w: 11, h: 1.6, staticText: "순응후 17,800원", align: "left", fontPct: 1.15 },
 
+    // 소모품 마스크 금액 — 인쇄된 "95,000원"을 가리고 드롭다운으로 선택(95,000 / 105,000 / 110,000).
+    // 기존 완료 문서(값 미저장)는 default "95,000원"으로 그대로 표시, 신규 작성은 선택 가능.
+    { key: "mask_amount_cover", type: "text", x: 37.5, y: 26.3, w: 17, h: 1.6, cover: true },
+    { key: "mask_amount", type: "text", x: 37.5, y: 26.4, w: 17, h: 1.4, label: "마스크 금액", align: "center", options: ["95,000원", "105,000원", "110,000원"], default: "95,000원" },
+
     // 개인정보 수집·이용 동의 체크박스
     { key: "consent_yes", type: "checkbox", x: 73.72, y: 88.58, w: 2.6, h: 1.0, label: "개인정보 수집·이용 동의", fixedChecked: true },
 

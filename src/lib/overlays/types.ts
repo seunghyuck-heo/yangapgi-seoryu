@@ -64,6 +64,9 @@ export interface OverlayField {
   baseGroup?: string;
   /** 목록에서 고르는 선택 필드: 탭하면 옵션 목록 팝업이 뜬다(직접 입력 대신) */
   options?: string[];
+  /** 저장값이 없을 때 문서에 표시할 기본값(선택 필드 등). 저장은 안 하고 표시·PDF에만 사용.
+   *  예: 마스크 금액 기본 "95,000원" — 기존 완료 문서(값 미저장)도 95,000원으로 보이게. */
+  default?: string;
   /** 조건부 옵션: 지정한 체크박스 key가 선택돼 있으면 해당 목록을 보여줌.
    *  예: { cb_bank: 은행목록, cb_card: 카드사목록 } — 결제수단에 따라 결제사명 목록이 바뀜 */
   optionsByCheckbox?: Record<string, string[]>;
