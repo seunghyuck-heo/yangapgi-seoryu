@@ -707,6 +707,18 @@ input[type="password"]::placeholder {
   border-top: 1px solid var(--border);
   padding-bottom: env(safe-area-inset-bottom);
 }
+/* 하단 안드로이드 내비게이션 바(방향키) 영역을 검정으로 → 시스템 아이콘이 잘 보이게.
+   탭 내용 아래 safe-area(제스처/버튼 바) 자리에만 검정 띠를 깐다. */
+.bottom-tabs::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: env(safe-area-inset-bottom);
+  background: #000;
+  pointer-events: none;
+}
 
 .bottom-tabs__tab {
   flex: 1;

@@ -1,7 +1,7 @@
 // 양압기 서류계약 PWA 서비스워커
 // - 해시된 정적 자산(_next/static)은 캐시 우선(즉시 응답) → 앱 진입 속도 개선(파일명이 바뀌므로 stale 위험 없음)
 // - HTML/문서 이미지 등은 네트워크 우선(최신 유지), 오프라인이면 캐시
-const VERSION = "v195";
+const VERSION = "v196";
 const RUNTIME_CACHE = `runtime-${VERSION}`;
 
 // 설치 시 최소 셸만 캐시(오프라인 대비)
@@ -58,10 +58,11 @@ self.addEventListener("fetch", (event) => {
   }
 
   // 그 외 모든 GET(HTML/문서 이미지 등): 네트워크 우선 → 성공 시 캐시에 최신본 저장, 실패(오프라인) 시에만 캐시 사용
+  // cache:"no-store"로 브라우저 HTTP 캐시를 우회해 항상 서버 최신본을 받는다(폰에 옛 화면이 남는 문제 방지).
   event.respondWith(
     (async () => {
       try {
-        const res = await fetch(req);
+        const res = await fetch(req, { cache: "no-store" });
         if (res && res.ok && url.origin === self.location.origin) {
           const cache = await caches.open(RUNTIME_CACHE);
           cache.put(req, res.clone());
