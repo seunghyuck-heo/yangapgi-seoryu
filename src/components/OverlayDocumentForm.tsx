@@ -95,6 +95,8 @@ function OverlayDocumentFormInner(
     return map;
   });
   const [openField, setOpenField] = useState<OverlayField | null>(null);
+  // 앵커드 드롭다운(짧은 선택 목록, 예: 마스크 금액)용 — 탭한 필드의 화면 위치
+  const [anchorRect, setAnchorRect] = useState<{ left: number; top: number; bottom: number; width: number } | null>(null);
   const [textDraft, setTextDraft] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -377,6 +379,18 @@ function OverlayDocumentFormInner(
 
     if (field.type === "text") {
       setTextDraft(typeof values[key] === "string" ? (values[key] as string) : "");
+    }
+    // 짧은 선택 목록(options, 체크박스 조건 아님)은 필드 바로 아래 드롭다운으로 → 위치 캡처
+    if (field.options && !field.optionsByCheckbox) {
+      try {
+        const el = document.querySelector(`[data-field="${key}"]`);
+        const r = el?.getBoundingClientRect();
+        setAnchorRect(r ? { left: r.left, top: r.top, bottom: r.bottom, width: r.width } : null);
+      } catch {
+        setAnchorRect(null);
+      }
+    } else {
+      setAnchorRect(null);
     }
     setOpenField(field);
   }
@@ -714,6 +728,32 @@ function OverlayDocumentFormInner(
     if (field.cover) {
       return <div key={field.key} className="odoc-hotspot odoc-hotspot--cover" style={style} aria-hidden />;
     }
+    // 선택 블록(예: 마스크 금액): 항상 파란 편집 블록 + 값 + ▼. 탭하면 드롭다운.
+    // 완료문서 보기모드에선 파란 블록 없이 값만(인쇄본처럼). 편집 가능 상태에선 파란 블록.
+    if (field.selectBlock) {
+      const shown = typeof value === "string" && value.trim() ? value : "";
+      const showBlue = !isCompleted || localEdit;
+      return (
+        <div
+          key={field.key}
+          data-field={field.key}
+          className={`odoc-hotspot ${showBlue ? "odoc-hotspot--select" : ""}`}
+          style={style}
+        >
+          <span
+            className="odoc-hotspot__text odoc-hotspot__selecttext"
+            style={{ fontSize: `${(field.fontPct ?? 1.4) * 1.1}cqw` }}
+          >
+            {shown}
+          </span>
+          {showBlue && (
+            <svg className="odoc-hotspot__caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+          )}
+        </div>
+      );
+    }
     // 도장(직인) 이미지 (항상 표시·편집 불가·탭 불가). multiply로 뒤 글자 비침
     if (field.stampImage) {
       return (
@@ -980,18 +1020,54 @@ function OverlayDocumentFormInner(
         </div>
       )}
 
-      {/* 목록 선택 팝업 (결제사명 등: 은행/카드사 목록) */}
-      {openField && (openField.options || openField.optionsByCheckbox) && (
+      {/* 짧은 선택 목록(예: 마스크 금액): 필드 바로 아래 앵커드 드롭다운 */}
+      {openField && openField.options && !openField.optionsByCheckbox && anchorRect && (
+        <div
+          className="dropdown-overlay"
+          onClick={() => {
+            setOpenField(null);
+            setAnchorRect(null);
+          }}
+        >
+          <div
+            className="dropdown-menu"
+            style={{
+              left: Math.max(8, Math.min(anchorRect.left, (typeof window !== "undefined" ? window.innerWidth : 360) - 160)),
+              top: anchorRect.bottom + 4,
+              minWidth: Math.max(anchorRect.width, 132),
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {(resolveOptions(openField) ?? []).map((o) => {
+              const cur = typeof values[openField.key] === "string" ? (values[openField.key] as string) : "";
+              return (
+                <button
+                  key={o}
+                  type="button"
+                  className={`dropdown-menu__item${o === cur ? " dropdown-menu__item--sel" : ""}`}
+                  onClick={() => {
+                    selectOption(openField, o);
+                    setAnchorRect(null);
+                  }}
+                >
+                  {o}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* 목록 선택 중앙 시트 (결제사명 등: 은행/카드사 긴 목록) */}
+      {openField && openField.optionsByCheckbox && (
         <div className="sheet-overlay" onClick={() => setOpenField(null)}>
           <div className="sheet field-popup" onClick={(e) => e.stopPropagation()}>
             <div className="field-popup__label">
-              {openField.optionsByCheckbox
-                ? values["cb_card"] === true
-                  ? "카드사 선택"
-                  : values["cb_bank"] === true
-                    ? "은행 선택"
-                    : "결제수단을 먼저 선택하세요"
-                : effLabel(openField) ?? "선택"}
+              {values["cb_card"] === true
+                ? "카드사 선택"
+                : values["cb_bank"] === true
+                  ? "은행 선택"
+                  : "결제수단을 먼저 선택하세요"}
             </div>
             {(() => {
               const opts = resolveOptions(openField) ?? [];

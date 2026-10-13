@@ -67,6 +67,9 @@ export interface OverlayField {
   /** 저장값이 없을 때 문서에 표시할 기본값(선택 필드 등). 저장은 안 하고 표시·PDF에만 사용.
    *  예: 마스크 금액 기본 "95,000원" — 기존 완료 문서(값 미저장)도 95,000원으로 보이게. */
   default?: string;
+  /** 화면에서 항상 '파란 편집 블록(값 + ▼)'으로 표시하고, 탭하면 앵커드 드롭다운으로 고른다.
+   *  options와 함께 사용(짧은 선택 목록). PDF에는 값 텍스트만 그려짐. */
+  selectBlock?: boolean;
   /** 조건부 옵션: 지정한 체크박스 key가 선택돼 있으면 해당 목록을 보여줌.
    *  예: { cb_bank: 은행목록, cb_card: 카드사목록 } — 결제수단에 따라 결제사명 목록이 바뀜 */
   optionsByCheckbox?: Record<string, string[]>;
