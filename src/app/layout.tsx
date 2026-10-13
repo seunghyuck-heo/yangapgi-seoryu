@@ -31,12 +31,9 @@ export const viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
-  // viewport-fit: cover(edge-to-edge) 제거 → 설치앱에서도 시스템 내비바가 일반
-  // 불투명 바가 되어 안드로이드 light 테마 기본(밝은 바 + 어두운 아이콘)을 따른다.
+  viewportFit: "cover" as const,
   interactiveWidget: "resizes-content" as const,
   themeColor: "#eef1f6",
-  // 밝은 모드 명시 → OS가 밝은 시스템 바에 어두운(검정) 아이콘을 쓰도록 유도
-  colorScheme: "light" as const,
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
