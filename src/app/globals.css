@@ -1065,6 +1065,7 @@ input[type="password"]::placeholder {
   color: var(--ink);
   font-weight: 700;
   overflow: visible;
+  transform: none; /* 기본 __text의 아래쪽 쏠림(translateY) 제거 → 블록 세로 중앙정렬 */
 }
 .odoc-hotspot__caret {
   width: 6%;
