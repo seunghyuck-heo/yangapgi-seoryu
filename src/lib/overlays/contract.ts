@@ -16,7 +16,9 @@ export const contractOverlay: OverlayDoc = {
     // 대여 종료일: 인쇄된 "계약 종료 시까지"를 가리고, 시작일 + 90일 자동계산 날짜(20 __년 __월 __일)로 표기.
     // baseGroup=rental_start + autoTodayOffsetDays=89(시작일 포함 90일) → PDF/폼 모두 시작일 기준 파생. 편집 불가(autoToday).
     // "20"은 우측정렬로 연도에 붙이고(2027처럼), 가림 박스는 글자 높이에 맞춰 낮게(표 가로선 유지).
-    { key: "rental_end_cover", type: "text", x: 66.8, y: 12.15, w: 28.4, h: 1.5, cover: true },
+    { key: "rental_end_cover", type: "text", x: 65.5, y: 12.15, w: 29.7, h: 1.5, cover: true },
+    // 시작일~종료일 사이 물결표. 인쇄된 "~"가 가림박스에 가려지므로 깔끔한 "~"를 그 위에 얹는다.
+    { key: "rental_tilde", type: "text", x: 65, y: 12.1, w: 4, h: 1.4, staticText: "~", align: "center", fontPct: 1.6 },
     { key: "rental_end_20", type: "text", x: 66.5, y: 12.1, w: 5, h: 1.4, staticText: "20", align: "right", fontPct: 1.5 },
     { key: "rental_end_year", type: "text", x: 71.7, y: 12.1, w: 4, h: 1.4, label: "대여 종료일", dateGroup: "rental_end", datePart: "y", align: "left", autoToday: true, baseGroup: "rental_start", autoTodayOffsetDays: 89 },
     { key: "rental_end_year_lbl", type: "text", x: 74.4, y: 12.1, w: 3, h: 1.4, staticText: "년", align: "center", fontPct: 1.5 },
@@ -74,4 +76,15 @@ export const contractOverlay: OverlayDoc = {
     { key: "patient_phone", type: "text", x: 56.4, y: 97.5, w: 15, h: 1.4, label: "연락처", prefix: "010-", hidePrefixOnDoc: true, dashPattern: [4, 4], align: "left" },
     { key: "patient_emergency_phone", type: "text", x: 82.9, y: 97.5, w: 14, h: 1.4, label: "비상연락처", prefix: "010-", hidePrefixOnDoc: true, dashPattern: [4, 4], align: "left" },
   ],
+};
+
+// 순응 후 표준계약서 — 표준계약서와 동일하되 '대여 종료일'만 시작일 + 1년(시작일을 1일차로 → +1년 -1일)으로 파생.
+// (순응 전 표준계약서는 시작일 + 89일 = 90일. 순응 후는 1년.)
+export const contractAfterOverlay: OverlayDoc = {
+  ...contractOverlay,
+  fields: contractOverlay.fields.map((f) =>
+    f.key === "rental_end_year" || f.key === "rental_end_month" || f.key === "rental_end_day"
+      ? { ...f, autoTodayOffsetYears: 1, autoTodayOffsetDays: -1 }
+      : f
+  ),
 };
