@@ -134,20 +134,25 @@ async function attachDocsAndInfo(
   const ids = patientsRows.map((p) => p.id);
   if (ids.length === 0) return [];
 
-  const { data: documents, error: docsError } = await supabase
-    .from("documents")
-    .select("id, patient_id, doc_type, status, file_path, completed_at, updated_at")
-    .in("patient_id", ids);
-  if (docsError) throw new Error(docsError.message);
-
-  // 고객번호·증명사진 경로는 id_card form_data에, 생년월일(주민번호 앞6)은 신분증/급여신청서/위임장에 있을 수 있음.
-  // 신분증 OCR이 틀릴 수 있어, 직원이 수기 입력한 급여신청서(patient_rrn)·위임장(insured_rrn) 주민번호도 함께 본다.
-  const { data: infoDocs, error: idErr } = await supabase
-    .from("documents")
-    .select("patient_id, doc_type, form_data")
-    .in("doc_type", ["id_card", "subsidy_application", "power_of_attorney"])
-    .in("patient_id", ids);
-  if (idErr) throw new Error(idErr.message);
+  // 독립적인 Supabase 쿼리 4개를 병렬 실행(순차 → 병렬로 목록 로딩 지연 대폭 단축).
+  //  ① 문서 상태(경량)  ② 신분증/급여/위임 form_data(번호·생년월일)  ③ 고객시트 인덱스  ④ 동명이인 전역 순번
+  const [docsRes, infoRes, custIndex, globalDupRanks] = await Promise.all([
+    supabase
+      .from("documents")
+      .select("id, patient_id, doc_type, status, file_path, completed_at, updated_at")
+      .in("patient_id", ids),
+    supabase
+      .from("documents")
+      .select("patient_id, doc_type, form_data")
+      .in("doc_type", ["id_card", "subsidy_application", "power_of_attorney"])
+      .in("patient_id", ids),
+    buildCustomerIndex(supabase),
+    buildNameDupRanks(supabase),
+  ]);
+  if (docsRes.error) throw new Error(docsRes.error.message);
+  if (infoRes.error) throw new Error(infoRes.error.message);
+  const documents = docsRes.data;
+  const infoDocs = infoRes.data;
 
   const fdByPatient = new Map<string, Record<string, Record<string, unknown>>>();
   for (const d of infoDocs ?? []) {
@@ -175,9 +180,7 @@ async function attachDocsAndInfo(
     });
   }
 
-  // 고객 시트(customers)와 이름·생년월일6·전화번호로 실시간 매칭 → 시트를 나중에 갱신해도 목록 번호가 반영됨
-  const custIndex = await buildCustomerIndex(supabase);
-
+  // custIndex(고객시트 인덱스)는 위 Promise.all에서 병렬로 미리 조회함.
   const documentsByPatient = new Map<string, PatientDocument[]>();
   for (const doc of documents ?? []) {
     const list = documentsByPatient.get(doc.patient_id) ?? [];
@@ -212,10 +215,8 @@ async function attachDocsAndInfo(
     }
   }
 
-  // 동명이인 번호(전역): 환자보기 전체에서 같은 이름이 2명 이상이면 등록순(먼저 등록=1)으로
-  // (1)(2)(3)…을 붙인다. 페이지 분할·시트 매칭과 무관하게 전체 환자 기준으로 계산하므로,
-  // 두 동명이인이 서로 다른 페이지에 있어도 정확히 매겨진다.
-  const globalDupRanks = await buildNameDupRanks(supabase);
+  // 동명이인 번호(전역, 위 Promise.all에서 병렬 조회함): 같은 이름 2명↑이면 등록순 (1)(2)(3)….
+  // 페이지 분할·시트 매칭과 무관하게 전체 환자 기준으로 계산하므로, 서로 다른 페이지여도 정확.
   for (const p of result) {
     const r = globalDupRanks.get(p.id);
     if (r != null) p.name_dup_rank = r; // 전역 등록순이 최우선(사용자 규칙). 단독 환자는 위 시트기반 rank 유지.
@@ -322,13 +323,14 @@ export async function listPatients(opts?: {
     if (fb.patients.length > 0) return fb;
   }
 
-  const patients = await attachDocsAndInfo(supabase, rows);
+  // 목록 가공과 총원 count는 서로 독립 → 병렬 실행
+  const [patients, cntRes] = await Promise.all([
+    attachDocsAndInfo(supabase, rows),
+    supabase.rpc("count_registered_patients", { p_search: search }),
+  ]);
 
   let total = offset + rows.length;
-  const { data: cnt, error: cntErr } = await supabase.rpc("count_registered_patients", {
-    p_search: search,
-  });
-  if (!cntErr && cnt != null) total = Number(cnt);
+  if (!cntRes.error && cntRes.data != null) total = Number(cntRes.data);
 
   return { patients, total, hasMore: offset + rows.length < total };
 }
