@@ -33,9 +33,9 @@ export const viewport = {
   maximumScale: 1,
   viewportFit: "cover" as const,
   interactiveWidget: "resizes-content" as const,
-  // 삼성 One UI: theme_color가 '충분히 밝지' 않으면(예: #eef1f6) 하단 내비 아이콘이 흰색으로 남음.
-  // 앱 배경(#eef1f6)과 거의 같은 '차가운 near-white'이면서 흰색에 충분히 가까운 값 → 아이콘 검정 + 상단도 앱색과 거의 동일.
-  themeColor: "#f5f8fd",
+  // 삼성 One UI: theme_color가 '충분히 밝지' 않으면 하단 내비 아이콘이 흰색으로 남음(안 보임).
+  // 검증된 값 #f8f9f4(순수 흰색 아님) → 하단 아이콘 검정. (#f5f8fd/#eef1f6은 이 기기 기준 부족)
+  themeColor: "#f8f9f4",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
