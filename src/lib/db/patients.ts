@@ -34,16 +34,49 @@ interface CustomerRec {
 export type CustomerIndex = Map<string, CustomerRec[]>; // 이름(공백제거) → 후보 목록
 
 // customers(구글시트 동기화) 테이블을 이름 기준 인덱스로 로드(동명이인 대비 후보 배열)
-async function buildCustomerIndex(
+// ── 서버 인메모리 캐시(워밍된 서버리스 인스턴스 수명 동안 유효) ─────────────
+// 고객 인덱스/동명이인 순번은 화면 이동마다 '전체 테이블'을 다시 읽던 병목이었다.
+// owner별로 짧은 TTL 동안 캐시해 반복 재다운로드를 없앤다.
+// 쓰기(환자 생성/수정/삭제, 고객 동기화) 시 무효화하고, 그 외엔 TTL로 자동 갱신.
+const INDEX_CACHE_TTL_MS = 60_000; // 60초
+const custIndexCache = new Map<string, { at: number; value: CustomerIndex }>();
+const dupRanksCache = new Map<string, { at: number; value: Map<string, number> }>();
+
+// 캐시 키(owner) — 세션 쿠키에서 즉시 추출(네트워크 없음). 멀티 계정 데이터 격리.
+async function getOwnerId(
   supabase: Awaited<ReturnType<typeof getSupabaseServerClient>>
+): Promise<string> {
+  try {
+    const { data } = await supabase.auth.getSession();
+    return data.session?.user?.id ?? "anon";
+  } catch {
+    return "anon";
+  }
+}
+
+/** 환자 생성/수정/삭제 후 동명이인 순번 캐시 무효화(즉시 최신 반영) */
+export function invalidatePatientCaches(): void {
+  dupRanksCache.clear();
+}
+/** 고객 시트 동기화 후 고객 인덱스 캐시 무효화 */
+export function invalidateCustomerCache(): void {
+  custIndexCache.clear();
+}
+
+async function buildCustomerIndex(
+  supabase: Awaited<ReturnType<typeof getSupabaseServerClient>>,
+  ownerId: string
 ): Promise<CustomerIndex> {
+  const cached = custIndexCache.get(ownerId);
+  if (cached && Date.now() - cached.at < INDEX_CACHE_TTL_MS) return cached.value;
+
   const index: CustomerIndex = new Map();
   try {
     const { data, error } = await supabase
       .from("customers")
       .select("customer_no,name,birth6,phone")
       .range(0, 19999);
-    if (error || !data) return index;
+    if (error || !data) return index; // 실패 시 캐시하지 않음(다음에 재시도)
     for (const c of data as { customer_no: number; name: string; birth6: string; phone: string }[]) {
       if (!c.name) continue;
       const key = normName(c.name);
@@ -52,6 +85,7 @@ async function buildCustomerIndex(
       if (list) list.push(rec);
       else index.set(key, [rec]);
     }
+    custIndexCache.set(ownerId, { at: Date.now(), value: index }); // 성공 시에만 캐시
   } catch {
     // customers 테이블 없거나 조회 실패 → 매칭 생략(저장된 번호만 사용)
   }
@@ -137,6 +171,8 @@ async function attachDocsAndInfo(
 
   // 독립적인 Supabase 쿼리 4개를 병렬 실행(순차 → 병렬로 목록 로딩 지연 대폭 단축).
   //  ① 문서 상태(경량)  ② 신분증/급여/위임 form_data(번호·생년월일)  ③ 고객시트 인덱스  ④ 동명이인 전역 순번
+  //  ③④는 owner별 캐시(TTL 60초)라 매번 전체 테이블을 다시 읽지 않음.
+  const ownerId = await getOwnerId(supabase);
   const [docsRes, infoRes, custIndex, globalDupRanks] = await Promise.all([
     supabase
       .from("documents")
@@ -147,8 +183,8 @@ async function attachDocsAndInfo(
       .select("patient_id, doc_type, form_data")
       .in("doc_type", ["id_card", "subsidy_application", "power_of_attorney"])
       .in("patient_id", ids),
-    buildCustomerIndex(supabase),
-    buildNameDupRanks(supabase),
+    buildCustomerIndex(supabase, ownerId),
+    buildNameDupRanks(supabase, ownerId),
   ]);
   if (docsRes.error) throw new Error(docsRes.error.message);
   if (infoRes.error) throw new Error(infoRes.error.message);
@@ -229,14 +265,18 @@ async function attachDocsAndInfo(
 // 환자보기 전체에서 이름이 겹치는(동명이인) 환자들에게 등록순 번호를 매긴다.
 // patientId → 순번(1부터). 같은 이름이 1명뿐이면 포함하지 않음(단독은 시트기반 rank에 맡김).
 async function buildNameDupRanks(
-  supabase: Awaited<ReturnType<typeof getSupabaseServerClient>>
+  supabase: Awaited<ReturnType<typeof getSupabaseServerClient>>,
+  ownerId: string
 ): Promise<Map<string, number>> {
+  const cached = dupRanksCache.get(ownerId);
+  if (cached && Date.now() - cached.at < INDEX_CACHE_TTL_MS) return cached.value;
+
   const ranks = new Map<string, number>();
   const { data, error } = await supabase
     .from("patients")
     .select("id, name, created_at")
     .range(0, 19999);
-  if (error || !data) return ranks;
+  if (error || !data) return ranks; // 실패 시 캐시하지 않음
   const groups = new Map<string, { id: string; created_at: string }[]>();
   for (const p of data as { id: string; name: string; created_at: string }[]) {
     const key = normName(p.name);
@@ -250,6 +290,7 @@ async function buildNameDupRanks(
     g.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
     g.forEach((p, i) => ranks.set(p.id, i + 1));
   }
+  dupRanksCache.set(ownerId, { at: Date.now(), value: ranks });
   return ranks;
 }
 
@@ -401,11 +442,12 @@ export async function getPatient(id: string): Promise<PatientWithDocuments | nul
 
   // 독립 쿼리 4개를 병렬 실행(순차 → 병렬로 상세 진입 지연 단축):
   //  환자행 · 환자 문서(전체) · 고객시트 인덱스 · 동명이인 전역순번
+  const ownerId = await getOwnerId(supabase);
   const [patientRes, docsRes, custIndex, globalDupRanks] = await Promise.all([
     supabase.from("patients").select("*").eq("id", id).maybeSingle(),
     supabase.from("documents").select("*").eq("patient_id", id),
-    buildCustomerIndex(supabase),
-    buildNameDupRanks(supabase),
+    buildCustomerIndex(supabase, ownerId),
+    buildNameDupRanks(supabase, ownerId),
   ]);
   if (patientRes.error) throw new Error(patientRes.error.message);
   const patient = patientRes.data;
@@ -477,6 +519,7 @@ export async function createPatient(input: {
     .select("*")
     .single();
   if (error) throw new Error(error.message);
+  invalidatePatientCaches(); // 새 환자 → 동명이인 순번 즉시 갱신
   return data as Patient;
 }
 
@@ -492,6 +535,7 @@ export async function updatePatient(
     .select("*")
     .single();
   if (error) throw new Error(error.message);
+  invalidatePatientCaches(); // 이름 변경 등 → 동명이인 순번 즉시 갱신
   return data as Patient;
 }
 
@@ -499,4 +543,5 @@ export async function deletePatient(id: string): Promise<void> {
   const supabase = await getSupabaseServerClient();
   const { error } = await supabase.from("patients").delete().eq("id", id);
   if (error) throw new Error(error.message);
+  invalidatePatientCaches(); // 삭제 → 동명이인 순번 즉시 갱신
 }

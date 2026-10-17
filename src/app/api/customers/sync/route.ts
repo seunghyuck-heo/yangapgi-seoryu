@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { invalidateCustomerCache } from "@/lib/db/patients";
 
 export const runtime = "nodejs";
 
@@ -130,6 +131,7 @@ export async function GET(request: Request) {
       const ins = await supabase.from("customers").insert(rows);
       if (ins.error) throw new Error(`입력 실패: ${ins.error.message}`);
     }
+    invalidateCustomerCache(); // 고객 시트 갱신 → 번호 매칭 캐시 무효화
 
     return NextResponse.json({ ok: true, count: rows.length, skippedYellow });
   } catch (e) {
