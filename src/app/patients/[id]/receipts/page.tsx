@@ -145,6 +145,21 @@ export default function ReceiptsPage({ params }: Props) {
     else router.push(`/patients/${id}`);
   }
 
+  const addButton = !editMode ? (
+    <button
+      type="button"
+      className="receipts-page__add"
+      onClick={() => setSheetOpen(true)}
+      disabled={uploading}
+    >
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+        <line x1="12" y1="5" x2="12" y2="19" />
+        <line x1="5" y1="12" x2="19" y2="12" />
+      </svg>
+      {uploading ? "업로드 중..." : "영수증 추가"}
+    </button>
+  ) : null;
+
   return (
     <div className="receipts-page">
       <div className="doc-page__toolbar no-print">
@@ -159,7 +174,7 @@ export default function ReceiptsPage({ params }: Props) {
           className="app-header__action receipts-page__edit-btn"
           aria-label="편집"
           onClick={() => (editMode ? exitEdit() : setEditMode(true))}
-          disabled={receipts.length === 0}
+          disabled={!loading && receipts.length === 0}
         >
           {editMode ? (
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
@@ -174,28 +189,20 @@ export default function ReceiptsPage({ params }: Props) {
         </button>
       </div>
 
-      {!editMode && (
-        <button
-          type="button"
-          className="receipts-page__add"
-          onClick={() => setSheetOpen(true)}
-          disabled={uploading}
-        >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-          {uploading ? "업로드 중..." : "영수증 추가"}
-        </button>
-      )}
-
       {error && <div className="error-banner">{error}</div>}
 
-      {!loading && receipts.length === 0 ? (
-        <p className="receipts-page__empty">등록된 영수증이 없습니다. 위 “영수증 추가”로 사진을 올리세요.</p>
+      {receipts.length === 0 ? (
+        <div className="receipts-page__center">
+          {addButton}
+          {!loading && (
+            <p className="receipts-page__empty">등록된 영수증이 없습니다. 위 “영수증 추가”로 사진을 올리세요.</p>
+          )}
+        </div>
       ) : (
-        <div className="receipts-grid">
-          {receipts.map((r) => {
+        <>
+          {addButton}
+          <div className="receipts-grid">
+            {receipts.map((r) => {
             const checked = selected.has(r.path);
             return (
               <button
@@ -217,8 +224,9 @@ export default function ReceiptsPage({ params }: Props) {
                 )}
               </button>
             );
-          })}
-        </div>
+            })}
+          </div>
+        </>
       )}
 
       {editMode && (
