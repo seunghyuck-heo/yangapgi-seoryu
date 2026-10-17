@@ -165,10 +165,11 @@ export default function SubmitPage() {
           onRegistered={preview ? undefined : handleRegistered}
         />
 
-        {/* 위임장 리스트 하단(20px): '현재 작성 중인 환자' — 환자보기와 동일한 행/탭 동작.
-            완료되면 목록에서 자동으로 사라진다. */}
+        {/* 위임장 리스트 하단: '현재 작성 중인 환자' — 환자보기와 동일한 행/탭 동작.
+            서브헤더+리스트를 한 컨테이너로 묶어, 부모(.tab-page__body)의 flex gap(24px)이
+            둘 사이에 끼지 않게 하고 서브헤더가 리스트에 붙도록 함. 완료되면 자동으로 사라짐. */}
         {!preview && inProgress.length > 0 && (
-          <>
+          <div className="submit-inprogress">
             <h2 className="patient-detail-page__subhead">현재 작성 중인 환자</h2>
             <ul className="patient-list">
               {inProgress.map((patient) => (
@@ -179,7 +180,7 @@ export default function SubmitPage() {
                 </li>
               ))}
             </ul>
-          </>
+          </div>
         )}
       </div>
 

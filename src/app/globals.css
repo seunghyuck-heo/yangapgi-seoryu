@@ -2092,6 +2092,18 @@ input[type="password"]::placeholder {
   margin-top: 0;
 }
 
+/* 서식제출 '현재 작성 중인 환자' 섹션: 서브헤더가 리스트에 붙게(환자 상세와 동일 느낌).
+   부모 .tab-page__body의 flex gap(24px)은 이 컨테이너 '위'에만 들어가고,
+   컨테이너 안 서브헤더↔리스트 간격은 10px. (서브헤더 margin-top은 여기선 0) */
+.submit-inprogress {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.submit-inprogress .patient-detail-page__subhead {
+  margin-top: 0;
+}
+
 /* ===== 양압기 환자관리카드 (A4 재현) ===== */
 .carecard-wrap {
   width: 100%;
