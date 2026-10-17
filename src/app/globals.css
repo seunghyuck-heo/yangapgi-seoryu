@@ -2882,12 +2882,12 @@ input[type="password"]::placeholder {
   align-items: center;
   gap: 24px;
 }
-/* '직접 완료' 텍스트 버튼 — 켜지면 초록(완료)색 */
+/* '직접 완료' 텍스트 버튼 — 기본은 파란색(PDF와 동일), 켜지면(✓) 초록(완료)색 */
 .patient-detail-page__manual {
   padding: 6px 4px;
   border: none;
   background: transparent;
-  color: var(--ink-soft);
+  color: var(--brand-dark);
   font-size: 14px;
   font-weight: 700;
   letter-spacing: -0.01em;
