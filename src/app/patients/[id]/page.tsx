@@ -61,12 +61,14 @@ export default function PatientDetailPage({ params }: PatientDetailPageProps) {
 
   function handleOpenBundle() {
     if (!patient) return;
-    const notDone = DOC_TYPE_ORDER.filter((dt) => {
+    // 5개 전부가 아니라, 완료된 서류가 1개라도 있으면 PDF 출력 허용.
+    // (뷰어는 완료된 서류만 렌더/다운로드하므로 작성된 것만 나온다.)
+    const completedCount = DOC_TYPE_ORDER.filter((dt) => {
       const doc = patient.documents.find((d) => d.doc_type === dt);
-      return doc?.status !== "completed";
+      return doc?.status === "completed";
     }).length;
-    if (notDone > 0) {
-      showToast(`${notDone}개가 아직 완료되지 않았습니다.`);
+    if (completedCount === 0) {
+      showToast("완료된 서류가 아직 없습니다.");
       return;
     }
     setShowBundle(true);
