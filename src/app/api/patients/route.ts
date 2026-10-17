@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createPatient, listPatients, countRegisteredPatients } from "@/lib/db/patients";
+import { createPatient, listPatients, countRegisteredPatients, listInProgressPatients } from "@/lib/db/patients";
 
 export async function GET(request: NextRequest) {
   try {
     const sp = request.nextUrl.searchParams;
     const search = sp.get("q") ?? undefined;
+
+    // 서식제출 하단 문구용: '작성 중'(미완료) 환자 목록
+    if (sp.get("inprogress") === "1") {
+      const inProgress = await listInProgressPatients();
+      return NextResponse.json({ inProgress });
+    }
 
     // 배지용: 총원만 가볍게
     if (sp.get("count") === "1") {

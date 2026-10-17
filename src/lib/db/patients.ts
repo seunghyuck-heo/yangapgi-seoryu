@@ -2,6 +2,7 @@ import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { Patient, PatientDocument, PatientWithDocuments } from "./types";
 import { createSignedUrls } from "./documents";
 import { isRegisteredPatient } from "@/lib/patientStatus";
+import { DOC_TYPE_ORDER } from "@/lib/templates/types";
 
 export interface ListPatientsResult {
   patients: PatientWithDocuments[];
@@ -333,6 +334,39 @@ export async function listPatients(opts?: {
   if (!cntRes.error && cntRes.data != null) total = Number(cntRes.data);
 
   return { patients, total, hasMore: offset + rows.length < total };
+}
+
+/** 서식제출 화면 하단 문구용: '작성 중'(필수 5종 중 하나라도 저장했으나 전부 완료되진
+ *  않은) 환자들의 {id, name}을 등록(created_at) 순으로 반환. 5종 모두 완료되면 빠진다. */
+export async function listInProgressPatients(): Promise<{ id: string; name: string }[]> {
+  const supabase = await getSupabaseServerClient();
+  const { data: docs, error } = await supabase
+    .from("documents")
+    .select("patient_id, doc_type, status, file_path")
+    .in("doc_type", DOC_TYPE_ORDER);
+  if (error) throw new Error(error.message);
+
+  type DocRow = { patient_id: string; doc_type: string; status: string; file_path: string | null };
+  const agg = new Map<string, { completed: Set<string>; registered: boolean }>();
+  for (const d of (docs ?? []) as DocRow[]) {
+    const e = agg.get(d.patient_id) ?? { completed: new Set<string>(), registered: false };
+    if (d.status === "completed") e.completed.add(d.doc_type);
+    if (d.status === "completed" || d.status === "draft" || d.file_path) e.registered = true;
+    agg.set(d.patient_id, e);
+  }
+  const ids: string[] = [];
+  for (const [pid, e] of agg) {
+    if (e.registered && e.completed.size < DOC_TYPE_ORDER.length) ids.push(pid);
+  }
+  if (ids.length === 0) return [];
+
+  const { data: pts, error: e2 } = await supabase
+    .from("patients")
+    .select("id, name, created_at")
+    .in("id", ids)
+    .order("created_at", { ascending: true });
+  if (e2) throw new Error(e2.message);
+  return ((pts ?? []) as { id: string; name: string }[]).map((p) => ({ id: p.id, name: p.name }));
 }
 
 // 배지용: 등록 환자 총원만 (문서 조회 없이 가볍게)
