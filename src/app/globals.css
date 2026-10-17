@@ -669,6 +669,11 @@ input[type="password"]::placeholder {
   gap: 24px;
 }
 
+/* 서식제출: 가이드 문구↔리스트 간격 24px (헤더 아래패딩 14 + 본문 위패딩 10) */
+.tab-page--submit .tab-page__body {
+  padding-top: 10px;
+}
+
 .section-heading {
   font-size: 15px;
   font-weight: 700;

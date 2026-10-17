@@ -148,7 +148,7 @@ export default function SubmitPage() {
   }
 
   return (
-    <div className="tab-page">
+    <div className="tab-page tab-page--submit">
       <header className="app-header">
         <div className="app-header__row">
           <h1 className="app-header__title">양압기 서류계약</h1>
