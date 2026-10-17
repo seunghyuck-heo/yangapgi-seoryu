@@ -12,11 +12,9 @@ export default function SubmitPage() {
   const { user, loading } = useUser();
   const [patientId, setPatientId] = useState<string | null>(null);
   const [inProgress, setInProgress] = useState<PatientWithDocuments[]>([]);
-  const [toast, setToast] = useState<string | null>(null);
   const [renameTarget, setRenameTarget] = useState<{ id: string; value: string } | null>(null);
   const [renameSaving, setRenameSaving] = useState(false);
   const creatingRef = useRef<Promise<string | null> | null>(null);
-  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const refreshRef = useRef<() => void>(() => {});
 
   const preview = !loading && !user;
@@ -65,12 +63,6 @@ export default function SubmitPage() {
     if (user) refreshRef.current();
   }, [user]);
 
-  function showToast(msg: string) {
-    setToast(msg);
-    if (toastTimer.current) clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => setToast(null), 2200);
-  }
-
   // '작성 중' 리스트의 '새 환자' 행에서 이름 입력(환자보기와 동일 동작)
   async function saveRename() {
     if (!renameTarget) return;
@@ -93,14 +85,6 @@ export default function SubmitPage() {
     } finally {
       setRenameSaving(false);
     }
-  }
-
-  // 타이틀 우측 '+': 현재 작성 흐름을 끊고 새 환자로 다시 시작한다(지연 생성이라 다음 저장
-  // 행동부터 새 폴더). 작성 중이던 환자는 아래 '작성 중' 리스트에 그대로 남는다.
-  function handleNewPatient() {
-    setPatientId(null);
-    creatingRef.current = null;
-    showToast("새 환자로 시작합니다.");
   }
 
   // 신분증 등록(정식 등록)이 끝나면: 위 서식은 새 환자로 리셋하고(위 파일 = 항상 새 환자),
@@ -142,12 +126,6 @@ export default function SubmitPage() {
       <header className="app-header">
         <div className="app-header__row">
           <h1 className="app-header__title">양압기 서류계약</h1>
-          <button type="button" className="app-header__action" aria-label="새 환자 시작" onClick={handleNewPatient}>
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-          </button>
         </div>
         <p className="app-header__desc">
           아래의 서식들을 작성하여 제출하시면 자동으로 환자 보기에서 환자명으로 폴더가 만들어
@@ -225,8 +203,6 @@ export default function SubmitPage() {
           </div>
         </div>
       )}
-
-      {toast && <div className="toast no-print">{toast}</div>}
 
       <BottomTabs />
     </div>
