@@ -192,7 +192,7 @@ export default function ReceiptsPage({ params }: Props) {
 
       {error && <div className="error-banner">{error}</div>}
 
-      {receipts.length === 0 ? (
+      {receipts.length === 0 && !uploading ? (
         <div className="receipts-page__center">
           {!loading && (
             <p className="receipts-page__empty">
@@ -205,6 +205,12 @@ export default function ReceiptsPage({ params }: Props) {
       ) : (
         <>
           <div className="receipts-grid">
+            {uploading && (
+              <div className="receipt-cell receipt-cell--uploading" aria-hidden>
+                <span className="receipt-spinner" />
+                <span className="receipt-cell__uploading-text">업로드 중</span>
+              </div>
+            )}
             {receipts.map((r) => {
             const checked = selected.has(r.path);
             return (
