@@ -2894,7 +2894,20 @@ input[type="password"]::placeholder {
   cursor: pointer;
   white-space: nowrap;
 }
-.patient-detail-page__manual.is-on {
+/* 탭/호버/포커스해도 색 안 바뀌게 고정(기본 파랑). PDF 버튼과 동일 처리 */
+.patient-detail-page__manual:hover:not(:disabled),
+.patient-detail-page__manual:focus,
+.patient-detail-page__manual:focus-visible,
+.patient-detail-page__manual:active:not(:disabled) {
+  color: var(--brand-dark);
+  background: transparent;
+}
+/* 직접 완료(✓) 상태: 모든 상태에서 초록 고정 → 탭 직후에도 바로 초록 */
+.patient-detail-page__manual.is-on,
+.patient-detail-page__manual.is-on:hover:not(:disabled),
+.patient-detail-page__manual.is-on:focus,
+.patient-detail-page__manual.is-on:focus-visible,
+.patient-detail-page__manual.is-on:active:not(:disabled) {
   color: var(--success);
 }
 .patient-detail-page__manual:disabled {
