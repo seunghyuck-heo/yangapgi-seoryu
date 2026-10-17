@@ -2082,7 +2082,7 @@ input[type="password"]::placeholder {
 
 /* 지속 관리 서류 서브헤더 */
 .patient-detail-page__subhead {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   letter-spacing: -0.02em;
   margin-top: 20px;
