@@ -271,6 +271,22 @@ export default function PatientDetailPage({ params }: PatientDetailPageProps) {
             </li>
           );
         })()}
+        <li>
+          <Link href={`/patients/${id}/receipts?add=1`} className="doc-row">
+            <span className="doc-row__icon" style={{ background: "#e8833a", color: "#fff" }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 2v20l3-2 3 2 2-2 2 2 3-2 3 2V2l-3 2-3-2-2 2-2-2-3 2z" />
+                <path d="M8 9h8M8 13h5" />
+              </svg>
+            </span>
+            <span className="doc-row__title">마스크 영수증 추가</span>
+            <span className="doc-row__chevron" aria-hidden>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 18l6-6-6-6" />
+              </svg>
+            </span>
+          </Link>
+        </li>
       </ul>
 
       {toast && <div className="toast no-print">{toast}</div>}
