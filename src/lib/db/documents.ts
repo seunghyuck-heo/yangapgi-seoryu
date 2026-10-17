@@ -19,6 +19,17 @@ export async function getDocument(
   return (data as PatientDocument) ?? null;
 }
 
+/** 한 환자의 모든 서류를 조회(PDF 묶음 등 문서만 필요할 때 — 고객시트/동명이인 로드 없이 가볍게). */
+export async function listPatientDocuments(patientId: string): Promise<PatientDocument[]> {
+  const supabase = await getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("documents")
+    .select("*")
+    .eq("patient_id", patientId);
+  if (error) throw new Error(error.message);
+  return (data ?? []) as PatientDocument[];
+}
+
 export async function upsertDocument(
   patientId: string,
   docType: DocType,

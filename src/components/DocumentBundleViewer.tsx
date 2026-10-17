@@ -118,25 +118,31 @@ export default function DocumentBundleViewer({
         if (!res.ok) throw new Error(json.error || "이미지를 불러오지 못했습니다");
         const imgMap: Record<string, string> = json.images ?? {};
 
-        const out: Page[] = [];
-        for (const docType of DOC_TYPE_ORDER) {
-          const doc = documents.find((d) => d.doc_type === docType);
-          if (!doc || doc.status !== "completed") continue;
-          const label = DOC_TYPE_LABELS[docType];
-          const completedAt = doc.completed_at ? new Date(doc.completed_at) : new Date();
+        // 완료된 서류만 순서대로 추려 병렬 렌더(한 장씩 직렬로 그리던 지연 제거).
+        // 배경 이미지 로드·캔버스 그리기가 겹쳐 실행되고, 결과는 원래 순서로 정렬해 반환.
+        const completed = DOC_TYPE_ORDER.map((docType) => ({
+          docType,
+          doc: documents.find((d) => d.doc_type === docType && d.status === "completed"),
+        })).filter((e) => e.doc);
 
-          let canvas: HTMLCanvasElement | null = null;
-          if (docType === "id_card") {
-            const path = doc.file_path;
-            if (path && imgMap[path]) canvas = await renderImagePage(imgMap[path]);
-          } else {
-            const overlay = getOverlayDoc(docType);
-            if (overlay) canvas = await renderOverlayPage(overlay, doc.form_data ?? {}, imgMap, completedAt);
-          }
-          if (canvas) {
-            out.push({ docType, label, canvas, dataUrl: canvas.toDataURL("image/jpeg", 0.9) });
-          }
-        }
+        const rendered = await Promise.all(
+          completed.map(async ({ docType, doc }) => {
+            const label = DOC_TYPE_LABELS[docType];
+            const completedAt = doc!.completed_at ? new Date(doc!.completed_at) : new Date();
+            let canvas: HTMLCanvasElement | null = null;
+            if (docType === "id_card") {
+              const path = doc!.file_path;
+              if (path && imgMap[path]) canvas = await renderImagePage(imgMap[path]);
+            } else {
+              const overlay = getOverlayDoc(docType);
+              if (overlay) canvas = await renderOverlayPage(overlay, doc!.form_data ?? {}, imgMap, completedAt);
+            }
+            if (!canvas) return null;
+            return { docType, label, canvas, dataUrl: canvas.toDataURL("image/jpeg", 0.9) } as Page;
+          })
+        );
+        const out = rendered.filter((p): p is Page => p !== null);
+
         if (!cancelled) {
           setPages(out);
           setLoading(false);

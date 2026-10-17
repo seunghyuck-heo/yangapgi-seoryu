@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPatient } from "@/lib/db/patients";
-import { collectStoragePaths, downloadStorageAsDataUrls } from "@/lib/db/documents";
+import { collectStoragePaths, downloadStorageAsDataUrls, listPatientDocuments } from "@/lib/db/documents";
 
 export const runtime = "nodejs";
 
@@ -13,13 +12,11 @@ interface Params {
 export async function GET(_request: NextRequest, { params }: Params) {
   try {
     const { id } = await params;
-    const patient = await getPatient(id);
-    if (!patient) {
-      return NextResponse.json({ error: "환자를 찾을 수 없습니다" }, { status: 404 });
-    }
+    // 묶음 렌더엔 문서만 필요 → 고객시트/동명이인 로드 없는 가벼운 조회(getPatient 대체)
+    const docs = await listPatientDocuments(id);
 
     const paths: string[] = [];
-    for (const doc of patient.documents) {
+    for (const doc of docs) {
       if (doc.status !== "completed") continue;
       for (const p of collectStoragePaths(doc)) paths.push(p);
     }

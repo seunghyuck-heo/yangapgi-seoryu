@@ -1,7 +1,7 @@
 // 양압기 서류계약 PWA 서비스워커
 // - 해시된 정적 자산(_next/static)은 캐시 우선(즉시 응답) → 앱 진입 속도 개선(파일명이 바뀌므로 stale 위험 없음)
 // - HTML/문서 이미지 등은 네트워크 우선(최신 유지), 오프라인이면 캐시
-const VERSION = "v212";
+const VERSION = "v213";
 const RUNTIME_CACHE = `runtime-${VERSION}`;
 
 // 설치 시 최소 셸만 캐시(오프라인 대비)
@@ -39,9 +39,14 @@ self.addEventListener("fetch", (event) => {
   // API / Supabase(데이터·인증·스토리지)는 항상 네트워크 (캐시 금지)
   if (url.pathname.startsWith("/api/") || isSupabase(url)) return;
 
-  // 해시된 정적 자산(_next/static): 캐시 우선 → 있으면 즉시 응답(네트워크 대기 X), 없으면 받아서 캐시.
-  // 내용이 바뀌면 파일명(해시)도 바뀌어 새 HTML이 새 파일을 참조하므로 오래된 파일이 나올 위험이 없음.
-  if (url.origin === self.location.origin && url.pathname.startsWith("/_next/static/")) {
+  // 캐시 우선(있으면 즉시 응답, 네트워크 대기 X):
+  //  - /_next/static: 해시 파일명이라 내용이 바뀌면 파일명도 바뀜(stale 위험 없음)
+  //  - /documents: 서류 배경 JPEG. 수정 시 파일명을 바꾸는 규칙(contract-2→contract-3)이라 동일하게 안전.
+  //    PDF 열 때마다 큰 배경 이미지를 네트워크에서 다시 받던 지연을 없앰.
+  if (
+    url.origin === self.location.origin &&
+    (url.pathname.startsWith("/_next/static/") || url.pathname.startsWith("/documents/"))
+  ) {
     event.respondWith(
       (async () => {
         const cached = await caches.match(req);

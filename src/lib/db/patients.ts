@@ -354,26 +354,25 @@ export async function countRegisteredPatients(search?: string): Promise<number> 
 
 export async function getPatient(id: string): Promise<PatientWithDocuments | null> {
   const supabase = await getSupabaseServerClient();
-  const { data: patient, error } = await supabase
-    .from("patients")
-    .select("*")
-    .eq("id", id)
-    .maybeSingle();
-  if (error) throw new Error(error.message);
+
+  // 독립 쿼리 4개를 병렬 실행(순차 → 병렬로 상세 진입 지연 단축):
+  //  환자행 · 환자 문서(전체) · 고객시트 인덱스 · 동명이인 전역순번
+  const [patientRes, docsRes, custIndex, globalDupRanks] = await Promise.all([
+    supabase.from("patients").select("*").eq("id", id).maybeSingle(),
+    supabase.from("documents").select("*").eq("patient_id", id),
+    buildCustomerIndex(supabase),
+    buildNameDupRanks(supabase),
+  ]);
+  if (patientRes.error) throw new Error(patientRes.error.message);
+  const patient = patientRes.data;
   if (!patient) return null;
+  if (docsRes.error) throw new Error(docsRes.error.message);
+  const docs = (docsRes.data ?? []) as PatientDocument[];
 
-  const { data: documents, error: docsError } = await supabase
-    .from("documents")
-    .select("*")
-    .eq("patient_id", id);
-  if (docsError) throw new Error(docsError.message);
-
-  const docs = (documents ?? []) as PatientDocument[];
   const idDoc = docs.find((d) => d.doc_type === "id_card");
   const subDoc = docs.find((d) => d.doc_type === "subsidy_application");
   const poaDoc = docs.find((d) => d.doc_type === "power_of_attorney");
   const cn = idDoc?.form_data?.customer_no;
-  // 실시간 매칭: 고객시트(이름·생년월일6·전화번호)로 현재 번호 조회 → 시트 갱신 즉시 반영, 동명이인 구분
   // 생년월일6: 직원 수기입력 주민번호(급여신청서→위임장)를 OCR보다 우선. 신분증 OCR은 맨 뒤.
   const idBirth6 =
     pick6(subDoc?.form_data?.patient_rrn) ||
@@ -381,7 +380,6 @@ export async function getPatient(id: string): Promise<PatientWithDocuments | nul
     pick6(idDoc?.form_data?.birth6) ||
     pick6((patient as Patient).resident_number) ||
     null;
-  const custIndex = await buildCustomerIndex(supabase);
   const storedCn = typeof cn === "number" ? cn : null;
   const resolvedCn = resolveCustomerNo(custIndex, (patient as Patient).name, idBirth6, (patient as Patient).phone, storedCn);
 
@@ -407,7 +405,7 @@ export async function getPatient(id: string): Promise<PatientWithDocuments | nul
   }
 
   // 동명이인 번호: 전역 등록순(환자보기와 동일 규칙) 우선, 없으면 시트기반 rank
-  const globalDupRanks = await buildNameDupRanks(supabase);
+  // (globalDupRanks는 상단 Promise.all에서 이미 조회됨)
   const globalRank = globalDupRanks.get(id) ?? null;
 
   return {
