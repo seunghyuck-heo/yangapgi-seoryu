@@ -162,9 +162,10 @@ export default function ReceiptsPage({ params }: Props) {
             <path d="M15 18l-6-6 6-6" />
           </svg>
         </button>
+        <span className="receipts-page__bar-title">마스크 영수증</span>
         <button
           type="button"
-          className="app-header__action"
+          className="app-header__action receipts-page__edit-btn"
           aria-label="편집"
           onClick={() => (editMode ? exitEdit() : setEditMode(true))}
           disabled={receipts.length === 0}
@@ -181,8 +182,6 @@ export default function ReceiptsPage({ params }: Props) {
           )}
         </button>
       </div>
-
-      <h1 className="receipts-page__title">마스크 영수증</h1>
 
       {!editMode && (
         <button

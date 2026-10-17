@@ -280,6 +280,7 @@ export default function PatientDetailPage({ params }: PatientDetailPageProps) {
               </svg>
             </span>
             <span className="doc-row__title">마스크 영수증 추가</span>
+            <span className="doc-row__status" aria-hidden />
             <span className="doc-row__chevron" aria-hidden>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
                 <path d="M9 18l6-6-6-6" />

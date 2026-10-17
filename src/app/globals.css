@@ -2921,20 +2921,29 @@ input[type="password"]::placeholder {
   margin: 0 auto;
   padding: 0 20px calc(var(--tabbar-height) + 32px);
 }
+/* 상세화면과 동일한 백키 위치(패딩 10px 0, 백키 margin-left:10px). 좌→우 정렬 */
 .receipts-page .doc-page__toolbar {
   margin: 0 -20px;
-  padding: 10px 20px;
+  padding: 10px 0;
+  justify-content: flex-start;
 }
-.receipts-page__title {
+.receipts-page__bar-title {
   font-family: var(--font-body);
   font-weight: 800;
-  font-size: 22px;
-  margin: 8px 0 14px;
+  font-size: 18px;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+/* 편집 아이콘은 우측 끝으로 */
+.receipts-page__edit-btn {
+  margin-left: auto;
+  margin-right: 10px;
 }
 .receipts-page__add {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  margin-top: 16px;
   margin-bottom: 16px;
   padding: 10px 16px;
   border: 1px solid var(--brand);
