@@ -8,6 +8,7 @@ import { PatientWithDocuments } from "@/lib/db/types";
 import { DOC_TYPE_LABELS, DOC_TYPE_ORDER } from "@/lib/templates/types";
 import { DOC_ICON_STYLES } from "@/components/docIcons";
 import { PATIENTS_CHANGED_EVENT } from "@/components/BottomTabs";
+import { removeFromInProgressCache } from "@/lib/inProgressCache";
 
 // PDF 묶음 뷰어는 무거워서(오버레이·렌더링 코드) 필요할 때만 로드 → 상세 진입 속도 개선
 const DocumentBundleViewer = dynamic(() => import("@/components/DocumentBundleViewer"), { ssr: false });
@@ -78,6 +79,8 @@ export default function PatientDetailPage({ params }: PatientDetailPageProps) {
         return;
       }
       setPatient((prev) => (prev ? { ...prev, manual_complete: next } : prev));
+      // 서식제출 '작성 중' 공유 캐시에서 즉시 제거 → 돌아갔을 때 재조회 대기 없이 바로 반영
+      if (next) removeFromInProgressCache(id);
       try {
         window.dispatchEvent(new Event(PATIENTS_CHANGED_EVENT));
       } catch {
