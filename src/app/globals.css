@@ -2099,8 +2099,8 @@ input[type="password"]::placeholder {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  /* 부모 .tab-page__body의 flex gap(24px) + margin-top(16px) = 위임장↔서브헤더 간격 40px */
-  margin-top: 16px;
+  /* 부모 .tab-page__body의 flex gap(24px) + margin-top(18px) = 위임장↔서브헤더 간격 42px */
+  margin-top: 18px;
 }
 .submit-inprogress .patient-detail-page__subhead {
   margin-top: 0;

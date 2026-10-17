@@ -1,7 +1,8 @@
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { Patient, PatientDocument, PatientWithDocuments } from "./types";
 import { createSignedUrls } from "./documents";
-import { isRegisteredPatient, isInProgressPatient } from "@/lib/patientStatus";
+import { isRegisteredPatient } from "@/lib/patientStatus";
+import { DOC_TYPE_ORDER } from "@/lib/templates/types";
 
 export interface ListPatientsResult {
   patients: PatientWithDocuments[];
@@ -340,13 +341,38 @@ export async function listPatients(opts?: {
  *  반환. 정렬도 환자보기와 동일(updated_at 내림차순). 5종 모두 완료되면 목록에서 빠진다. */
 export async function listInProgressPatients(): Promise<PatientWithDocuments[]> {
   const supabase = await getSupabaseServerClient();
-  const { data: rows, error } = await supabase
+
+  // 1) 작성 중(등록&미완료) 환자 ID만 가볍게 추린다(필수 5종의 상태/파일만 조회).
+  const { data: docs, error } = await supabase
+    .from("documents")
+    .select("patient_id, doc_type, status, file_path")
+    .in("doc_type", DOC_TYPE_ORDER);
+  if (error) throw new Error(error.message);
+  type DocRow = { patient_id: string; doc_type: string; status: string; file_path: string | null };
+  const agg = new Map<string, { completed: Set<string>; registered: boolean }>();
+  for (const d of (docs ?? []) as DocRow[]) {
+    const e = agg.get(d.patient_id) ?? { completed: new Set<string>(), registered: false };
+    if (d.status === "completed") e.completed.add(d.doc_type);
+    if (d.status === "completed" || d.status === "draft" || d.file_path) e.registered = true;
+    agg.set(d.patient_id, e);
+  }
+  const ids: string[] = [];
+  for (const [pid, e] of agg) {
+    if (e.registered && e.completed.size < DOC_TYPE_ORDER.length) ids.push(pid);
+  }
+  if (ids.length === 0) return [];
+
+  // 2) 그 환자 행만 로드(환자보기와 동일한 정렬: updated_at desc).
+  const { data: rows, error: e2 } = await supabase
     .from("patients")
     .select("*")
+    .in("id", ids)
     .order("updated_at", { ascending: false });
-  if (error) throw new Error(error.message);
-  const all = await attachDocsAndInfo(supabase, (rows ?? []) as Patient[]);
-  return all.filter(isInProgressPatient);
+  if (e2) throw new Error(e2.message);
+
+  // 3) 사진·고유번호·동명이인번호·문서상태를 '작성 중 환자들만' 붙인다.
+  //    (전체 환자에 대해 사진 서명URL을 만들던 기존 방식 대비 크게 빨라짐)
+  return attachDocsAndInfo(supabase, (rows ?? []) as Patient[]);
 }
 
 // 배지용: 등록 환자 총원만 (문서 조회 없이 가볍게)

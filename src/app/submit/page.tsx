@@ -8,10 +8,15 @@ import PatientRowInner from "@/components/PatientRowInner";
 import { PatientWithDocuments } from "@/lib/db/types";
 import { useUser } from "@/lib/supabase/useUser";
 
+// '현재 작성 중인 환자' 목록의 세션 캐시(즉시 표시 → 백그라운드 재검증).
+// 탭 전환/재진입/리로드 시 지난 결과를 바로 보여줘 로딩 지연이 안 느껴지게 한다.
+let inProgressCache: PatientWithDocuments[] | null = null;
+const INPROGRESS_CACHE_KEY = "inprogress_cache_v1";
+
 export default function SubmitPage() {
   const { user, loading } = useUser();
   const [patientId, setPatientId] = useState<string | null>(null);
-  const [inProgress, setInProgress] = useState<PatientWithDocuments[]>([]);
+  const [inProgress, setInProgress] = useState<PatientWithDocuments[]>(inProgressCache ?? []);
   const [renameTarget, setRenameTarget] = useState<{ id: string; value: string } | null>(null);
   const [renameSaving, setRenameSaving] = useState(false);
   const creatingRef = useRef<Promise<string | null> | null>(null);
@@ -35,7 +40,28 @@ export default function SubmitPage() {
         const res = await fetch("/api/patients?inprogress=1");
         if (!res.ok) return;
         const json = await res.json();
-        if (!cancelled) setInProgress(Array.isArray(json.inProgress) ? json.inProgress : []);
+        if (cancelled) return;
+        const list = Array.isArray(json.inProgress) ? (json.inProgress as PatientWithDocuments[]) : [];
+        setInProgress(list);
+        inProgressCache = list;
+        try {
+          sessionStorage.setItem(INPROGRESS_CACHE_KEY, JSON.stringify(list));
+        } catch {
+          // 저장 실패 무시
+        }
+      } catch {
+        // 무시
+      }
+    }
+    // 세션 캐시로 즉시 표시(네트워크 전) → 그 후 아래 refresh로 최신화
+    if (inProgressCache == null) {
+      try {
+        const s = sessionStorage.getItem(INPROGRESS_CACHE_KEY);
+        if (s) {
+          const c = JSON.parse(s) as PatientWithDocuments[];
+          inProgressCache = c;
+          setInProgress(c);
+        }
       } catch {
         // 무시
       }
