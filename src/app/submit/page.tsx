@@ -28,9 +28,9 @@ export default function SubmitPage() {
   // 실제 환자 폴더는 저장 행동(신분증 업로드/서식 진입) 시점에만 만든다(지연 생성).
 
   // '현재 작성 중인 환자'(등록됐지만 5종 전부 완료되진 않은) 목록 → 하단 섹션.
-  // 마운트 시 + 환자 변경 이벤트(신분증 저장 등) 시 갱신. 환자보기에서 완료되면 자동으로 빠진다.
+  // 하단탭 배지처럼 마운트 시 '무조건' 조회(로그인 게이트 제거 — 콜드 스타트에서 게이트 때문에
+  // 첫 조회가 안 되고 네비게이션 후에야 뜨던 문제 해결). 화면 복귀/환자 변경 시에도 갱신.
   useEffect(() => {
-    if (loading || !user) return;
     let cancelled = false;
     async function refresh() {
       try {
@@ -45,7 +45,6 @@ export default function SubmitPage() {
     refreshRef.current = refresh;
     refresh();
     const onChanged = () => refresh();
-    // 화면으로 돌아오거나(다른 탭·상세에서 복귀) 앱이 다시 보이면 최신 상태로 갱신 → 항상 바로 반영
     const onVisible = () => {
       if (document.visibilityState === "visible") refresh();
     };
@@ -58,7 +57,13 @@ export default function SubmitPage() {
       window.removeEventListener("focus", onChanged);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [user, loading]);
+  }, []);
+
+  // 로그인 사용자가 확정되면 한 번 더 조회(콜드 스타트 시 첫 조회가 인증 확정 전이라
+  // 비어서 올 수 있음 → user 준비 직후 보완 조회로 '항상 바로' 표시 보장).
+  useEffect(() => {
+    if (user) refreshRef.current();
+  }, [user]);
 
   function showToast(msg: string) {
     setToast(msg);
