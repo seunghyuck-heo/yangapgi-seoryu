@@ -145,21 +145,6 @@ export default function ReceiptsPage({ params }: Props) {
     else router.push(`/patients/${id}`);
   }
 
-  const addButton = !editMode ? (
-    <button
-      type="button"
-      className="receipts-page__add"
-      onClick={() => setSheetOpen(true)}
-      disabled={uploading}
-    >
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-        <line x1="12" y1="5" x2="12" y2="19" />
-        <line x1="5" y1="12" x2="19" y2="12" />
-      </svg>
-      {uploading ? "업로드 중..." : "영수증 추가"}
-    </button>
-  ) : null;
-
   return (
     <div className="receipts-page">
       <div className="doc-page__toolbar no-print">
@@ -169,38 +154,56 @@ export default function ReceiptsPage({ params }: Props) {
           </svg>
         </button>
         <span className="receipts-page__bar-title">마스크 영수증</span>
-        <button
-          type="button"
-          className="app-header__action receipts-page__edit-btn"
-          aria-label="편집"
-          onClick={() => (editMode ? exitEdit() : setEditMode(true))}
-          disabled={!loading && receipts.length === 0}
-        >
-          {editMode ? (
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
-              <path d="M18 6 6 18M6 6l12 12" />
-            </svg>
-          ) : (
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 20h9" />
-              <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z" />
-            </svg>
+        <div className="receipts-page__bar-actions">
+          {!editMode && (
+            <button
+              type="button"
+              className="app-header__action"
+              aria-label="영수증 추가"
+              onClick={() => setSheetOpen(true)}
+              disabled={uploading}
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+            </button>
           )}
-        </button>
+          <button
+            type="button"
+            className="app-header__action"
+            aria-label="편집"
+            onClick={() => (editMode ? exitEdit() : setEditMode(true))}
+            disabled={!loading && receipts.length === 0}
+          >
+            {editMode ? (
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 6 6 18M6 6l12 12" />
+              </svg>
+            ) : (
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 20h9" />
+                <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z" />
+              </svg>
+            )}
+          </button>
+        </div>
       </div>
 
       {error && <div className="error-banner">{error}</div>}
 
       {receipts.length === 0 ? (
         <div className="receipts-page__center">
-          {addButton}
           {!loading && (
-            <p className="receipts-page__empty">등록된 영수증이 없습니다. 위 “영수증 추가”로 사진을 올리세요.</p>
+            <p className="receipts-page__empty">
+              등록된 영수증이 없습니다.
+              <br />
+              우측 상단 ＋ 버튼으로 사진을 추가하세요.
+            </p>
           )}
         </div>
       ) : (
         <>
-          {addButton}
           <div className="receipts-grid">
             {receipts.map((r) => {
             const checked = selected.has(r.path);

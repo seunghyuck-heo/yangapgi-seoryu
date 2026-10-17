@@ -2945,37 +2945,20 @@ input[type="password"]::placeholder {
   letter-spacing: -0.01em;
   color: var(--ink);
 }
-/* 편집 아이콘은 우측 끝으로 (toolbar>app-header__action의 margin-left보다 우선하도록 구체도↑) */
-.receipts-page .doc-page__toolbar .receipts-page__edit-btn {
+/* 우측 아이콘 그룹(＋·편집): 환자보기 헤더와 동일 — 아이콘 간격 6px, 우측 끝 마진 20px */
+.receipts-page__bar-actions {
   margin-left: auto;
-  margin-right: 10px;
-}
-/* 중앙 정렬 + 기존보다 약 20% 크게 */
-.receipts-page__add {
+  margin-right: 20px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 7px;
-  width: fit-content;
-  margin: 16px auto;
-  padding: 12px 20px;
-  border: 1px solid var(--brand);
-  border-radius: var(--radius-md);
-  background: var(--brand-soft);
-  color: var(--brand-dark);
-  font-size: 17px;
-  font-weight: 700;
-  cursor: pointer;
+  gap: 6px;
 }
-.receipts-page__add:disabled {
-  opacity: 0.6;
-}
-/* 안내문구: 가운데 버튼 바로 아래 16px, 중앙 정렬 */
+/* 안내문구: 화면 정중앙(.receipts-page__center)에서 중앙 정렬 */
 .receipts-page__empty {
   color: var(--muted);
   font-size: 14px;
+  line-height: 1.7;
   text-align: center;
-  margin-top: 0;
 }
 /* 영수증 화면엔 하단탭이 없으므로 취소/삭제 바를 화면 하단에 붙인다
    (환자리스트의 컨펌 바와 동일하게 '밑에' 고정). 배경은 앱 배경색과 동일. */
@@ -2987,6 +2970,7 @@ input[type="password"]::placeholder {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 12px;
+  margin-top: 16px;
 }
 .receipt-cell {
   position: relative;
