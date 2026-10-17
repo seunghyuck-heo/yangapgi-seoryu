@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import BottomTabs, { PATIENTS_CHANGED_EVENT } from "@/components/BottomTabs";
+import PatientRowInner from "@/components/PatientRowInner";
 import { PatientWithDocuments } from "@/lib/db/types";
-import { DOC_TYPE_ORDER } from "@/lib/templates/types";
 
 const PAGE_SIZE = 100;
 
@@ -161,10 +161,6 @@ export default function PatientsPage() {
     if (searchMode) searchInputRef.current?.focus();
   }, [searchMode]);
 
-  const completeCount = (documents: PatientWithDocuments["documents"]) =>
-    DOC_TYPE_ORDER.filter((t) => documents.some((d) => d.doc_type === t && d.status === "completed"))
-      .length;
-
   // 서버가 이미 '등록 환자' 필터 + 검색을 적용한 목록
   const visible = patients;
   const q = search.trim();
@@ -311,56 +307,14 @@ export default function PatientsPage() {
             {!q && <p className="patient-list__count">총 {total}명</p>}
             <ul className="patient-list">
             {visible.map((patient) => {
-              const done = completeCount(patient.documents);
-              const total = DOC_TYPE_ORDER.length;
-              const allDone = done >= total;
               const checked = selected.has(patient.id);
-
               const inner = (
-                <>
-                  {editMode && (
-                    <span className={`patient-list__check ${checked ? "patient-list__check--on" : ""}`} aria-hidden>
-                      {checked && (
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M20 6 9 17l-5-5" />
-                        </svg>
-                      )}
-                    </span>
-                  )}
-                  <div className="patient-list__avatar" aria-hidden>
-                    {patient.photo_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={patient.photo_url} alt="" className="patient-list__photo" />
-                    ) : (
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-                        <circle cx="12" cy="8" r="4" />
-                        <path d="M4 21c0-3.3 3.6-6 8-6s8 2.7 8 6" />
-                      </svg>
-                    )}
-                  </div>
-                  <div className="patient-list__name">
-                    {patient.name_dup_rank ? `${patient.name}(${patient.name_dup_rank})` : patient.name}
-                    {patient.customer_no != null && (
-                      <span className="patient-list__no">(No. {patient.customer_no})</span>
-                    )}
-                    {!editMode && patient.name === "새 환자" && (
-                      <button
-                        type="button"
-                        className="patient-list__rename"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setRenameTarget({ id: patient.id, value: "" });
-                        }}
-                      >
-                        이름 입력하기
-                      </button>
-                    )}
-                  </div>
-                  <div className={`patient-list__progress ${allDone ? "patient-list__progress--done" : ""}`}>
-                    {done} / {total} {allDone ? "완료" : ""}
-                  </div>
-                </>
+                <PatientRowInner
+                  patient={patient}
+                  editMode={editMode}
+                  checked={checked}
+                  onRename={(id) => setRenameTarget({ id, value: "" })}
+                />
               );
 
               return (

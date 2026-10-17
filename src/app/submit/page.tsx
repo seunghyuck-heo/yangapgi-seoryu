@@ -4,15 +4,20 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import BottomTabs, { PATIENTS_CHANGED_EVENT } from "@/components/BottomTabs";
 import DocSubmitList from "@/components/DocSubmitList";
+import PatientRowInner from "@/components/PatientRowInner";
+import { PatientWithDocuments } from "@/lib/db/types";
 import { useUser } from "@/lib/supabase/useUser";
 
 export default function SubmitPage() {
   const { user, loading } = useUser();
   const [patientId, setPatientId] = useState<string | null>(null);
-  const [inProgress, setInProgress] = useState<{ id: string; name: string }[]>([]);
+  const [inProgress, setInProgress] = useState<PatientWithDocuments[]>([]);
   const [toast, setToast] = useState<string | null>(null);
+  const [renameTarget, setRenameTarget] = useState<{ id: string; value: string } | null>(null);
+  const [renameSaving, setRenameSaving] = useState(false);
   const creatingRef = useRef<Promise<string | null> | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const refreshRef = useRef<() => void>(() => {});
 
   const preview = !loading && !user;
 
@@ -22,7 +27,7 @@ export default function SubmitPage() {
   // 작성 중이던 환자는 '환자 보기'에서 해당 환자를 눌러 이어서 작성한다.
   // 실제 환자 폴더는 저장 행동(신분증 업로드/서식 진입) 시점에만 만든다(지연 생성).
 
-  // '작성 중'(필수 서류 중 하나라도 저장됐지만 전부 완료되진 않은) 환자 목록 → 하단 문구.
+  // '현재 작성 중인 환자'(등록됐지만 5종 전부 완료되진 않은) 목록 → 하단 섹션.
   // 마운트 시 + 환자 변경 이벤트(신분증 저장 등) 시 갱신. 환자보기에서 완료되면 자동으로 빠진다.
   useEffect(() => {
     if (loading || !user) return;
@@ -37,6 +42,7 @@ export default function SubmitPage() {
         // 무시
       }
     }
+    refreshRef.current = refresh;
     refresh();
     const onChanged = () => refresh();
     window.addEventListener(PATIENTS_CHANGED_EVENT, onChanged);
@@ -50,6 +56,30 @@ export default function SubmitPage() {
     setToast(msg);
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(null), 2200);
+  }
+
+  // '작성 중' 리스트의 '새 환자' 행에서 이름 입력(환자보기와 동일 동작)
+  async function saveRename() {
+    if (!renameTarget) return;
+    const name = renameTarget.value.trim();
+    if (!name) return;
+    setRenameSaving(true);
+    try {
+      await fetch(`/api/patients/${renameTarget.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      refreshRef.current();
+      try {
+        window.dispatchEvent(new Event(PATIENTS_CHANGED_EVENT));
+      } catch {
+        // 무시
+      }
+      setRenameTarget(null);
+    } finally {
+      setRenameSaving(false);
+    }
   }
 
   // 타이틀 우측 '+': 현재 작성 흐름을 끊고 새 환자로 다시 시작한다(지연 생성이라 다음 저장
@@ -113,19 +143,21 @@ export default function SubmitPage() {
           ensurePatientId={preview ? undefined : ensurePatientId}
         />
 
-        {/* 위임장 리스트 하단: 현재 작성 중(미완료)인 환자 안내. 완료되면 자동으로 사라짐 */}
+        {/* 위임장 리스트 하단(20px): '현재 작성 중인 환자' — 환자보기와 동일한 행/탭 동작.
+            완료되면 목록에서 자동으로 사라진다. */}
         {!preview && inProgress.length > 0 && (
-          <p
-            style={{
-              marginTop: 20,
-              fontSize: 13,
-              color: "var(--ink-soft)",
-              textAlign: "center",
-              lineHeight: 1.5,
-            }}
-          >
-            현재 {inProgress.map((p) => p.name).join(", ")} 작성 중입니다.
-          </p>
+          <>
+            <h2 className="patient-detail-page__subhead">현재 작성 중인 환자</h2>
+            <ul className="patient-list">
+              {inProgress.map((patient) => (
+                <li key={patient.id}>
+                  <Link href={`/patients/${patient.id}`} className="patient-list__item">
+                    <PatientRowInner patient={patient} onRename={(id) => setRenameTarget({ id, value: "" })} />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </>
         )}
       </div>
 
@@ -140,6 +172,33 @@ export default function SubmitPage() {
             <Link href="/settings" className="login-required__btn">
               로그인 하러 가기
             </Link>
+          </div>
+        </div>
+      )}
+
+      {/* '새 환자' 행 이름 입력(환자보기와 동일) */}
+      {renameTarget && (
+        <div className="sheet-overlay sheet-overlay--center" onClick={() => setRenameTarget(null)}>
+          <div className="sheet sheet--center" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet__title sheet__title--name">환자 이름 입력</div>
+            <input
+              type="text"
+              value={renameTarget.value}
+              placeholder="환자 이름"
+              autoFocus
+              onChange={(e) => setRenameTarget((prev) => (prev ? { ...prev, value: e.target.value } : prev))}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") saveRename();
+              }}
+            />
+            <div className="field-popup__actions">
+              <button type="button" onClick={() => setRenameTarget(null)}>
+                취소
+              </button>
+              <button type="button" className="primary" onClick={saveRename} disabled={renameSaving}>
+                {renameSaving ? "저장 중..." : "저장"}
+              </button>
+            </div>
           </div>
         </div>
       )}

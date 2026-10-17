@@ -14,3 +14,15 @@ export function isRegisteredPatient(p: PatientWithDocuments): boolean {
       (d.status === "completed" || d.status === "draft" || !!d.file_path)
   );
 }
+
+// 필수 서류(5종)가 모두 '작성완료'면 완료 환자.
+export function isFullyCompletedPatient(p: PatientWithDocuments): boolean {
+  return DOC_TYPE_ORDER.every((t) =>
+    p.documents.some((d) => d.doc_type === t && d.status === "completed")
+  );
+}
+
+// '작성 중' = 등록됐지만(하나라도 저장) 아직 5종 전부 완료되진 않음.
+export function isInProgressPatient(p: PatientWithDocuments): boolean {
+  return isRegisteredPatient(p) && !isFullyCompletedPatient(p);
+}
