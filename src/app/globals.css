@@ -2934,34 +2934,42 @@ input[type="password"]::placeholder {
   letter-spacing: -0.01em;
   color: var(--ink);
 }
-/* 편집 아이콘은 우측 끝으로 */
-.receipts-page__edit-btn {
+/* 편집 아이콘은 우측 끝으로 (toolbar>app-header__action의 margin-left보다 우선하도록 구체도↑) */
+.receipts-page .doc-page__toolbar .receipts-page__edit-btn {
   margin-left: auto;
   margin-right: 10px;
 }
+/* 중앙 정렬 + 기존보다 약 20% 크게 */
 .receipts-page__add {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 6px;
-  margin-top: 16px;
-  margin-bottom: 16px;
-  padding: 10px 16px;
+  justify-content: center;
+  gap: 7px;
+  width: fit-content;
+  margin: 16px auto;
+  padding: 12px 20px;
   border: 1px solid var(--brand);
   border-radius: var(--radius-md);
   background: var(--brand-soft);
   color: var(--brand-dark);
-  font-size: 14px;
+  font-size: 17px;
   font-weight: 700;
   cursor: pointer;
 }
 .receipts-page__add:disabled {
   opacity: 0.6;
 }
+/* 안내문구: 가운데 버튼 바로 아래 16px, 중앙 정렬 */
 .receipts-page__empty {
   color: var(--muted);
   font-size: 14px;
   text-align: center;
-  margin-top: 40px;
+  margin-top: 0;
+}
+/* 영수증 화면엔 하단탭이 없으므로 취소/삭제 바를 화면 하단에 붙인다
+   (환자리스트의 컨펌 바와 동일하게 '밑에' 고정) */
+.receipts-page .edit-actionbar {
+  bottom: env(safe-area-inset-bottom);
 }
 .receipts-grid {
   display: grid;

@@ -75,16 +75,7 @@ export default function ReceiptsPage({ params }: Props) {
 
   useEffect(() => {
     load();
-    // 상세의 '마스크 영수증 추가'로 들어오면(?add=1) 카메라/갤러리 선택 시트를 바로 띄운다
-    try {
-      if (new URLSearchParams(window.location.search).get("add") === "1") {
-        setSheetOpen(true);
-        window.history.replaceState({}, "", `/patients/${id}/receipts`);
-      }
-    } catch {
-      // 무시
-    }
-  }, [load, id]);
+  }, [load]);
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -190,7 +181,7 @@ export default function ReceiptsPage({ params }: Props) {
           onClick={() => setSheetOpen(true)}
           disabled={uploading}
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>

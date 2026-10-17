@@ -272,7 +272,7 @@ export default function PatientDetailPage({ params }: PatientDetailPageProps) {
           );
         })()}
         <li>
-          <Link href={`/patients/${id}/receipts?add=1`} className="doc-row">
+          <Link href={`/patients/${id}/receipts`} className="doc-row">
             <span className="doc-row__icon" style={{ background: "#e8833a", color: "#fff" }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
                 <path d="M4 2v20l3-2 3 2 2-2 2 2 3-2 3 2V2l-3 2-3-2-2 2-2-2-3 2z" />
