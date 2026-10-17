@@ -45,10 +45,18 @@ export default function SubmitPage() {
     refreshRef.current = refresh;
     refresh();
     const onChanged = () => refresh();
+    // 화면으로 돌아오거나(다른 탭·상세에서 복귀) 앱이 다시 보이면 최신 상태로 갱신 → 항상 바로 반영
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
     window.addEventListener(PATIENTS_CHANGED_EVENT, onChanged);
+    window.addEventListener("focus", onChanged);
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       cancelled = true;
       window.removeEventListener(PATIENTS_CHANGED_EVENT, onChanged);
+      window.removeEventListener("focus", onChanged);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [user, loading]);
 
@@ -83,11 +91,19 @@ export default function SubmitPage() {
   }
 
   // 타이틀 우측 '+': 현재 작성 흐름을 끊고 새 환자로 다시 시작한다(지연 생성이라 다음 저장
-  // 행동부터 새 폴더). 작성 중이던 환자는 하단 문구에 그대로 남는다.
+  // 행동부터 새 폴더). 작성 중이던 환자는 아래 '작성 중' 리스트에 그대로 남는다.
   function handleNewPatient() {
     setPatientId(null);
     creatingRef.current = null;
     showToast("새 환자로 시작합니다.");
+  }
+
+  // 신분증 등록(정식 등록)이 끝나면: 위 서식은 새 환자로 리셋하고(위 파일 = 항상 새 환자),
+  // 방금 등록된 환자는 아래 '작성 중' 리스트에서 이어 작성한다. 목록도 즉시 갱신.
+  function handleRegistered() {
+    setPatientId(null);
+    creatingRef.current = null;
+    refreshRef.current();
   }
 
   // 실제 저장 행동(신분증 업로드/서식 진입) 시점에만 환자 폴더를 만든다(지연 생성)
@@ -141,6 +157,7 @@ export default function SubmitPage() {
           preview={preview}
           fromSubmit={!preview}
           ensurePatientId={preview ? undefined : ensurePatientId}
+          onRegistered={preview ? undefined : handleRegistered}
         />
 
         {/* 위임장 리스트 하단(20px): '현재 작성 중인 환자' — 환자보기와 동일한 행/탭 동작.

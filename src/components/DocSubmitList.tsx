@@ -15,6 +15,8 @@ interface DocSubmitListProps {
   fromSubmit?: boolean;
   /** 저장 시점에만 환자 폴더를 만드는 지연 생성 함수(로그인 상태에서만 전달) */
   ensurePatientId?: () => Promise<string | null>;
+  /** 신분증 등록(정식 환자 등록)이 끝났을 때 호출 — 상위에서 '새 환자'로 리셋하는 용도 */
+  onRegistered?: () => void;
 }
 
 interface RowConfig {
@@ -189,6 +191,7 @@ export default function DocSubmitList({
   preview = false,
   fromSubmit = false,
   ensurePatientId,
+  onRegistered,
 }: DocSubmitListProps) {
   const router = useRouter();
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -406,6 +409,8 @@ export default function DocSubmitList({
         // 무시
       }
       setNameSheet(null);
+      // 방금 등록한 환자는 '작성 중' 리스트로 내려보내고, 위 서식은 새 환자로 리셋한다.
+      onRegistered?.();
     } finally {
       setNameSaving(false);
     }
