@@ -7,6 +7,8 @@ export interface Patient {
   phone: string | null;
   created_at: string;
   updated_at: string;
+  /** 직접 완료: 5종을 다 안 채워도 직원이 수동으로 '완료'로 처리한 환자 */
+  manual_complete?: boolean | null;
 }
 
 export interface PatientDocument {

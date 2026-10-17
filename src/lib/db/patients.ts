@@ -370,9 +370,13 @@ export async function listInProgressPatients(): Promise<PatientWithDocuments[]> 
     .order("updated_at", { ascending: false });
   if (e2) throw new Error(e2.message);
 
+  // '직접 완료'로 처리된 환자는 작성 중에서 제외(완료처럼 취급).
+  const inProgressRows = ((rows ?? []) as Patient[]).filter((p) => !p.manual_complete);
+  if (inProgressRows.length === 0) return [];
+
   // 3) 사진·고유번호·동명이인번호·문서상태를 '작성 중 환자들만' 붙인다.
   //    (전체 환자에 대해 사진 서명URL을 만들던 기존 방식 대비 크게 빨라짐)
-  return attachDocsAndInfo(supabase, (rows ?? []) as Patient[]);
+  return attachDocsAndInfo(supabase, inProgressRows);
 }
 
 // 배지용: 등록 환자 총원만 (문서 조회 없이 가볍게)
@@ -478,7 +482,7 @@ export async function createPatient(input: {
 
 export async function updatePatient(
   id: string,
-  input: Partial<{ name: string; resident_number: string; phone: string }>
+  input: Partial<{ name: string; resident_number: string; phone: string; manual_complete: boolean }>
 ): Promise<Patient> {
   const supabase = await getSupabaseServerClient();
   const { data, error } = await supabase

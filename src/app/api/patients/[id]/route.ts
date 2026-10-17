@@ -26,6 +26,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       name: body?.name,
       resident_number: body?.resident_number,
       phone: body?.phone,
+      manual_complete: typeof body?.manual_complete === "boolean" ? body.manual_complete : undefined,
     });
     return NextResponse.json({ patient });
   } catch (err) {

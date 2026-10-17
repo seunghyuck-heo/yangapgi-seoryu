@@ -7,6 +7,7 @@ import dynamic from "next/dynamic";
 import { PatientWithDocuments } from "@/lib/db/types";
 import { DOC_TYPE_LABELS, DOC_TYPE_ORDER } from "@/lib/templates/types";
 import { DOC_ICON_STYLES } from "@/components/docIcons";
+import { PATIENTS_CHANGED_EVENT } from "@/components/BottomTabs";
 
 // PDF 묶음 뷰어는 무거워서(오버레이·렌더링 코드) 필요할 때만 로드 → 상세 진입 속도 개선
 const DocumentBundleViewer = dynamic(() => import("@/components/DocumentBundleViewer"), { ssr: false });
@@ -50,6 +51,7 @@ export default function PatientDetailPage({ params }: PatientDetailPageProps) {
   const [error, setError] = useState<string | null>(null);
   const [showBundle, setShowBundle] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [manualSaving, setManualSaving] = useState(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pdfAutoRef = useRef(false);
 
@@ -57,6 +59,34 @@ export default function PatientDetailPage({ params }: PatientDetailPageProps) {
     setToast(msg);
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(null), 2600);
+  }
+
+  // '직접 완료' 토글: 5종을 다 안 채워도 완료로 처리(환자보기에서 '직접 완료'로 표기,
+  // 서식제출 '작성 중' 리스트에서 제외). 다시 누르면 해제.
+  async function toggleManualComplete() {
+    if (!patient || manualSaving) return;
+    const next = !patient.manual_complete;
+    setManualSaving(true);
+    try {
+      const res = await fetch(`/api/patients/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ manual_complete: next }),
+      });
+      if (!res.ok) {
+        showToast("처리에 실패했습니다.");
+        return;
+      }
+      setPatient((prev) => (prev ? { ...prev, manual_complete: next } : prev));
+      try {
+        window.dispatchEvent(new Event(PATIENTS_CHANGED_EVENT));
+      } catch {
+        // 무시
+      }
+      showToast(next ? "직접 완료로 처리했습니다." : "직접 완료를 해제했습니다.");
+    } finally {
+      setManualSaving(false);
+    }
   }
 
   function handleOpenBundle() {
@@ -114,9 +144,19 @@ export default function PatientDetailPage({ params }: PatientDetailPageProps) {
             <path d="M15 18l-6-6 6-6" />
           </svg>
         </button>
-        <button type="button" className="patient-detail-page__pdf" onClick={handleOpenBundle}>
-          PDF로 출력
-        </button>
+        <div className="patient-detail-page__toolbar-actions">
+          <button
+            type="button"
+            className={`patient-detail-page__manual ${patient?.manual_complete ? "is-on" : ""}`}
+            onClick={toggleManualComplete}
+            disabled={!patient || manualSaving}
+          >
+            {patient?.manual_complete ? "✓ 직접 완료" : "직접 완료"}
+          </button>
+          <button type="button" className="patient-detail-page__pdf" onClick={handleOpenBundle}>
+            PDF로 출력
+          </button>
+        </div>
       </div>
       <h1>
         {patient ? (patient.name_dup_rank ? `${patient.name}(${patient.name_dup_rank})` : patient.name) : " "}

@@ -66,8 +66,10 @@ export default function PatientRowInner({ patient, editMode = false, checked = f
           </button>
         )}
       </div>
-      <div className={`patient-list__progress ${allDone ? "patient-list__progress--done" : ""}`}>
-        {done} / {total} {allDone ? "완료" : ""}
+      <div
+        className={`patient-list__progress ${allDone || patient.manual_complete ? "patient-list__progress--done" : ""}`}
+      >
+        {patient.manual_complete ? "직접 완료" : `${done} / ${total} ${allDone ? "완료" : ""}`}
       </div>
     </>
   );

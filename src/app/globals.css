@@ -2876,6 +2876,31 @@ input[type="password"]::placeholder {
 /* ---------- Print ---------- */
 
 /* ===== 환자 상세: PDF 묶음 버튼 ===== */
+/* 상세 툴바 우측 액션 그룹: '직접 완료'와 'PDF로 출력' 사이 24px */
+.patient-detail-page__toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+/* '직접 완료' 텍스트 버튼 — 켜지면 초록(완료)색 */
+.patient-detail-page__manual {
+  padding: 6px 4px;
+  border: none;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.patient-detail-page__manual.is-on {
+  color: var(--success);
+}
+.patient-detail-page__manual:disabled {
+  opacity: 0.5;
+}
+
 .patient-detail-page__pdf {
   display: inline-flex;
   align-items: center;
