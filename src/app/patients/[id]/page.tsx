@@ -53,6 +53,7 @@ export default function PatientDetailPage({ params }: PatientDetailPageProps) {
   const [showBundle, setShowBundle] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [manualSaving, setManualSaving] = useState(false);
+  const [receiptCount, setReceiptCount] = useState<number | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pdfAutoRef = useRef(false);
 
@@ -118,6 +119,17 @@ export default function PatientDetailPage({ params }: PatientDetailPageProps) {
         setPatient(json.patient);
       })
       .finally(() => setLoading(false));
+  }, [id]);
+
+  // 마스크 영수증 개수(지속 관리 서류 행 상태 표시용)
+  useEffect(() => {
+    fetch(`/api/patients/${id}/receipts`)
+      .then(async (res) => {
+        if (!res.ok) return;
+        const json = await res.json();
+        setReceiptCount(Array.isArray(json.receipts) ? json.receipts.length : 0);
+      })
+      .catch(() => {});
   }, [id]);
 
   // 서류 수정 후 "예, PDF 업데이트"로 넘어온 경우(?pdf=1) → PDF 묶음 자동 열기
@@ -280,7 +292,9 @@ export default function PatientDetailPage({ params }: PatientDetailPageProps) {
               </svg>
             </span>
             <span className="doc-row__title">마스크 영수증 추가</span>
-            <span className="doc-row__status" aria-hidden />
+            <span className={`doc-row__status ${receiptCount ? "doc-row__status--complete" : ""}`}>
+              {receiptCount ? `영수증 ${receiptCount}장` : ""}
+            </span>
             <span className="doc-row__chevron" aria-hidden>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
                 <path d="M9 18l6-6-6-6" />
