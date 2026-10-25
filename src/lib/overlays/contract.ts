@@ -80,11 +80,11 @@ export const contractOverlay: OverlayDoc = {
     // ===== [갑] 회사 — 성명(드롭다운) 선택에 따라 주소·연락처·도장이 함께 바뀜 =====
     // 배경(contract-5)에서 갑 이름/주소/연락처 값은 지워져 있고, 엠와이 도장·"(서명 또는 인)"·밑줄은 유지됨.
     // 기본 엠와이메디칼(도장=배경 인쇄) / 엔큐에스 선택 시 엠와이 도장을 흰색으로 가리고 엔큐에스 도장을 얹음.
-    { key: "gap_company", type: "text", x: 14.8, y: 92.7, w: 23, h: 1.6, label: "[갑] 회사", align: "left", options: GAP_COMPANY_OPTIONS, default: GAP_COMPANY_DEFAULT, selectBlock: true, fontPct: 1.2 },
-    { key: "gap_address", type: "text", x: 14.8, y: 94.75, w: 45, h: 1.6, align: "left", fromCompany: "address", fontPct: 1.3 },
-    { key: "gap_phone", type: "text", x: 14.8, y: 97.1, w: 22, h: 1.6, align: "left", fromCompany: "phone", fontPct: 1.35 },
-    { key: "gap_stamp_cover", type: "text", x: 37.8, y: 92.3, w: 5.2, h: 3.3, cover: true, showWhenCompany: GAP_COMPANY_NQS },
-    { key: "gap_stamp_nqs", type: "text", x: 37.5, y: 92.0, w: 5.5, h: 3.8, stampImage: "/documents/stamp-nqs.png", showWhenCompany: GAP_COMPANY_NQS },
+    { key: "gap_company", type: "text", x: 12.1, y: 92.6, w: 21.5, h: 1.6, label: "[갑] 회사", align: "left", options: GAP_COMPANY_OPTIONS, default: GAP_COMPANY_DEFAULT, selectBlock: true, fontPct: 0.82 },
+    { key: "gap_address", type: "text", x: 12.1, y: 94.95, w: 34.5, h: 1.6, align: "left", fromCompany: "address", fontPct: 0.95 },
+    { key: "gap_phone", type: "text", x: 12.1, y: 97.0, w: 22, h: 1.6, align: "left", fromCompany: "phone", fontPct: 1.15 },
+    { key: "gap_stamp_cover", type: "text", x: 36.2, y: 91.7, w: 7.1, h: 4.1, cover: true, showWhenCompany: GAP_COMPANY_NQS },
+    { key: "gap_stamp_nqs", type: "text", x: 36.8, y: 91.9, w: 6.0, h: 3.6, stampImage: "/documents/stamp-nqs.png", showWhenCompany: GAP_COMPANY_NQS },
   ],
 };
 
