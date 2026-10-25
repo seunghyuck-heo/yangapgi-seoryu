@@ -1096,8 +1096,11 @@ input[type="password"]::placeholder {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  mix-blend-mode: multiply;
-  opacity: 0.92;
+  /* 도장 PNG는 흰 배경을 실제 투명(알파)으로 뺀 이미지라 blend 불필요.
+     mix-blend-mode: multiply + 축소 이미지 조합은 일부 모바일 GPU에서
+     도장 하단을 잘라먹는 렌더 버그가 있어 normal로 둔다. */
+  mix-blend-mode: normal;
+  opacity: 0.95;
   user-select: none;
 }
 

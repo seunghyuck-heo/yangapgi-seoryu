@@ -305,8 +305,9 @@ export async function renderOverlayPage(
         const dx = bx + (bw - dw) / 2;
         const dy = by + (bh - dh) / 2;
         ctx.save();
-        ctx.globalCompositeOperation = "multiply";
-        ctx.globalAlpha = 0.92;
+        // 도장 PNG는 흰 배경을 투명(알파)으로 뺀 이미지 → 일반 합성(source-over).
+        // (multiply는 모바일 렌더에서 도장 하단 잘림 버그가 있어 사용하지 않음)
+        ctx.globalAlpha = 0.95;
         ctx.drawImage(img, dx, dy, dw, dh);
         ctx.restore();
       }
