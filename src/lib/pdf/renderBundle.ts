@@ -299,7 +299,7 @@ export async function renderOverlayPage(
     if (field.stampImage) {
       const img = stampImgs[field.key];
       if (img) {
-        const r = Math.min(bw / img.width, bh / img.height); // object-fit: contain
+        const r = Math.min(bw / img.width, bh / img.height) * (field.stampScale ?? 1); // object-fit: contain (+ 뷰영역 내 축소)
         const dw = img.width * r;
         const dh = img.height * r;
         const dx = bx + (bw - dw) / 2;

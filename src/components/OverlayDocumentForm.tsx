@@ -786,7 +786,13 @@ function OverlayDocumentFormInner(
       return (
         <div key={field.key} className="odoc-hotspot odoc-hotspot--stamp" style={style} aria-hidden>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={field.stampImage} alt="" className="odoc-hotspot__stamp" draggable={false} />
+          <img
+            src={field.stampImage}
+            alt=""
+            className="odoc-hotspot__stamp"
+            draggable={false}
+            style={field.stampScale ? { width: `${field.stampScale * 100}%`, height: `${field.stampScale * 100}%` } : undefined}
+          />
         </div>
       );
     }

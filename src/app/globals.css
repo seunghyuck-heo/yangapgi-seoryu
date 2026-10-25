@@ -1088,6 +1088,9 @@ input[type="password"]::placeholder {
   cursor: default;
   pointer-events: none;
   overflow: visible;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .odoc-hotspot__stamp {
   width: 100%;

@@ -85,8 +85,8 @@ export const contractOverlay: OverlayDoc = {
     { key: "gap_phone", type: "text", x: 11.0, y: 97.0, w: 22, h: 1.8, align: "left", fromCompany: "phone", fontPct: 1.15 },
     // 사인존: "(서명 또는 인)"은 항상 표시(오버레이), 그 위에 회사별 도장을 얹음(둘 다 오버레이, multiply)
     { key: "gap_sign_label", type: "text", x: 33.7, y: 92.3, w: 11.5, h: 1.9, staticText: "(서명 또는 인)", align: "center", fontPct: 1.1 },
-    { key: "gap_stamp_my", type: "text", x: 37.59, y: 91.96, w: 4.73, h: 3.68, stampImage: "/documents/stamp-my-2.png", showWhenCompany: GAP_COMPANY_DEFAULT },
-    { key: "gap_stamp_nqs", type: "text", x: 35.25, y: 89.28, w: 8.48, h: 6.0, stampImage: "/documents/stamp-nqs-5.png", showWhenCompany: GAP_COMPANY_NQS },
+    { key: "gap_stamp_my", type: "text", x: 37.59, y: 91.96, w: 4.73, h: 3.68, stampImage: "/documents/stamp-my-2.png", stampScale: 0.95, showWhenCompany: GAP_COMPANY_DEFAULT },
+    { key: "gap_stamp_nqs", type: "text", x: 35.25, y: 89.28, w: 8.48, h: 6.0, stampImage: "/documents/stamp-nqs-5.png", stampScale: 0.90, showWhenCompany: GAP_COMPANY_NQS },
   ],
 };
 
