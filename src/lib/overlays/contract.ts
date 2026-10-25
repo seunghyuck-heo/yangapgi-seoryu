@@ -5,7 +5,7 @@ import { GAP_COMPANY_OPTIONS, GAP_COMPANY_DEFAULT, GAP_COMPANY_NQS } from "./gap
 // 이미지 글자/표선 픽셀 분석으로 측정한 값.
 // 입력 블록 높이는 급여신청서/위임장과 동일한 얇은 pill 형태로 통일 (세로 중심 유지).
 export const contractOverlay: OverlayDoc = {
-  image: "/documents/contract-5.jpg",
+  image: "/documents/contract-6.jpg",
   width: 2480,
   height: 3508,
   title: "양압기치료 서비스 표준계약서",
@@ -80,11 +80,13 @@ export const contractOverlay: OverlayDoc = {
     // ===== [갑] 회사 — 성명(드롭다운) 선택에 따라 주소·연락처·도장이 함께 바뀜 =====
     // 배경(contract-5)에서 갑 이름/주소/연락처 값은 지워져 있고, 엠와이 도장·"(서명 또는 인)"·밑줄은 유지됨.
     // 기본 엠와이메디칼(도장=배경 인쇄) / 엔큐에스 선택 시 엠와이 도장을 흰색으로 가리고 엔큐에스 도장을 얹음.
-    { key: "gap_company", type: "text", x: 11.5, y: 92.6, w: 22, h: 1.6, label: "[갑] 회사", align: "left", options: GAP_COMPANY_OPTIONS, default: GAP_COMPANY_DEFAULT, selectBlock: true, fontPct: 1.15, fontPctByValue: { [GAP_COMPANY_DEFAULT]: 1.15, [GAP_COMPANY_NQS]: 0.9 } },
-    { key: "gap_address", type: "text", x: 11.5, y: 94.95, w: 35, h: 1.6, align: "left", fromCompany: "address", fontPct: 1.15 },
-    { key: "gap_phone", type: "text", x: 11.5, y: 97.0, w: 22, h: 1.6, align: "left", fromCompany: "phone", fontPct: 1.15 },
-    { key: "gap_stamp_cover", type: "text", x: 36.2, y: 91.7, w: 7.1, h: 4.1, cover: true, showWhenCompany: GAP_COMPANY_NQS },
-    { key: "gap_stamp_nqs", type: "text", x: 36.8, y: 91.9, w: 6.0, h: 3.6, stampImage: "/documents/stamp-nqs-2.png", showWhenCompany: GAP_COMPANY_NQS },
+    { key: "gap_company", type: "text", x: 11.0, y: 92.45, w: 22.5, h: 2.0, label: "[갑] 회사", align: "left", options: GAP_COMPANY_OPTIONS, default: GAP_COMPANY_DEFAULT, selectBlock: true, fontPct: 1.15, fontPctByValue: { [GAP_COMPANY_DEFAULT]: 1.15, [GAP_COMPANY_NQS]: 0.97 } },
+    { key: "gap_address", type: "text", x: 11.0, y: 94.6, w: 35, h: 1.8, align: "left", fromCompany: "address", fontPct: 1.15 },
+    { key: "gap_phone", type: "text", x: 11.0, y: 97.0, w: 22, h: 1.8, align: "left", fromCompany: "phone", fontPct: 1.15 },
+    // 사인존: "(서명 또는 인)"은 항상 표시(오버레이), 그 위에 회사별 도장을 얹음(둘 다 오버레이, multiply)
+    { key: "gap_sign_label", type: "text", x: 33.7, y: 92.3, w: 11.5, h: 1.9, staticText: "(서명 또는 인)", align: "center", fontPct: 1.1 },
+    { key: "gap_stamp_my", type: "text", x: 37.6, y: 92.1, w: 4.7, h: 3.4, stampImage: "/documents/stamp-my.png", showWhenCompany: GAP_COMPANY_DEFAULT },
+    { key: "gap_stamp_nqs", type: "text", x: 36.9, y: 91.9, w: 6.0, h: 3.8, stampImage: "/documents/stamp-nqs-2.png", showWhenCompany: GAP_COMPANY_NQS },
   ],
 };
 
