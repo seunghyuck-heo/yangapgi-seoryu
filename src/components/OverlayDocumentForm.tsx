@@ -3,7 +3,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { OverlayDoc, OverlayField } from "@/lib/overlays/types";
-import { gapCompanyName, gapCompanyValue } from "@/lib/overlays/gapCompany";
+import { gapCompanyName, gapCompanyValue, poaCompanyValue } from "@/lib/overlays/gapCompany";
 import ZoomableDocument from "./ZoomableDocument";
 import SignaturePad from "./SignaturePad";
 import { PATIENTS_CHANGED_EVENT } from "./BottomTabs";
@@ -328,7 +328,7 @@ function OverlayDocumentFormInner(
     // 완료된 서류는 '수정' 모드에서만 편집 가능(보기 모드에선 탭 무시)
     if (!embedded && isCompleted && !localEdit) return;
     // 고정 체크·오늘날짜 자동·도장 필드는 편집 불가
-    if (field.fixedChecked || field.autoToday || field.stampImage || field.fromCompany || field.showWhenCompany) return;
+    if (field.fixedChecked || field.autoToday || field.stampImage || field.fromCompany || field.fromPoaCompany || field.showWhenCompany) return;
     // 조건부 편집: 지정 체크박스가 선택되지 않았으면 편집 불가(예: 은행계좌 선택 시 카드 유효기간)
     if (field.editableIf && values[field.editableIf] !== true) return;
 
@@ -524,7 +524,7 @@ function OverlayDocumentFormInner(
       return JSON.stringify(v);
     };
     return overlay.fields.some((f) => {
-      if (f.autoToday || f.fixedChecked || f.cover || f.staticText || f.stampImage || f.fromCompany || f.showWhenCompany) return false;
+      if (f.autoToday || f.fixedChecked || f.cover || f.staticText || f.stampImage || f.fromCompany || f.fromPoaCompany || f.showWhenCompany) return false;
       // 저장값이 없던 필드가 기본값 그대로면(사용자가 안 건드림) 변경으로 보지 않음(기존 문서 보호)
       if (f.default != null && !(f.key in initialFormData) && norm(values[f.key]) === norm(f.default)) return false;
       return norm(values[f.key]) !== norm(initialFormData[f.key]);
@@ -668,7 +668,7 @@ function OverlayDocumentFormInner(
         }
         return true; // 그 외 체크박스는 필수 아님
       }
-      if (f.cover || f.staticText || f.stampImage || f.fromCompany || f.showWhenCompany) return true; // 가림 박스·표시 라벨·도장·갑파생은 입력 대상 아님
+      if (f.cover || f.staticText || f.stampImage || f.fromCompany || f.fromPoaCompany || f.showWhenCompany) return true; // 가림 박스·표시 라벨·도장·갑/위임장 파생은 입력 대상 아님
       if (f.optional) return true; // 선택 입력 항목(예: 자택 전화)
       if (f.requiredIf && values[f.requiredIf] !== true) return true; // 조건부 필수(예: 카드 선택 시에만)
       // 그룹 조건부 필수: 해당 group의 체크박스가 하나도 선택 안 됐으면 필수 아님
@@ -742,6 +742,23 @@ function OverlayDocumentFormInner(
             }}
           >
             {gapCompanyValue(values, field.fromCompany)}
+          </span>
+        </div>
+      );
+    }
+    // 위임장 ②③ 회사 파생 텍스트(사업자번호/대표자/전화/은행/예금주/계좌번호/수령자): 상호 선택에 따라 자동 표시(편집 불가)
+    if (field.fromPoaCompany) {
+      return (
+        <div key={field.key} className="odoc-hotspot odoc-hotspot--static" style={style} aria-hidden>
+          <span
+            className="odoc-hotspot__text"
+            style={{
+              fontSize: `${field.fontPct ?? 1.4}cqw`,
+              justifyContent:
+                field.align === "left" ? "flex-start" : field.align === "right" ? "flex-end" : "center",
+            }}
+          >
+            {poaCompanyValue(values, field.fromPoaCompany)}
           </span>
         </div>
       );

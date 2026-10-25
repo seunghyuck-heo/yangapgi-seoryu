@@ -1,5 +1,5 @@
 import { OverlayDoc, OverlayField } from "@/lib/overlays/types";
-import { gapCompanyName, gapCompanyValue } from "@/lib/overlays/gapCompany";
+import { gapCompanyName, gapCompanyValue, poaCompanyValue } from "@/lib/overlays/gapCompany";
 
 // OverlayDocumentForm 의 화면 렌더링(renderFieldOverlay)을 캔버스에 그대로 재현해
 // 완료 서류를 이미지 페이지로 만든다. 텍스트 폰트/정렬/체크/네모칸/서명까지 동일 규칙.
@@ -384,6 +384,8 @@ export async function renderOverlayPage(
     // 일반 텍스트 / 날짜 (저장값 없으면 field.default 사용 — 예: 마스크 금액 기본 95,000원)
     const val = field.fromCompany
       ? gapCompanyValue(values, field.fromCompany)
+      : field.fromPoaCompany
+      ? poaCompanyValue(values, field.fromPoaCompany)
       : field.dateGroup
         ? effectiveDateValue(field, raw, completedAt, overlay.fields, values)
         : typeof raw === "string" && raw.trim()

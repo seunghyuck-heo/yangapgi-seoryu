@@ -1,15 +1,26 @@
 import { OverlayDoc } from "./types";
+import { POA_COMPANY_OPTIONS, POA_COMPANY_DEFAULT, POA_COMPANY_NQS } from "./gapCompany";
 
 // 요양비 지급청구 위임장 — 실제 서식(사진) 기준 A4 재현본.
 // 좌표는 렌더 이미지(1000 x 1414 CSS 기준, 실제 2000 x 2828) 대비 %. 마커 DOM 측정 자동 생성.
 // ② 준요양기관·③ 수령계좌·④ 위임사항(양압기 ✔)·법정대리인은 인쇄(편집 불가).
 // 위임인란: 성명(수기, 확정 버튼="성명 확정") + (서명 또는 인) 위에 겹치는 서명(흐린 가이드 문구).
 export const poaOverlay: OverlayDoc = {
-  image: "/documents/poa.jpg",
+  image: "/documents/poa-2.jpg",
   width: 2000,
   height: 2828,
   title: "요양비 지급청구 위임장",
   fields: [
+    // ② 준요양기관 / ③ 수령계좌 — 상호를 드롭다운으로 고르면 사업자번호·대표자·전화·수령자·은행·예금주·계좌번호가 함께 바뀜.
+    // 기본: 엠와이메디칼 / 선택지: 엔큐에스 주식회사. 값은 gapCompany.ts의 POA_COMPANIES 프리셋.
+    { key: "poa_company", type: "text", x: 48.0, y: 32.32, w: 26, h: 2.0, label: "② 준요양기관 상호", align: "left", options: POA_COMPANY_OPTIONS, default: POA_COMPANY_DEFAULT, selectBlock: true, fontPct: 1.9, fontPctByValue: { [POA_COMPANY_DEFAULT]: 1.9, [POA_COMPANY_NQS]: 1.55 } },
+    { key: "poa_bizno", type: "text", x: 48.5, y: 36.03, w: 47, h: 1.6, align: "left", fromPoaCompany: "bizNo", fontPct: 1.9 },
+    { key: "poa_rep", type: "text", x: 48.5, y: 39.55, w: 47, h: 1.6, align: "left", fromPoaCompany: "rep", fontPct: 1.9 },
+    { key: "poa_prov_phone", type: "text", x: 48.5, y: 43.07, w: 47, h: 1.6, align: "left", fromPoaCompany: "phone", fontPct: 1.9 },
+    { key: "poa_recipient", type: "text", x: 48.5, y: 46.56, w: 47, h: 1.6, align: "left", fromPoaCompany: "name", fontPct: 1.9 },
+    { key: "poa_bank", type: "text", x: 47.2, y: 49.31, w: 49.1, h: 1.6, align: "center", fromPoaCompany: "bank", fontPct: 1.9 },
+    { key: "poa_holder", type: "text", x: 47.2, y: 52.05, w: 49.1, h: 1.6, align: "center", fromPoaCompany: "holder", fontPct: 1.9 },
+    { key: "poa_account", type: "text", x: 47.2, y: 54.78, w: 49.1, h: 1.6, align: "center", fromPoaCompany: "account", fontPct: 1.9 },
     { key: "insured_name", type: "text", x: 48.5, y: 13.22, w: 28, h: 1.34, label: "가입자 성명", align: "left" },
     { key: "insured_rrn", type: "text", x: 48.5, y: 15.96, w: 30, h: 1.34, label: "주민(외국인)등록번호", dashPattern: [6, 7], align: "left" },
     { key: "delegator_phone", type: "text", x: 48.3, y: 26.92, w: 28, h: 1.34, label: "전화번호(수신용)", prefix: "010-", dashPattern: [4, 4], align: "left" },

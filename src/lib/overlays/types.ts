@@ -88,6 +88,8 @@ export interface OverlayField {
   labelByCheckbox?: Record<string, string>;
   /** [갑] 회사 선택에 따라 자동 표시되는 파생 텍스트(편집 불가). gapCompany 프리셋에서 가져옴 */
   fromCompany?: "address" | "phone";
+  /** 위임장 ②③ 회사(상호) 선택에 따라 자동 표시되는 파생 텍스트(편집 불가). poaCompany 프리셋에서 가져옴 */
+  fromPoaCompany?: "name" | "bizNo" | "rep" | "phone" | "bank" | "holder" | "account";
   /** [갑] 회사가 이 값일 때만 렌더(도장 교체/가림용). gapCompany 회사명과 일치해야 표시 */
   showWhenCompany?: string;
   /** 선택값별 폰트 크기(%). 값이 길어 칸을 넘칠 때 해당 값만 작게. 없으면 fontPct 사용.
