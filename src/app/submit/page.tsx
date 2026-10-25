@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import BottomTabs, { PATIENTS_CHANGED_EVENT } from "@/components/BottomTabs";
 import DocSubmitList from "@/components/DocSubmitList";
-import PatientRowInner from "@/components/PatientRowInner";
+import PatientRowInner, { draftRankMap } from "@/components/PatientRowInner";
 import { PatientWithDocuments } from "@/lib/db/types";
 import { useUser } from "@/lib/supabase/useUser";
 import { getInProgressCache, setInProgressCache } from "@/lib/inProgressCache";
@@ -13,8 +13,6 @@ export default function SubmitPage() {
   const { user, loading } = useUser();
   const [patientId, setPatientId] = useState<string | null>(null);
   const [inProgress, setInProgress] = useState<PatientWithDocuments[]>(() => getInProgressCache() ?? []);
-  const [renameTarget, setRenameTarget] = useState<{ id: string; value: string } | null>(null);
-  const [renameSaving, setRenameSaving] = useState(false);
   const creatingRef = useRef<Promise<string | null> | null>(null);
   const refreshRef = useRef<() => void>(() => {});
 
@@ -69,30 +67,6 @@ export default function SubmitPage() {
   useEffect(() => {
     if (user) refreshRef.current();
   }, [user]);
-
-  // '작성 중' 리스트의 '새 환자' 행에서 이름 입력(환자보기와 동일 동작)
-  async function saveRename() {
-    if (!renameTarget) return;
-    const name = renameTarget.value.trim();
-    if (!name) return;
-    setRenameSaving(true);
-    try {
-      await fetch(`/api/patients/${renameTarget.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
-      });
-      refreshRef.current();
-      try {
-        window.dispatchEvent(new Event(PATIENTS_CHANGED_EVENT));
-      } catch {
-        // 무시
-      }
-      setRenameTarget(null);
-    } finally {
-      setRenameSaving(false);
-    }
-  }
 
   // 신분증 등록(정식 등록)이 끝나면: 위 서식은 새 환자로 리셋하고(위 파일 = 항상 새 환자),
   // 방금 등록된 환자는 아래 '작성 중' 리스트에서 이어 작성한다. 목록도 즉시 갱신.
@@ -157,13 +131,16 @@ export default function SubmitPage() {
           <div className="submit-inprogress">
             <h2 className="patient-detail-page__subhead">현재 작성 중인 환자</h2>
             <ul className="patient-list">
-              {inProgress.map((patient) => (
-                <li key={patient.id}>
-                  <Link href={`/patients/${patient.id}`} className="patient-list__item">
-                    <PatientRowInner patient={patient} onRename={(id) => setRenameTarget({ id, value: "" })} />
-                  </Link>
-                </li>
-              ))}
+              {(() => {
+                const draftRanks = draftRankMap(inProgress);
+                return inProgress.map((patient) => (
+                  <li key={patient.id}>
+                    <Link href={`/patients/${patient.id}`} className="patient-list__item">
+                      <PatientRowInner patient={patient} draftRank={draftRanks.get(patient.id)} />
+                    </Link>
+                  </li>
+                ));
+              })()}
             </ul>
           </div>
         )}
@@ -180,33 +157,6 @@ export default function SubmitPage() {
             <Link href="/settings" className="login-required__btn">
               로그인 하러 가기
             </Link>
-          </div>
-        </div>
-      )}
-
-      {/* '새 환자' 행 이름 입력(환자보기와 동일) */}
-      {renameTarget && (
-        <div className="sheet-overlay sheet-overlay--center" onClick={() => setRenameTarget(null)}>
-          <div className="sheet sheet--center" onClick={(e) => e.stopPropagation()}>
-            <div className="sheet__title sheet__title--name">환자 이름 입력</div>
-            <input
-              type="text"
-              value={renameTarget.value}
-              placeholder="환자 이름"
-              autoFocus
-              onChange={(e) => setRenameTarget((prev) => (prev ? { ...prev, value: e.target.value } : prev))}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") saveRename();
-              }}
-            />
-            <div className="field-popup__actions">
-              <button type="button" onClick={() => setRenameTarget(null)}>
-                취소
-              </button>
-              <button type="button" className="primary" onClick={saveRename} disabled={renameSaving}>
-                {renameSaving ? "저장 중..." : "저장"}
-              </button>
-            </div>
           </div>
         </div>
       )}

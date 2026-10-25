@@ -12,15 +12,34 @@ export function patientCompleteCount(documents: PatientWithDocuments["documents"
   ).length;
 }
 
+/** 이름 미입력(신분증/이름 전) 환자의 기본 표시명 */
+export const DRAFT_NAME = "새 환자";
+
+/**
+ * 현재 화면에 '보이는' 새 환자 행들에만 로컬 번호를 매긴다.
+ * 새 환자가 1명뿐이면 번호 없이 "새 환자", 2명 이상일 때만 새 환자 (1)/(2)…로 표시.
+ * (등록순=created_at 오름차순으로 번호 부여)
+ */
+export function draftRankMap(patients: PatientWithDocuments[]): Map<string, number> {
+  const m = new Map<string, number>();
+  const drafts = patients.filter((p) => p.name === DRAFT_NAME);
+  if (drafts.length < 2) return m;
+  drafts
+    .slice()
+    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+    .forEach((p, i) => m.set(p.id, i + 1));
+  return m;
+}
+
 interface Props {
   patient: PatientWithDocuments;
   editMode?: boolean;
   checked?: boolean;
-  /** '새 환자'(이름 미입력) 행에 '이름 입력하기' 버튼을 띄우고 싶을 때만 전달 */
-  onRename?: (id: string) => void;
+  /** 보이는 새 환자가 2명 이상일 때의 로컬 번호(1-based). 1명뿐이면 전달하지 않음 → 번호 없음 */
+  draftRank?: number;
 }
 
-export default function PatientRowInner({ patient, editMode = false, checked = false, onRename }: Props) {
+export default function PatientRowInner({ patient, editMode = false, checked = false, draftRank }: Props) {
   const done = patientCompleteCount(patient.documents);
   const total = DOC_TYPE_ORDER.length;
   const allDone = done >= total;
@@ -48,22 +67,15 @@ export default function PatientRowInner({ patient, editMode = false, checked = f
         )}
       </div>
       <div className="patient-list__name">
-        {patient.name_dup_rank ? `${patient.name}(${patient.name_dup_rank})` : patient.name}
+        {patient.name === DRAFT_NAME
+          ? draftRank
+            ? `새 환자 (${draftRank})`
+            : "새 환자"
+          : patient.name_dup_rank
+            ? `${patient.name}(${patient.name_dup_rank})`
+            : patient.name}
         {patient.customer_no != null && (
           <span className="patient-list__no">(No. {patient.customer_no})</span>
-        )}
-        {!editMode && patient.name === "새 환자" && onRename && (
-          <button
-            type="button"
-            className="patient-list__rename"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onRename(patient.id);
-            }}
-          >
-            이름 입력하기
-          </button>
         )}
       </div>
       <div

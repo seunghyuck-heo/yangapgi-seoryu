@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import BottomTabs, { PATIENTS_CHANGED_EVENT } from "@/components/BottomTabs";
-import PatientRowInner from "@/components/PatientRowInner";
+import PatientRowInner, { draftRankMap } from "@/components/PatientRowInner";
 import { PatientWithDocuments } from "@/lib/db/types";
 
 const PAGE_SIZE = 100;
@@ -28,8 +28,6 @@ export default function PatientsPage() {
   const [editMode, setEditMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
-  const [renameTarget, setRenameTarget] = useState<{ id: string; value: string } | null>(null);
-  const [renameSaving, setRenameSaving] = useState(false);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
@@ -163,6 +161,8 @@ export default function PatientsPage() {
 
   // 서버가 이미 '등록 환자' 필터 + 검색을 적용한 목록
   const visible = patients;
+  // 보이는 '새 환자'가 2명 이상일 때만 새 환자 (1)/(2)… 번호를 붙인다(1명이면 번호 없음)
+  const draftRanks = draftRankMap(visible);
   const q = search.trim();
 
   function toggleSelect(id: string) {
@@ -177,24 +177,6 @@ export default function PatientsPage() {
   function exitEdit() {
     setEditMode(false);
     setSelected(new Set());
-  }
-
-  async function saveRename() {
-    if (!renameTarget) return;
-    const name = renameTarget.value.trim();
-    if (!name) return;
-    setRenameSaving(true);
-    try {
-      await fetch(`/api/patients/${renameTarget.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
-      });
-      await reload();
-      setRenameTarget(null);
-    } finally {
-      setRenameSaving(false);
-    }
   }
 
   async function handleDelete() {
@@ -313,7 +295,7 @@ export default function PatientsPage() {
                   patient={patient}
                   editMode={editMode}
                   checked={checked}
-                  onRename={(id) => setRenameTarget({ id, value: "" })}
+                  draftRank={draftRanks.get(patient.id)}
                 />
               );
 
@@ -355,32 +337,6 @@ export default function PatientsPage() {
           >
             {deleting ? "삭제 중..." : `삭제하기${selected.size > 0 ? ` (${selected.size})` : ""}`}
           </button>
-        </div>
-      )}
-
-      {renameTarget && (
-        <div className="sheet-overlay sheet-overlay--center" onClick={() => setRenameTarget(null)}>
-          <div className="sheet sheet--center" onClick={(e) => e.stopPropagation()}>
-            <div className="sheet__title sheet__title--name">환자 이름 입력</div>
-            <input
-              type="text"
-              value={renameTarget.value}
-              placeholder="환자 이름"
-              autoFocus
-              onChange={(e) => setRenameTarget((prev) => (prev ? { ...prev, value: e.target.value } : prev))}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") saveRename();
-              }}
-            />
-            <div className="field-popup__actions">
-              <button type="button" onClick={() => setRenameTarget(null)}>
-                취소
-              </button>
-              <button type="button" className="primary" onClick={saveRename} disabled={renameSaving}>
-                {renameSaving ? "저장 중..." : "저장"}
-              </button>
-            </div>
-          </div>
         </div>
       )}
 
