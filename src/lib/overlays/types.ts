@@ -87,6 +87,9 @@ export interface OverlayField {
   fromCompany?: "address" | "phone";
   /** [갑] 회사가 이 값일 때만 렌더(도장 교체/가림용). gapCompany 회사명과 일치해야 표시 */
   showWhenCompany?: string;
+  /** 선택값별 폰트 크기(%). 값이 길어 칸을 넘칠 때 해당 값만 작게. 없으면 fontPct 사용.
+   *  예: { "엠와이메디칼": 1.15, "엔큐에스 주식회사 (…)": 0.9 } */
+  fontPctByValue?: Record<string, number>;
   /** 다른 필드(예: 결제사명)의 선택값에 따라 자동 하이픈. 자릿수는 강제하지 않음(soft):
    *  표준 형식대로 '-'를 넣되, 자릿수가 달라도 숫자는 잘리지 않음.
    *  예: { field: "pay_company", map: { "신한은행": [3,3,6], ... } } */

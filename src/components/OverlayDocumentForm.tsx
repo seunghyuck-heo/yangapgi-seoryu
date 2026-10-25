@@ -755,6 +755,11 @@ function OverlayDocumentFormInner(
     if (field.selectBlock) {
       const shown = typeof value === "string" && value.trim() ? value : "";
       const showBlue = !isCompleted || localEdit;
+      // 값이 길면 그 값만 작은 폰트(fontPctByValue) — 예: 엔큐에스 긴 상호
+      const selPct =
+        field.fontPctByValue && typeof value === "string" && field.fontPctByValue[value] != null
+          ? field.fontPctByValue[value]
+          : field.fontPct ?? 1.4;
       return (
         <div
           key={field.key}
@@ -764,7 +769,7 @@ function OverlayDocumentFormInner(
         >
           <span
             className="odoc-hotspot__text odoc-hotspot__selecttext"
-            style={{ fontSize: `${(field.fontPct ?? 1.4) * 1.1}cqw` }}
+            style={{ fontSize: `${selPct * 1.1}cqw` }}
           >
             {shown}
           </span>

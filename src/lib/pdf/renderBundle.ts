@@ -388,7 +388,12 @@ export async function renderOverlayPage(
         : typeof raw === "string" && raw.trim()
           ? raw
           : field.default ?? null;
-    if (val) drawText(ctx, val, bx, by, bw, bh, inputFontPx, field.align);
+    // 선택값별 폰트(fontPctByValue) — 긴 값만 작게(예: 엔큐에스 상호)
+    const valFontPx =
+      field.fontPctByValue && typeof val === "string" && field.fontPctByValue[val] != null
+        ? field.fontPctByValue[val] * cqw * 1.1
+        : inputFontPx;
+    if (val) drawText(ctx, val, bx, by, bw, bh, valFontPx, field.align);
   }
 
   return canvas;
