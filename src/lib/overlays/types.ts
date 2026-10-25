@@ -83,6 +83,10 @@ export interface OverlayField {
   dashPatternByCheckbox?: Record<string, number[]>;
   /** 체크박스에 따라 팝업 라벨을 다르게 표시. 예: { cb_bank: "계좌번호", cb_card: "카드번호" } */
   labelByCheckbox?: Record<string, string>;
+  /** [갑] 회사 선택에 따라 자동 표시되는 파생 텍스트(편집 불가). gapCompany 프리셋에서 가져옴 */
+  fromCompany?: "address" | "phone";
+  /** [갑] 회사가 이 값일 때만 렌더(도장 교체/가림용). gapCompany 회사명과 일치해야 표시 */
+  showWhenCompany?: string;
   /** 다른 필드(예: 결제사명)의 선택값에 따라 자동 하이픈. 자릿수는 강제하지 않음(soft):
    *  표준 형식대로 '-'를 넣되, 자릿수가 달라도 숫자는 잘리지 않음.
    *  예: { field: "pay_company", map: { "신한은행": [3,3,6], ... } } */

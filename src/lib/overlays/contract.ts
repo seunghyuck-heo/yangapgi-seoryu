@@ -1,10 +1,11 @@
 import { OverlayDoc } from "./types";
+import { GAP_COMPANY_OPTIONS, GAP_COMPANY_DEFAULT, GAP_COMPANY_NQS } from "./gapCompany";
 
 // 좌표는 원본 이미지(2480x3508) 대비 % (좌상단 기준).
 // 이미지 글자/표선 픽셀 분석으로 측정한 값.
 // 입력 블록 높이는 급여신청서/위임장과 동일한 얇은 pill 형태로 통일 (세로 중심 유지).
 export const contractOverlay: OverlayDoc = {
-  image: "/documents/contract-3.jpg",
+  image: "/documents/contract-4.jpg",
   width: 2480,
   height: 3508,
   title: "양압기치료 서비스 표준계약서",
@@ -75,6 +76,15 @@ export const contractOverlay: OverlayDoc = {
     // 을 연락처 / 비상연락처 (010- + 뒤 8자리, 4+4 자동 하이픈)
     { key: "patient_phone", type: "text", x: 56.4, y: 97.5, w: 15, h: 1.4, label: "연락처", prefix: "010-", hidePrefixOnDoc: true, dashPattern: [4, 4], align: "left" },
     { key: "patient_emergency_phone", type: "text", x: 82.9, y: 97.5, w: 14, h: 1.4, label: "비상연락처", prefix: "010-", hidePrefixOnDoc: true, dashPattern: [4, 4], align: "left" },
+
+    // ===== [갑] 회사 — 성명(드롭다운) 선택에 따라 주소·연락처·도장이 함께 바뀜 =====
+    // 배경(contract-4)에서 갑 이름/주소/연락처 값은 지워져 있고, 엠와이 도장·"(서명 또는 인)"·밑줄은 유지됨.
+    // 기본 엠와이메디칼(도장=배경 인쇄) / 엔큐에스 선택 시 엠와이 도장을 흰색으로 가리고 엔큐에스 도장을 얹음.
+    { key: "gap_company", type: "text", x: 14.8, y: 92.7, w: 23, h: 1.6, label: "[갑] 회사", align: "left", options: GAP_COMPANY_OPTIONS, default: GAP_COMPANY_DEFAULT, selectBlock: true, fontPct: 1.2 },
+    { key: "gap_address", type: "text", x: 14.8, y: 94.75, w: 45, h: 1.6, align: "left", fromCompany: "address", fontPct: 1.3 },
+    { key: "gap_phone", type: "text", x: 14.8, y: 97.1, w: 22, h: 1.6, align: "left", fromCompany: "phone", fontPct: 1.35 },
+    { key: "gap_stamp_cover", type: "text", x: 37.8, y: 92.3, w: 5.2, h: 3.3, cover: true, showWhenCompany: GAP_COMPANY_NQS },
+    { key: "gap_stamp_nqs", type: "text", x: 37.5, y: 92.0, w: 5.5, h: 3.8, stampImage: "/documents/stamp-nqs.png", showWhenCompany: GAP_COMPANY_NQS },
   ],
 };
 
