@@ -403,10 +403,12 @@ export async function renderOverlayPage(
   return canvas;
 }
 
-/** 신분증 등 이미지 한 장을 A4 세로 흰 페이지 가운데에 담아 렌더 */
+/** 신분증 등 이미지 한 장을 A4 세로 흰 페이지 가운데에 담아 렌더.
+ *  grayscale=true면 흑백으로 변환(팩스 전송 시 컬러 신분증이 까맣게 떠 보이는 문제 방지). */
 export async function renderImagePage(
   imgDataUrl: string,
-  targetWidth = 1240
+  targetWidth = 1240,
+  grayscale = false
 ): Promise<HTMLCanvasElement> {
   const W = targetWidth;
   const H = Math.round(targetWidth * (297 / 210)); // A4 비율
@@ -429,5 +431,16 @@ export async function renderImagePage(
     w = availH * ir;
   }
   ctx.drawImage(img, (W - w) / 2, (H - h) / 2, w, h);
+
+  if (grayscale) {
+    // 픽셀 단위 그레이스케일(ctx.filter 미지원 기기에서도 동일 동작). 흰 배경은 흰색 유지.
+    const data = ctx.getImageData(0, 0, W, H);
+    const px = data.data;
+    for (let i = 0; i < px.length; i += 4) {
+      const g = (px[i] * 0.299 + px[i + 1] * 0.587 + px[i + 2] * 0.114) | 0;
+      px[i] = px[i + 1] = px[i + 2] = g;
+    }
+    ctx.putImageData(data, 0, 0);
+  }
   return canvas;
 }
