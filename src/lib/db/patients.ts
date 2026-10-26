@@ -391,6 +391,58 @@ export async function listInProgressPatients(): Promise<PatientWithDocuments[]> 
   return attachDocsAndInfo(supabase, inProgressRows);
 }
 
+// ── 일회성 마이그레이션: rental_guide(6번째 필수서류) 추가 전 '기존 5종 완료' 환자 처리 ──
+// 신분증·표준계약서·급여신청서·CMS·위임장 5종이 모두 '작성완료'인 환자를 찾아 '직접 완료'로 표시해
+// 새 6번째 서류 때문에 '작성 중'으로 보이지 않게 한다.
+const LEGACY_REQUIRED = [
+  "id_card",
+  "contract",
+  "subsidy_application",
+  "cms_autopay",
+  "power_of_attorney",
+] as const;
+
+/** 기존 5종 모두 완료 + 아직 직접완료 아님 환자 목록(미리보기용) */
+export async function listLegacyCompleteCandidates(): Promise<{ id: string; name: string }[]> {
+  const supabase = await getSupabaseServerClient();
+  const { data: docs, error } = await supabase
+    .from("documents")
+    .select("patient_id, doc_type, status")
+    .in("doc_type", LEGACY_REQUIRED as unknown as string[])
+    .eq("status", "completed");
+  if (error) throw new Error(error.message);
+  const done = new Map<string, Set<string>>();
+  for (const d of (docs ?? []) as { patient_id: string; doc_type: string }[]) {
+    const s = done.get(d.patient_id) ?? new Set<string>();
+    s.add(d.doc_type);
+    done.set(d.patient_id, s);
+  }
+  const ids: string[] = [];
+  for (const [pid, s] of done) if (s.size >= LEGACY_REQUIRED.length) ids.push(pid);
+  if (ids.length === 0) return [];
+  const { data: rows, error: e2 } = await supabase
+    .from("patients")
+    .select("id, name, manual_complete")
+    .in("id", ids);
+  if (e2) throw new Error(e2.message);
+  return ((rows ?? []) as { id: string; name: string; manual_complete: boolean | null }[])
+    .filter((p) => !p.manual_complete)
+    .map((p) => ({ id: p.id, name: p.name }));
+}
+
+/** 위 후보들을 모두 '직접 완료'(manual_complete=true)로 일괄 처리 */
+export async function markLegacyCompleteAll(): Promise<{ count: number; names: string[] }> {
+  const candidates = await listLegacyCompleteCandidates();
+  if (candidates.length === 0) return { count: 0, names: [] };
+  const supabase = await getSupabaseServerClient();
+  const { error } = await supabase
+    .from("patients")
+    .update({ manual_complete: true })
+    .in("id", candidates.map((c) => c.id));
+  if (error) throw new Error(error.message);
+  return { count: candidates.length, names: candidates.map((c) => c.name) };
+}
+
 // 배지용: 등록 환자 총원만 (문서 조회 없이 가볍게)
 export async function countRegisteredPatients(search?: string): Promise<number> {
   const supabase = await getSupabaseServerClient();
