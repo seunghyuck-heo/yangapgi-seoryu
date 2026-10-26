@@ -31,6 +31,7 @@ const ROWS: RowConfig[] = [
   { docType: "subsidy_application", title: "양압기 급여대상자 등록 신청서", subtitle: "급여 대상자 등록 신청" },
   { docType: "cms_autopay", title: "CMS 자동이체 신청서", subtitle: "대여료 자동이체 등록" },
   { docType: "power_of_attorney", title: "요양비 지급청구 위임장", subtitle: "요양비 청구 위임" },
+  { docType: "rental_guide", title: "양압기 임대 안내", subtitle: "임대 안내 확인 및 기기 안전교육 서명" },
 ];
 
 const MAX_DIMENSION = 1800;

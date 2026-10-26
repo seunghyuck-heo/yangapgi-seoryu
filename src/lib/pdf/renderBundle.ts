@@ -41,6 +41,7 @@ function formatDatePart(field: OverlayField, dt: Date): string | null {
   if (field.datePart === "m") return String(m);
   if (field.datePart === "d") return String(d);
   if (field.datePart === "full") return `${y}.${m}.${d}`;
+  if (field.datePart === "fullko") return `${y}년 ${m}월 ${d}일`;
   return null;
 }
 

@@ -36,13 +36,15 @@ export type DocType =
   | "subsidy_application"
   | "cms_autopay"
   | "power_of_attorney"
+  // 6번째 필수 제출서류 — 양압기 임대 안내 + 기기 안전교육(일자 자동, 성함/사인 서명)
+  | "rental_guide"
   // 지속 관리 서류 — 5개 기본 서류 목록/번들에는 포함하지 않음(DOC_TYPE_ORDER 제외)
   | "care_card"
   // 순응 후 재작성용 표준계약서. contract 서식을 그대로 재사용하되 저장 슬롯만 분리
   | "contract_after";
 
 export interface DocumentTemplate {
-  docType: Exclude<DocType, "id_card" | "care_card" | "contract_after">;
+  docType: Exclude<DocType, "id_card" | "care_card" | "contract_after" | "rental_guide">;
   title: string;
   subtitle?: string;
   sections: TemplateSection[];
@@ -54,6 +56,7 @@ export const DOC_TYPE_LABELS: Record<DocType, string> = {
   subsidy_application: "급여대상자 등록 신청서",
   cms_autopay: "CMS 자동이체신청서",
   power_of_attorney: "요양비 지급청구 위임장",
+  rental_guide: "양압기 임대 안내",
   care_card: "양압기 환자관리카드",
   contract_after: "표준계약서 (순응 후)",
 };
@@ -64,6 +67,7 @@ export const DOC_TYPE_ICONS: Record<DocType, string> = {
   subsidy_application: "📝",
   cms_autopay: "💳",
   power_of_attorney: "🖊️",
+  rental_guide: "📘",
   care_card: "🗂️",
   contract_after: "📄",
 };
@@ -74,4 +78,5 @@ export const DOC_TYPE_ORDER: DocType[] = [
   "subsidy_application",
   "cms_autopay",
   "power_of_attorney",
+  "rental_guide",
 ];

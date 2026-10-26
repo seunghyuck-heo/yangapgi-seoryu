@@ -17,7 +17,7 @@ export interface OverlayField {
   align?: "left" | "center" | "right";
   /** 날짜 입력: 같은 dateGroup의 y/m/d 칸은 캘린더 한 번으로 함께 채워짐 */
   dateGroup?: string;
-  datePart?: "y" | "m" | "d" | "full";
+  datePart?: "y" | "m" | "d" | "full" | "fullko";
   /** 연도를 4자리(2026)로 표시. 미지정 시 2자리(26) */
   fullYear?: boolean;
   /** 자릿수 네모칸 입력: N개의 칸에 한 글자씩 나눠 렌더. 입력도 N자로 제한 */

@@ -232,7 +232,9 @@ function OverlayDocumentFormInner(
                   ? String(Number(d))
                   : f.datePart === "full"
                     ? `${y}.${m}.${d}`
-                    : null;
+                    : f.datePart === "fullko"
+                      ? `${y}년 ${Number(m)}월 ${Number(d)}일`
+                      : null;
           if (nv != null && next[f.key] !== nv) {
             next[f.key] = nv;
             changed = true;
