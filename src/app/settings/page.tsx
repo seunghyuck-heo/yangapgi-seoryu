@@ -194,12 +194,6 @@ export default function SettingsPage() {
               <span className="settings-menu-item__chev" aria-hidden>›</span>
             </Link>
 
-            {/* 일회성: 6번째 서류 추가 후 기존 완료 환자를 직접완료로 정리. 처리 끝나면 제거 예정. */}
-            <Link href="/admin/complete-legacy" className="settings-menu-item">
-              <span>기존 완료 환자 정리 (일회성)</span>
-              <span className="settings-menu-item__chev" aria-hidden>›</span>
-            </Link>
-
             <div className="settings-bottom">
               <p className="app-version">양압기 서류계약 {APP_VERSION}</p>
               <button type="button" className="logout-btn" onClick={handleLogout}>
