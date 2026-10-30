@@ -7,7 +7,7 @@ import dynamic from "next/dynamic";
 import { PatientWithDocuments } from "@/lib/db/types";
 import { DOC_TYPE_LABELS, DOC_TYPE_ORDER } from "@/lib/templates/types";
 import { DOC_ICON_STYLES } from "@/components/docIcons";
-import { DRAFT_NAME } from "@/components/PatientRowInner";
+import { DRAFT_NAME, draftRankMap } from "@/components/PatientRowInner";
 import { PATIENTS_CHANGED_EVENT } from "@/components/BottomTabs";
 import { removeFromInProgressCache } from "@/lib/inProgressCache";
 
@@ -49,6 +49,8 @@ export default function PatientDetailPage({ params }: PatientDetailPageProps) {
   const router = useRouter();
   const { id } = use(params);
   const [patient, setPatient] = useState<PatientWithDocuments | null>(null);
+  // '새 환자'가 2명 이상일 때 이 환자의 번호(리스트의 (1)(2)와 동일 기준). 1명 이하/새 환자 아니면 undefined.
+  const [draftRank, setDraftRank] = useState<number | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showBundle, setShowBundle] = useState(false);
@@ -122,6 +124,18 @@ export default function PatientDetailPage({ params }: PatientDetailPageProps) {
       .finally(() => setLoading(false));
   }, [id]);
 
+  // '새 환자' 번호: 리스트(작성 중/환자보기)와 동일하게 draftRankMap으로 계산 → 타이틀에 (1)(2) 표기 일치
+  useEffect(() => {
+    fetch(`/api/patients?inprogress=1`)
+      .then(async (res) => {
+        if (!res.ok) return;
+        const json = await res.json();
+        const list = Array.isArray(json.inProgress) ? (json.inProgress as PatientWithDocuments[]) : [];
+        setDraftRank(draftRankMap(list).get(id));
+      })
+      .catch(() => {});
+  }, [id]);
+
   // 마스크 영수증 개수(지속 관리 서류 행 상태 표시용)
   useEffect(() => {
     fetch(`/api/patients/${id}/receipts`)
@@ -175,7 +189,7 @@ export default function PatientDetailPage({ params }: PatientDetailPageProps) {
         </div>
       </div>
       <h1>
-        {patient ? (patient.name === DRAFT_NAME ? "새 환자" : patient.name_dup_rank ? `${patient.name}(${patient.name_dup_rank})` : patient.name) : " "}
+        {patient ? (patient.name === DRAFT_NAME ? (draftRank ? `새 환자 (${draftRank})` : "새 환자") : patient.name_dup_rank ? `${patient.name}(${patient.name_dup_rank})` : patient.name) : " "}
         {patient?.customer_no != null && (
           <span className="patient-detail-page__no"> (No. {patient.customer_no})</span>
         )}
