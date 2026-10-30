@@ -704,14 +704,17 @@ function OverlayDocumentFormInner(
         setError(json.error || "저장 실패");
         return;
       }
+      try {
+        window.dispatchEvent(new Event(PATIENTS_CHANGED_EVENT));
+      } catch {
+        // 무시
+      }
       if (targetStatus === "completed") {
-        try {
-          window.dispatchEvent(new Event(PATIENTS_CHANGED_EVENT));
-        } catch {
-          // 무시
-        }
         // 작성완료하면 환자목록으로 이동(서식 제출 흐름). 환자 상세에서 온 경우엔 해당 폴더로.
         router.push(backHref === "/submit" ? "/patients" : backHref);
+      } else {
+        // 임시저장하면 출발지로 돌아간다(서식제출이면 '현재 작성 중' 목록이 보이는 서식제출 화면).
+        router.push(backHref);
       }
     } finally {
       setSaving(false);
