@@ -7,6 +7,7 @@ import dynamic from "next/dynamic";
 import { PatientWithDocuments } from "@/lib/db/types";
 import { DOC_TYPE_LABELS, DOC_TYPE_ORDER } from "@/lib/templates/types";
 import { DOC_ICON_STYLES } from "@/components/docIcons";
+import { DRAFT_NAME } from "@/components/PatientRowInner";
 import { PATIENTS_CHANGED_EVENT } from "@/components/BottomTabs";
 import { removeFromInProgressCache } from "@/lib/inProgressCache";
 
@@ -174,7 +175,7 @@ export default function PatientDetailPage({ params }: PatientDetailPageProps) {
         </div>
       </div>
       <h1>
-        {patient ? (patient.name_dup_rank ? `${patient.name}(${patient.name_dup_rank})` : patient.name) : " "}
+        {patient ? (patient.name === DRAFT_NAME ? "새 환자" : patient.name_dup_rank ? `${patient.name}(${patient.name_dup_rank})` : patient.name) : " "}
         {patient?.customer_no != null && (
           <span className="patient-detail-page__no"> (No. {patient.customer_no})</span>
         )}
