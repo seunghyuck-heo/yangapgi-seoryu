@@ -141,11 +141,12 @@ create index if not exists documents_patient_type_status_idx
 
 create or replace function public.is_registered_patient(p patients)
 returns boolean language sql stable security invoker as $$
-  -- 필수 5종 중 하나라도 저장(임시저장 draft / 완료 completed)했거나 신분증 이미지가 있으면 환자로 본다
+  -- 필수 6종 중 하나라도 저장(임시저장 draft / 완료 completed)했거나 신분증 이미지가 있으면 환자로 본다.
+  -- (DOC_TYPE_ORDER와 동일하게 유지 — 새 필수서류 추가 시 여기 목록도 갱신할 것!)
   select exists (
     select 1 from documents d
     where d.patient_id = p.id
-      and d.doc_type in ('id_card','contract','subsidy_application','cms_autopay','power_of_attorney')
+      and d.doc_type in ('id_card','contract','subsidy_application','cms_autopay','power_of_attorney','rental_guide')
       and (d.status in ('draft','completed') or d.file_path is not null)
   );
 $$;
