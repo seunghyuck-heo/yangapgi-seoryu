@@ -169,7 +169,21 @@ export default function PatientDetailPage({ params }: PatientDetailPageProps) {
   return (
     <div className="patient-detail-page" aria-busy={loading}>
       <div className="doc-page__toolbar no-print">
-        <button type="button" className="app-header__action" aria-label="뒤로" onClick={() => router.push("/patients")}>
+        <button
+          type="button"
+          className="app-header__action"
+          aria-label="뒤로"
+          onClick={() => {
+            // 출발지에 따라 뒤로가기: 서식제출(?from=submit)에서 왔으면 서식제출로, 아니면 환자보기로
+            let from = "";
+            try {
+              from = new URLSearchParams(window.location.search).get("from") ?? "";
+            } catch {
+              // 무시
+            }
+            router.push(from === "submit" ? "/submit" : "/patients");
+          }}
+        >
           <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
             <path d="M15 18l-6-6 6-6" />
           </svg>

@@ -135,7 +135,7 @@ export default function SubmitPage() {
                 const draftRanks = draftRankMap(inProgress);
                 return inProgress.map((patient) => (
                   <li key={patient.id}>
-                    <Link href={`/patients/${patient.id}`} className="patient-list__item">
+                    <Link href={`/patients/${patient.id}?from=submit`} className="patient-list__item">
                       <PatientRowInner patient={patient} draftRank={draftRanks.get(patient.id)} />
                     </Link>
                   </li>
