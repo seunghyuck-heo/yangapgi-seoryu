@@ -21,8 +21,8 @@ export const poaOverlay: OverlayDoc = {
     { key: "poa_bank", type: "text", x: 47.2, y: 49.31, w: 49.1, h: 1.6, align: "center", fromPoaCompany: "bank", fontPct: 1.9 },
     { key: "poa_holder", type: "text", x: 47.2, y: 52.05, w: 49.1, h: 1.6, align: "center", fromPoaCompany: "holder", fontPct: 1.9 },
     { key: "poa_account", type: "text", x: 47.2, y: 54.78, w: 49.1, h: 1.6, align: "center", fromPoaCompany: "account", fontPct: 1.9 },
-    { key: "insured_name", type: "text", x: 48.5, y: 13.22, w: 28, h: 1.34, label: "가입자 성명", align: "left" },
-    { key: "insured_rrn", type: "text", x: 48.5, y: 15.96, w: 30, h: 1.34, label: "주민(외국인)등록번호", dashPattern: [6, 7], align: "left" },
+    { key: "insured_name", type: "text", x: 48.5, y: 13.22, w: 28, h: 1.34, label: "가입자 성명", align: "left", prefillFrom: "patientName" },
+    { key: "insured_rrn", type: "text", x: 48.5, y: 15.96, w: 30, h: 1.34, label: "주민(외국인)등록번호", dashPattern: [6, 7], align: "left", prefillFrom: "rrn" },
     { key: "delegator_phone", type: "text", x: 48.3, y: 26.92, w: 28, h: 1.34, label: "전화번호(수신용)", prefix: "010-", dashPattern: [4, 4], align: "left" },
     // 문자메시지 수신동의: 필수 아님 + 사용 안 함 → 편집 대상에서 제외(파란 블록 표시 안 함)
     // 위임기간: 시작일=오늘 자동, 종료일=오늘+5년 자동 (편집 불가)

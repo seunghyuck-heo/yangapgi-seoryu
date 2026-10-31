@@ -6,8 +6,8 @@ export const subsidyOverlay: OverlayDoc = {
   image: "/documents/subsidy.jpg", width: 2000, height: 2828,
   title: "건강보험 양압기 급여대상자 등록 신청서",
   fields: [
-    { key: "patient_name", type: "text", x: 19.7, y: 12.49, w: 26, h: 1.2, label: "수진자 성명", align: "left" },
-    { key: "patient_rrn", type: "text", x: 66.5, y: 12.49, w: 18, h: 1.2, label: "주민(외국인)등록번호", dashPattern: [6, 7], align: "left" },
+    { key: "patient_name", type: "text", x: 19.7, y: 12.49, w: 26, h: 1.2, label: "수진자 성명", align: "left", prefillFrom: "patientName" },
+    { key: "patient_rrn", type: "text", x: 66.5, y: 12.49, w: 18, h: 1.2, label: "주민(외국인)등록번호", dashPattern: [6, 7], align: "left", prefillFrom: "rrn" },
     // 자택 전화번호: 입력 대상에서 제외(건너뜀) — 휴대전화만 입력
     { key: "patient_mobile_phone", type: "text", x: 19.5, y: 17.75, w: 24, h: 1.2, label: "휴대전화", prefix: "010-", dashPattern: [4, 4], align: "left" },
     { key: "diagnosis_date", type: "text", x: 74.65, y: 21.24, w: 15, h: 1.2, label: "진단확인일", align: "left", dateGroup: "diag", datePart: "full" },

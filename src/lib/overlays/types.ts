@@ -10,6 +10,10 @@ export interface OverlayField {
   h: number;
   label?: string;
   placeholder?: string;
+  /** 서식 로드 시 환자 공통정보로 자동 프리필(빈 칸만, 편집 가능):
+   *   "patientName"=환자 이름, "rrn"=주민번호 전체13, "birth6"=생년월일6.
+   *  이름·주민번호 칸이면 반드시 지정(모든 서류 자동입력 규칙). */
+  prefillFrom?: "patientName" | "rrn" | "birth6";
   /** text 렌더링 폰트 크기 (이미지 폭 대비 %). 기본 1.4 */
   fontPct?: number;
   /** 체크박스 라디오 그룹 (같은 그룹은 하나만 선택) */

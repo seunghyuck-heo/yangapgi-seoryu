@@ -90,7 +90,7 @@ export const cmsOverlay: OverlayDoc = {
   image: "/documents/cms.jpg", width: 2000, height: 2828,
   title: "효성 CMS 자동이체신청서",
   fields: [
-    { key: "applicant_name", type: "text", x: 24.5, y: 21.39, w: 15, h: 1.2, label: "신청인", align: "left" },
+    { key: "applicant_name", type: "text", x: 24.5, y: 21.39, w: 15, h: 1.2, label: "신청인", align: "left", prefillFrom: "patientName" },
     { key: "account_relation", type: "text", x: 47.99, y: 21.39, w: 6, h: 1.2, staticText: "본인", align: "center", fontPct: 1.2 },
     { key: "cb_bank", type: "checkbox", x: 25.21, y: 27.74, w: 1.4, h: 0.99, group: "paymethod" },
     { key: "cb_card", type: "checkbox", x: 37.69, y: 27.74, w: 1.4, h: 0.99, group: "paymethod" },
