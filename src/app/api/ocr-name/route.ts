@@ -64,6 +64,28 @@ export async function POST(req: Request) {
     },
   });
 
+  // 진단: ?probe=1 → 각 모델을 한 번씩(최대 20s) 호출해 상태코드를 반환(어느 모델이 유효/가용한지 파악).
+  if (new URL(req.url).searchParams.get("probe") === "1") {
+    const out: { model: string; status: number | string; ms: number }[] = [];
+    for (const model of MODELS) {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 20000);
+      const t0 = Date.now();
+      try {
+        const resp = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+          { method: "POST", headers: { "Content-Type": "application/json" }, body: reqBody, signal: ctrl.signal }
+        );
+        clearTimeout(timer);
+        out.push({ model, status: resp.status, ms: Date.now() - t0 });
+      } catch {
+        clearTimeout(timer);
+        out.push({ model, status: "timeout", ms: Date.now() - t0 });
+      }
+    }
+    return NextResponse.json({ probe: out });
+  }
+
   try {
     // 느린/과부하 모델에 오래 매달리지 않도록 호출마다 타임아웃(12s) + 전체 상한(45s)을 둔다.
     // (쿼터 소진 모델은 빠르게 429로 떨어지고, 건강한 모델은 보통 몇 초 안에 응답)
