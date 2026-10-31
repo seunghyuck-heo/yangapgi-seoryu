@@ -289,10 +289,11 @@ export default function IdCardUploader({ patientId, initialUrl, backHref }: IdCa
       /* 진행 */
     }
 
-    // 1차 OCR이 주민번호(13자리)를 놓쳤으면, 반듯하게 크롭·회전된 '깨끗한 카드 이미지'로 한 번 더 판독.
-    // 기운 원본은 뒤 7자리를 놓치기 쉽지만 정렬된 카드 이미지는 잘 읽힘(실측 확인).
-    // finalFull이 원본과 다를 때(=크롭/회전으로 개선됐을 때)만 호출 → 평소엔 1콜, 놓쳤을 때만 1콜 추가.
-    if (!rrn && guess && finalFull !== dataUrl) {
+    // 1차 OCR이 주민번호(13자리)를 놓치면 재판독한다. 과부하 때 모델이 이름·생년월일만 주고
+    // rrn(과 box·card)을 통째로 건너뛰는 경우가 잦은데(호출마다 결과가 들쭉날쭉), 같은 이미지라도
+    // 다시 호출하면 rrn 13자리가 잘 잡힌다(실측). 크롭 여부와 무관하게, rrn이 빌 때만 최대 2회 재시도.
+    // finalFull = 크롭·회전으로 개선된 이미지가 있으면 그쪽, 없으면 원본.
+    for (let attempt = 0; !rrn && guess && attempt < 1; attempt++) {
       try {
         const res2 = await fetch("/api/ocr-name", {
           method: "POST",

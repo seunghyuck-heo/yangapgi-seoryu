@@ -120,14 +120,39 @@ export async function POST(req: Request) {
     const PER_CALL_MS = 12000;
     const TOTAL_BUDGET_MS = 45000;
     const started = Date.now();
-    let ok: Response | null = null;
+    type Parsed = { name: string; birth6: string; rrn: string; box: number[] | null; card: number[] | null; rotation: number };
+    const parseOut = (json: unknown): Parsed => {
+      const text: string =
+        (json as { candidates?: { content?: { parts?: { text?: string }[] } }[] })
+          ?.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
+      let name = "", birth6 = "", rrn = "", rotation = 0;
+      let box: number[] | null = null, card: number[] | null = null;
+      try {
+        const p = JSON.parse(text) as Record<string, unknown>;
+        if (typeof p?.name === "string") name = p.name.replace(/\s/g, "");
+        if (typeof p?.birth6 === "string") birth6 = p.birth6.replace(/\D/g, "").slice(0, 6);
+        if (typeof p?.rrn === "string") { const d = p.rrn.replace(/\D/g, ""); if (d.length === 13) rrn = d; }
+        if (rrn) birth6 = rrn.slice(0, 6);
+        if (Array.isArray(p?.box) && p.box.length === 4 && p.box.every((n) => typeof n === "number")) box = p.box as number[];
+        if (Array.isArray(p?.card) && p.card.length === 4 && p.card.every((n) => typeof n === "number")) card = p.card as number[];
+        if (typeof p?.rotation === "number") rotation = ((Math.round((p.rotation as number) / 90) * 90) % 360 + 360) % 360;
+      } catch {
+        const m = text.replace(/\s/g, "").match(/[가-힣]{2,5}/);
+        name = m ? m[0] : "";
+      }
+      const nm = name.match(/[가-힣]{2,5}/);
+      name = nm ? nm[0] : "";
+      return { name, birth6, rrn, box, card, rotation };
+    };
+
+    let best: Parsed | null = null;    // 이름+주민번호(13) 모두 있는 최상 결과
+    let partial: Parsed | null = null; // 이름만 있고 주민번호가 빈 결과(백업)
     let lastStatus = 0;
     let lastDetail = "no response";
-    // 모델당 1회만 호출하고 503/429/오류는 즉시 다음 모델로 넘어간다.
-    // (flash 티어가 전면 과부하(503)일 때 같은 모델을 재시도해봐야 똑같이 503이라 지연만 늘고,
-    //  체인에 flash 7개 + lite 2개가 있어 과부하 안 겪는 모델로 빠르게 떨어지는 게 더 빠르고 확실함.)
+    // 모델당 1회 호출. 단, 200이어도 주민번호(rrn)가 비면 거기서 끝내지 않고 다음 모델로 rrn 있는 응답을 더 찾는다.
+    // (과부하 땐 모델이 이름·생년월일만 주고 rrn·box·card를 통째로 건너뛰는 일이 잦음 → 한 번의 OCR 요청으로 rrn까지 확보)
     for (const model of MODELS) {
-      if (ok) break;
+      if (best) break;
       if (Date.now() - started > TOTAL_BUDGET_MS) break; // 시간 상한 초과 → 중단
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), PER_CALL_MS);
@@ -137,7 +162,12 @@ export async function POST(req: Request) {
           { method: "POST", headers: { "Content-Type": "application/json" }, body: bodyFor(model), signal: ctrl.signal }
         );
         clearTimeout(timer);
-        if (resp.ok) { ok = resp; break; }
+        if (resp.ok) {
+          const parsed = parseOut(await resp.json());
+          if (parsed.name && parsed.rrn) { best = parsed; break; }  // 최상: 이름+주민번호 → 확정
+          if (!partial || (parsed.name && !partial.name)) partial = parsed; // 백업 보관(이름 있는 쪽 우선)
+          continue; // 주민번호 찾으러 다음 모델로
+        }
         lastStatus = resp.status;
         lastDetail = `${model}:${resp.status} ${(await resp.text()).slice(0, 120)}`;
       } catch {
@@ -146,7 +176,8 @@ export async function POST(req: Request) {
       }
     }
 
-    if (!ok) {
+    const out = best ?? partial;
+    if (!out) {
       // 모든 모델 실패. 429(한도)·503(과부하)를 구분해 사용자에게 명확히 안내.
       const quota = lastStatus === 429;
       const busy = lastStatus === 503;
@@ -160,45 +191,7 @@ export async function POST(req: Request) {
         { status: quota ? 429 : busy ? 503 : 502 }
       );
     }
-
-    const json = await ok.json();
-    const text: string =
-      json?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text ?? "").join("") ?? "";
-
-    let name = "";
-    let box: number[] | null = null;
-    let card: number[] | null = null;
-    let rotation = 0;
-    let birth6 = "";
-    let rrn = "";
-    try {
-      const parsed = JSON.parse(text);
-      if (typeof parsed?.name === "string") name = parsed.name.replace(/\s/g, "");
-      if (typeof parsed?.birth6 === "string") birth6 = parsed.birth6.replace(/\D/g, "").slice(0, 6);
-      if (typeof parsed?.rrn === "string") {
-        const d = parsed.rrn.replace(/\D/g, "");
-        if (d.length === 13) rrn = d; // 13자리만 신뢰(부정확한 뒷자리 프리필 방지)
-      }
-      if (rrn) birth6 = rrn.slice(0, 6); // 둘 일치 보장
-      if (Array.isArray(parsed?.box) && parsed.box.length === 4 && parsed.box.every((n: unknown) => typeof n === "number")) {
-        box = parsed.box as number[];
-      }
-      if (Array.isArray(parsed?.card) && parsed.card.length === 4 && parsed.card.every((n: unknown) => typeof n === "number")) {
-        card = parsed.card as number[];
-      }
-      if (typeof parsed?.rotation === "number") {
-        const r = ((Math.round(parsed.rotation / 90) * 90) % 360 + 360) % 360;
-        rotation = r;
-      }
-    } catch {
-      // JSON 파싱 실패 시 한글 이름만 정규식으로 회수
-      const m = text.replace(/\s/g, "").match(/[가-힣]{2,5}/);
-      name = m ? m[0] : "";
-    }
-
-    const nm = name.match(/[가-힣]{2,5}/);
-    name = nm ? nm[0] : "";
-    return NextResponse.json({ name, birth6, rrn, box, card, rotation });
+    return NextResponse.json(out);
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500 });
   }
