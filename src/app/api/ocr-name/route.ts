@@ -25,6 +25,20 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "OCR 미설정(GEMINI_API_KEY 없음)" }, { status: 501 });
   }
 
+  // 진단: ?models=1 → 이 키로 generateContent 가능한 모델 목록(이미지 불필요).
+  if (new URL(req.url).searchParams.get("models") === "1") {
+    try {
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}&pageSize=200`);
+      const j = await r.json();
+      const names = (j?.models ?? [])
+        .filter((m: { supportedGenerationMethods?: string[] }) => (m.supportedGenerationMethods ?? []).includes("generateContent"))
+        .map((m: { name?: string }) => (m.name ?? "").replace("models/", ""));
+      return NextResponse.json({ status: r.status, models: names });
+    } catch (e) {
+      return NextResponse.json({ error: (e as Error).message }, { status: 502 });
+    }
+  }
+
   let dataUrl: string | undefined;
   try {
     const body = await req.json();
@@ -66,8 +80,10 @@ export async function POST(req: Request) {
 
   // 진단: ?probe=1 → 각 모델을 한 번씩(최대 20s) 호출해 상태코드를 반환(어느 모델이 유효/가용한지 파악).
   if (new URL(req.url).searchParams.get("probe") === "1") {
-    const out: { model: string; status: number | string; ms: number }[] = [];
-    for (const model of MODELS) {
+    const listParam = new URL(req.url).searchParams.get("list");
+    const probeModels = listParam ? listParam.split(",").map((s) => s.trim()).filter(Boolean) : MODELS;
+    const out: { model: string; status: number | string; ms: number; detail?: string }[] = [];
+    for (const model of probeModels) {
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), 20000);
       const t0 = Date.now();
@@ -77,7 +93,8 @@ export async function POST(req: Request) {
           { method: "POST", headers: { "Content-Type": "application/json" }, body: reqBody, signal: ctrl.signal }
         );
         clearTimeout(timer);
-        out.push({ model, status: resp.status, ms: Date.now() - t0 });
+        const detail = resp.ok ? undefined : (await resp.text()).slice(0, 160);
+        out.push({ model, status: resp.status, ms: Date.now() - t0, detail });
       } catch {
         clearTimeout(timer);
         out.push({ model, status: "timeout", ms: Date.now() - t0 });
