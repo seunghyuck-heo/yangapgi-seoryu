@@ -33,6 +33,14 @@ interface CustomerRec {
 }
 export type CustomerIndex = Map<string, CustomerRec[]>; // 이름(공백제거) → 후보 목록
 
+// or-필터/LIKE 특수문자를 제거하고 끝의 "(N)" 접미사를 떼어 'base 이름'을 만든다.
+// (시트에 동명이인이 "이진우(2)"처럼 접미사로 저장될 수 있어, 이 base로 시작하는 행까지 모두 조회해야 함)
+const queryBase = (s: string | null | undefined) =>
+  (s ?? "")
+    .replace(/\s*\(\s*\d+\s*\)\s*$/, "") // 끝 "(2)" 등 제거
+    .replace(/[,()"*%_\\]/g, "")          // PostgREST or-필터·LIKE 특수문자 제거(한글 이름엔 없음)
+    .trim();
+
 // B안: 고객(customers) 전체를 통째로 읽지 않고, '그 화면에 보이는 환자 이름들'에
 // 해당하는 고객만 조회한다 → egress·지연이 전체 데이터량과 무관하게 작게 유지됨.
 // (동명이인 대비 이름당 후보 배열로 인덱싱)
@@ -41,22 +49,36 @@ async function buildCustomerIndex(
   names: string[]
 ): Promise<CustomerIndex> {
   const index: CustomerIndex = new Map();
-  const uniq = Array.from(new Set(names.filter((n) => n && n.trim())));
-  if (uniq.length === 0) return index;
-  try {
-    const { data, error } = await supabase
-      .from("customers")
-      .select("customer_no,name,birth6,phone")
-      .in("name", uniq);
-    if (error || !data) return index;
-    for (const c of data as { customer_no: number; name: string; birth6: string; phone: string }[]) {
+  const bases = Array.from(new Set(names.map(queryBase).filter((n) => n)));
+  if (bases.length === 0) return index;
+
+  const addRows = (rows: { customer_no: number; name: string; birth6: string; phone: string }[]) => {
+    for (const c of rows) {
       if (!c.name) continue;
-      const key = normName(c.name);
+      const key = normName(c.name); // 접미사·공백 제거 → "이진우(2)"와 "이진우"를 같은 키로 묶음
       const rec: CustomerRec = { customer_no: c.customer_no, birth6: norm6(c.birth6), phoneTail: phoneTail(c.phone) };
       const list = index.get(key);
       if (list) list.push(rec);
       else index.set(key, [rec]);
     }
+  };
+
+  try {
+    // base로 '시작하는' 이름(접미사 "(2)" 포함)을 ilike로 모두 가져온다. 정확 일치(.in)로는
+    // "이진우(2)" 같은 동명이인 행을 놓쳐, 번호가 있는데도 '번호 추가 필요'로 뜨던 문제의 원인이었음.
+    // (과다수집돼도 normName 키로 묶고 matchCustomerNo가 정확 키로만 조회하므로 매칭엔 무해)
+    const orFilter = bases.map((b) => `name.ilike.${b}*`).join(",");
+    const { data, error } = await supabase
+      .from("customers")
+      .select("customer_no,name,birth6,phone")
+      .or(orFilter);
+    if (error || !data) {
+      // ilike 실패 시 정확 일치로 폴백(최소한 접미사 없는 행은 매칭)
+      const exact = await supabase.from("customers").select("customer_no,name,birth6,phone").in("name", bases);
+      if (!exact.error && exact.data) addRows(exact.data as { customer_no: number; name: string; birth6: string; phone: string }[]);
+      return index;
+    }
+    addRows(data as { customer_no: number; name: string; birth6: string; phone: string }[]);
   } catch {
     // customers 테이블 없거나 조회 실패 → 매칭 생략(저장된 번호만 사용)
   }
@@ -113,13 +135,23 @@ function distinctNosForName(index: CustomerIndex, name: string | null | undefine
   return [...new Set(list.map((c) => c.customer_no))].sort((a, b) => a - b);
 }
 
-// 동명이인 순번: 고유번호 오름차순에서 몇 번째인지(1부터). 동명이인 아니거나 번호 없으면 null
-function dupRankOf(index: CustomerIndex, name: string | null | undefined, customerNo: number | null): number | null {
-  if (customerNo == null) return null;
+// 동명이인 순번(시트 기준). 매칭 결과(number|"needs"|null)를 받아 이름 옆 (N) 표기를 정한다.
+//  · 번호 확정(number): 시트 고유번호 오름차순에서 몇 번째인지(동명이인 2명↑일 때만).
+//  · "needs"(아직 시트 미등록): 같은 이름이 시트에 이미 있으면 다음 순번(기존수+1) →
+//    새로 추가되는 동명이인도 번호를 받기 전부터 (2)가 바로 붙는다(사용자 규칙).
+//  · 그 외: null(동명이인 아님/판단 불가).
+function sheetDupRank(index: CustomerIndex, name: string | null | undefined, resolved: NoMatch): number | null {
   const nos = distinctNosForName(index, name);
-  if (nos.length <= 1) return null;
-  const i = nos.indexOf(customerNo);
-  return i >= 0 ? i + 1 : null;
+  if (typeof resolved === "number") {
+    if (nos.length <= 1) return null;
+    const i = nos.indexOf(resolved);
+    return i >= 0 ? i + 1 : null;
+  }
+  if (resolved === "needs") {
+    // 같은 이름이 시트에 1명 이상 있으면 이 신규 환자는 그 다음 순번(시트에 아직 없어도).
+    return nos.length >= 1 ? nos.length + 1 : null;
+  }
+  return null;
 }
 
 // 최종 고유번호 결정: 라이브 매칭 우선. 동명이인이면 옛 저장번호로 폴백하지 않음(엉뚱한 쌍둥이 방지).
@@ -221,7 +253,7 @@ async function attachDocsAndInfo(
       documents: documentsByPatient.get(p.id) ?? [],
       customer_no: numNo,
       customer_no_needed: no === "needs",
-      name_dup_rank: dupRankOf(custIndex, p.name, numNo),
+      name_dup_rank: sheetDupRank(custIndex, p.name, no),
     };
   });
 
@@ -489,7 +521,7 @@ export async function getPatient(id: string): Promise<PatientWithDocuments | nul
     documents: docs,
     customer_no: resolvedCn,
     customer_no_needed: resolvedCnRaw === "needs",
-    name_dup_rank: globalRank ?? dupRankOf(custIndex, (patient as Patient).name, resolvedCn),
+    name_dup_rank: globalRank ?? sheetDupRank(custIndex, (patient as Patient).name, resolvedCnRaw),
     signedUrls,
   };
 }
