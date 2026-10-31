@@ -1862,6 +1862,26 @@ input[type="password"]::placeholder {
 .patient-detail-page__no--needed {
   color: #d97706; /* amber-600 */
 }
+
+/* 신분증 확인창: 구글시트 대조 결과 */
+.id-card-sheet__match {
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  margin: 10px 0 2px;
+  min-height: 18px;
+}
+.id-card-sheet__match--checking,
+.id-card-sheet__match--none {
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+.id-card-sheet__match--ok {
+  color: #0f9d58; /* green */
+}
+.id-card-sheet__match--needed {
+  color: #d97706; /* amber */
+}
 .patient-detail-page__no--needed {
   display: inline-flex;
   align-items: center;

@@ -151,7 +151,35 @@ export default function IdCardUploader({ patientId, initialUrl, backHref }: IdCa
   const [error, setError] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [ocrBusy, setOcrBusy] = useState(false);
-  const [nameSheet, setNameSheet] = useState<{ value: string; path: string; photoPath?: string; birth6?: string; rrn?: string; preview: string } | null>(null);
+  const [nameSheet, setNameSheet] = useState<{
+    value: string; path: string; photoPath?: string; birth6?: string; rrn?: string; preview: string;
+    // 구글시트(customers) 대조 결과(오늘 매칭 로직). 주민번호 들어오는 순간 즉시 판별.
+    matching?: boolean; checked?: boolean; customerNo?: number | null; needs?: boolean; matchReason?: string;
+  } | null>(null);
+
+  // 이름+주민번호로 구글시트와 대조해 nameSheet에 결과를 채운다(오늘 매칭 로직 = /api/match-customer).
+  async function checkSheet(name: string, birth6: string | undefined) {
+    const nm = (name || "").trim();
+    const b6 = (birth6 || "").replace(/\D/g, "").slice(0, 6);
+    if (!nm || b6.length !== 6) {
+      setNameSheet((p) => (p ? { ...p, matching: false, checked: true, customerNo: null, needs: false, matchReason: undefined } : p));
+      return;
+    }
+    setNameSheet((p) => (p ? { ...p, matching: true } : p));
+    try {
+      const r = await fetch("/api/match-customer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: nm, birth6: b6 }),
+      });
+      const j = r.ok ? await r.json() : {};
+      setNameSheet((p) =>
+        p ? { ...p, matching: false, checked: true, customerNo: j.customer_no ?? null, needs: !!j.needs, matchReason: j.reason } : p
+      );
+    } catch {
+      setNameSheet((p) => (p ? { ...p, matching: false, checked: true } : p));
+    }
+  }
   const [nameSaving, setNameSaving] = useState(false);
 
   async function handleIdFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -263,6 +291,8 @@ export default function IdCardUploader({ patientId, initialUrl, backHref }: IdCa
 
     setOcrBusy(false);
     setNameSheet({ value: guess, path, photoPath, birth6, rrn, preview: finalFull });
+    // 주민번호가 들어왔으면 그 순간 바로 구글시트와 대조(오늘 매칭 로직)
+    void checkSheet(guess, birth6);
   }
 
   // 확인: 신분증 문서 저장 + 이름 저장
@@ -424,11 +454,29 @@ export default function IdCardUploader({ patientId, initialUrl, backHref }: IdCa
               value={nameSheet.value}
               placeholder="환자 이름"
               autoFocus
-              onChange={(e) => setNameSheet((prev) => (prev ? { ...prev, value: e.target.value } : prev))}
+              onChange={(e) => setNameSheet((prev) => (prev ? { ...prev, value: e.target.value, checked: false } : prev))}
+              onBlur={(e) => checkSheet(e.target.value, nameSheet.birth6)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") saveName();
               }}
             />
+            {/* 구글시트 대조 결과(주민번호 들어온 순간 즉시 판별) */}
+            <div className="id-card-sheet__match" aria-live="polite">
+              {nameSheet.matching ? (
+                <span className="id-card-sheet__match--checking">구글시트 확인 중…</span>
+              ) : !nameSheet.birth6 || nameSheet.birth6.length !== 6 ? (
+                <span className="id-card-sheet__match--none">주민번호 미인식 — 서식에서 직접 입력하세요</span>
+              ) : nameSheet.customerNo != null ? (
+                <span className="id-card-sheet__match--ok">✓ 구글시트 등록됨 (No. {nameSheet.customerNo})</span>
+              ) : nameSheet.needs ? (
+                <span className="id-card-sheet__match--needed">
+                  ⚠️ 구글시트에 없음 — 번호 추가 필요
+                  {nameSheet.matchReason === "rrn_mismatch" ? " (이름은 있으나 주민번호가 다름)" : ""}
+                </span>
+              ) : nameSheet.checked ? (
+                <span className="id-card-sheet__match--none">구글시트 확인 불가</span>
+              ) : null}
+            </div>
             <div className="field-popup__actions">
               <button type="button" onClick={() => setNameSheet(null)}>
                 취소
