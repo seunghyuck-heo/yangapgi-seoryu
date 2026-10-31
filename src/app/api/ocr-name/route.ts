@@ -74,31 +74,44 @@ export async function POST(req: Request) {
     let lastStatus = 0;
     let lastDetail = "no response";
     for (const model of MODELS) {
-      if (Date.now() - started > TOTAL_BUDGET_MS) break; // 시간 상한 초과 → 중단
-      const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), PER_CALL_MS);
-      try {
-        const resp = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-          { method: "POST", headers: { "Content-Type": "application/json" }, body: reqBody, signal: ctrl.signal }
-        );
-        clearTimeout(timer);
-        if (resp.ok) { ok = resp; break; }
-        lastStatus = resp.status;
-        lastDetail = `${model}:${resp.status} ${(await resp.text()).slice(0, 120)}`;
-        // 429(한도)·503(과부하)·404 등 → 재시도 없이 바로 다음 모델(시간 절약)
-      } catch {
-        clearTimeout(timer);
-        lastDetail = `${model}: timeout/err`; // 타임아웃·네트워크 → 다음 모델
+      if (ok) break;
+      // 503(과부하)은 일시적이라 같은 모델을 짧게 한 번 더 시도. 429(한도)·기타는 바로 다음 모델.
+      for (let attempt = 0; attempt < 2; attempt++) {
+        if (Date.now() - started > TOTAL_BUDGET_MS) break; // 시간 상한 초과 → 중단
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), PER_CALL_MS);
+        let status = 0;
+        try {
+          const resp = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+            { method: "POST", headers: { "Content-Type": "application/json" }, body: reqBody, signal: ctrl.signal }
+          );
+          clearTimeout(timer);
+          if (resp.ok) { ok = resp; break; }
+          status = resp.status;
+          lastStatus = resp.status;
+          lastDetail = `${model}:${resp.status} ${(await resp.text()).slice(0, 120)}`;
+        } catch {
+          clearTimeout(timer);
+          lastDetail = `${model}: timeout/err`; // 타임아웃·네트워크
+        }
+        if (status === 503 && attempt === 0) { await new Promise((r) => setTimeout(r, 700)); continue; } // 과부하 → 한 번 더
+        break; // 그 외(429·404·타임아웃)는 다음 모델로
       }
     }
 
     if (!ok) {
-      // 모든 모델 실패. 429가 섞여 있으면(= 전부 한도) 사용자에게 명확히 안내.
+      // 모든 모델 실패. 429(한도)·503(과부하)를 구분해 사용자에게 명확히 안내.
       const quota = lastStatus === 429;
+      const busy = lastStatus === 503;
+      const msg = quota
+        ? "AI 사용량(무료 한도)이 초과되었습니다. 잠시 후 다시 시도해 주세요."
+        : busy
+          ? "AI 서버가 혼잡(과부하)합니다. 잠시 후 다시 시도해 주세요."
+          : `AI 호출 실패(${lastStatus || 502})`;
       return NextResponse.json(
-        { error: quota ? "AI 사용량(무료 한도)이 초과되었습니다. 잠시 후 다시 시도해 주세요." : `AI 호출 실패(${lastStatus || 502})`, code: quota ? "quota" : undefined, detail: lastDetail },
-        { status: quota ? 429 : 502 }
+        { error: msg, code: quota ? "quota" : busy ? "busy" : undefined, detail: lastDetail },
+        { status: quota ? 429 : busy ? 503 : 502 }
       );
     }
 
