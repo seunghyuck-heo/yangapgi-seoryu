@@ -1877,8 +1877,8 @@ input[type="password"]::placeholder {
   padding: 0;
   border: none;
   border-radius: 999px;
-  background: rgba(217, 119, 6, 0.12);
-  color: #d97706;
+  background: rgba(17, 24, 39, 0.08);
+  color: #1f2937; /* 블랙 계열(아이콘) */
   cursor: pointer;
 }
 .patient-detail-page__no-refresh:disabled {

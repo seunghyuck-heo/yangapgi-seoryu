@@ -41,12 +41,29 @@ export default async function DocumentPage({ params, searchParams }: DocPageProp
 
   const overlay = getOverlayDoc(docType);
   if (overlay) {
+    // 신분증 OCR로 읽은 주민번호 전체를 주민번호가 필요한 서식에 미리 채운다(오타·불일치 방지).
+    //  · 급여대상자 등록 신청서 → patient_rrn,  요양비 지급청구 위임장 → insured_rrn
+    //  · 해당 필드가 비어 있을 때만 채움(직원이 이미 입력/수정한 값은 덮지 않음).
+    let initialFormData: Record<string, unknown> = document?.form_data ?? {};
+    const rrnField =
+      docType === "subsidy_application" ? "patient_rrn" : docType === "power_of_attorney" ? "insured_rrn" : null;
+    if (rrnField) {
+      const cur = initialFormData[rrnField];
+      const alreadyFilled = typeof cur === "string" && cur.trim() !== "";
+      if (!alreadyFilled) {
+        const idCard = await getDocument(id, "id_card");
+        const rrn = idCard?.form_data?.rrn;
+        if (typeof rrn === "string" && rrn.replace(/\D/g, "").length === 13) {
+          initialFormData = { ...initialFormData, [rrnField]: rrn };
+        }
+      }
+    }
     return (
       <OverlayDocumentForm
         overlay={overlay}
         docType={docType}
         patientId={id}
-        initialFormData={document?.form_data ?? {}}
+        initialFormData={initialFormData}
         initialSignedUrls={signedUrls}
         initialStatus={document?.status ?? "draft"}
         backHref={backHref}

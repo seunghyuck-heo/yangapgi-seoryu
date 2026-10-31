@@ -151,7 +151,7 @@ export default function IdCardUploader({ patientId, initialUrl, backHref }: IdCa
   const [error, setError] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [ocrBusy, setOcrBusy] = useState(false);
-  const [nameSheet, setNameSheet] = useState<{ value: string; path: string; photoPath?: string; birth6?: string; preview: string } | null>(null);
+  const [nameSheet, setNameSheet] = useState<{ value: string; path: string; photoPath?: string; birth6?: string; rrn?: string; preview: string } | null>(null);
   const [nameSaving, setNameSaving] = useState(false);
 
   async function handleIdFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -190,6 +190,7 @@ export default function IdCardUploader({ patientId, initialUrl, backHref }: IdCa
     let card: number[] | null = null;
     let rotation = 0;
     let birth6 = "";
+    let rrn = "";
     try {
       const res = await fetch("/api/ocr-name", {
         method: "POST",
@@ -203,6 +204,7 @@ export default function IdCardUploader({ patientId, initialUrl, backHref }: IdCa
         card = Array.isArray(json.card) ? json.card : null;
         rotation = typeof json.rotation === "number" ? json.rotation : 0;
         birth6 = typeof json.birth6 === "string" ? json.birth6 : "";
+        rrn = typeof json.rrn === "string" ? json.rrn : "";
       }
     } catch {
       // 실패해도 이름 직접 입력 가능
@@ -261,7 +263,7 @@ export default function IdCardUploader({ patientId, initialUrl, backHref }: IdCa
     }
 
     setOcrBusy(false);
-    setNameSheet({ value: guess, path, photoPath, birth6, preview: finalFull });
+    setNameSheet({ value: guess, path, photoPath, birth6, rrn, preview: finalFull });
   }
 
   // 확인: 신분증 문서 저장 + 이름 저장
@@ -290,6 +292,7 @@ export default function IdCardUploader({ patientId, initialUrl, backHref }: IdCa
       const formData: Record<string, unknown> = {};
       if (nameSheet.photoPath) formData.photo_path = nameSheet.photoPath;
       if (nameSheet.birth6) formData.birth6 = nameSheet.birth6;
+      if (nameSheet.rrn) formData.rrn = nameSheet.rrn; // 주민번호 전체(급여·위임 서식 프리필용)
       if (customerNo != null) formData.customer_no = customerNo;
 
       const docRes = await fetch(`/api/documents/${patientId}/id_card`, {

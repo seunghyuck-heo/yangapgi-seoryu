@@ -27,10 +27,11 @@ export async function POST(req: Request) {
   const base64 = match[2];
 
   const prompt =
-    "이 대한민국 신분증(주민등록증/운전면허증 등) 이미지에서 다섯 가지를 찾아 JSON으로만 답하세요. " +
-    '형식: {"name":"홍길동","birth6":"810220","box":[ymin,xmin,ymax,xmax],"card":[ymin,xmin,ymax,xmax],"rotation":0} . ' +
+    "이 대한민국 신분증(주민등록증/운전면허증 등) 이미지에서 여섯 가지를 찾아 JSON으로만 답하세요. " +
+    '형식: {"name":"홍길동","birth6":"810220","rrn":"8102201234567","box":[ymin,xmin,ymax,xmax],"card":[ymin,xmin,ymax,xmax],"rotation":0} . ' +
     "name = 신분증에 적힌 사람의 성명(한글). 못 찾으면 빈 문자열. " +
     "birth6 = 주민등록번호 앞 6자리(생년월일 YYMMDD) 숫자만. 못 찾으면 빈 문자열. " +
+    "rrn = 주민등록번호 전체 13자리(앞6자리+뒤7자리) 숫자만, 하이픈 없이. 뒷자리가 안 보이거나 확실치 않으면 빈 문자열. " +
     "box = 증명사진 속 사람의 얼굴(머리~턱, face) 영역만 딱 맞게 감싼 경계 상자를 (지금 보이는 이미지 기준) 0~1000으로 정규화한 정수 좌표. 여백 말고 얼굴에 밀착. 얼굴을 못 찾으면 null. " +
     "card = 신분증 카드/문서 전체 영역만 딱 맞게 감싼 경계 상자를 (지금 보이는 이미지 기준) 0~1000으로 정규화한 정수 좌표. 주변 배경(책상/손/그림자 등)은 제외하고 신분증 테두리에 밀착. 신분증 경계를 못 찾으면 null. " +
     "rotation = 증명사진 속 사람의 얼굴이 똑바로 보이도록(두 눈이 위, 코가 가운데, 입이 아래) 이 이미지를 시계방향으로 회전해야 하는 각도. 0, 90, 180, 270 중 하나. 얼굴이 이미 똑바르면 0. 얼굴이 거꾸로면 180.";
@@ -73,10 +74,18 @@ export async function POST(req: Request) {
     let card: number[] | null = null;
     let rotation = 0;
     let birth6 = "";
+    let rrn = "";
     try {
       const parsed = JSON.parse(text);
       if (typeof parsed?.name === "string") name = parsed.name.replace(/\s/g, "");
       if (typeof parsed?.birth6 === "string") birth6 = parsed.birth6.replace(/\D/g, "").slice(0, 6);
+      // 주민번호 전체 13자리(앞6+뒤7)만 신뢰. 그 외는 버림(부정확한 뒷자리 프리필 방지).
+      if (typeof parsed?.rrn === "string") {
+        const d = parsed.rrn.replace(/\D/g, "");
+        if (d.length === 13) rrn = d;
+      }
+      // rrn이 있으면 birth6는 그 앞 6자리로 보정(둘 일치 보장)
+      if (rrn) birth6 = rrn.slice(0, 6);
       if (Array.isArray(parsed?.box) && parsed.box.length === 4 && parsed.box.every((n: unknown) => typeof n === "number")) {
         box = parsed.box as number[];
       }
@@ -95,7 +104,7 @@ export async function POST(req: Request) {
     // 이름은 한글 2~5자만 허용
     const nm = name.match(/[가-힣]{2,5}/);
     name = nm ? nm[0] : "";
-    return NextResponse.json({ name, birth6, box, card, rotation });
+    return NextResponse.json({ name, birth6, rrn, box, card, rotation });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500 });
   }
