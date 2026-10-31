@@ -88,21 +88,23 @@ export function matchCustomerNo(
     // 이름+주민번호가 모두 같은 복수 행 = 같은 사람의 중복 등록 → 가장 작은 고유번호로 확정.
     if (byBirth.length > 1) return Math.min(...byBirth.map((c) => c.customer_no));
 
-    // 주민번호 정확 일치가 없음. '주민번호가 기재된' 후보만 추려 판단한다.
-    const withBirth = list.filter((c) => c.birth6);
-    if (withBirth.length === list.length) {
-      // 같은 이름 시트 행이 전부 주민번호를 갖고 있는데 아무도 안 맞음 → 다른(새) 사람 → 번호 추가 필요.
-      return "needs";
-    }
-    // 일부/전부 후보의 주민번호가 비어 있어 '다른 사람'이라 단정 불가.
-    //  · 그 이름 후보가 1명뿐 → 그 사람(시트에 주민번호만 미기재)으로 매칭.
-    if (list.length === 1) return list[0].customer_no;
-    //  · 동명이인 + 주민번호 미기재 섞임 → 전화번호로 1명 좁혀지면 그 번호.
+    // 주민번호 정확 일치가 없음.
+    //  먼저 전화번호로 '같은 사람(주민번호 오타)'을 구제한다. 같은 이름 후보 중 전화가 '정확히 1명'과
+    //  일치하면 그 사람으로 본다. (이름+전화 동일인데 주민번호만 하루이틀 다른 건 거의 100% 오타.
+    //  반대로 진짜 다른 동명이인은 전화가 다르므로 여기서 안 걸려 '번호 추가 필요'로 남는다 → 안전.)
     const pt = phoneTail(phone);
     if (pt) {
       const byPhone = list.filter((c) => c.phoneTail && c.phoneTail === pt);
       if (byPhone.length === 1) return byPhone[0].customer_no;
     }
+    // 전화로도 못 좁힘. '주민번호가 기재된' 후보만 추려 판단한다.
+    const withBirth = list.filter((c) => c.birth6);
+    if (withBirth.length === list.length) {
+      // 같은 이름 시트 행이 전부 주민번호를 갖고 있는데 주민번호도 전화도 안 맞음 → 다른(새) 사람 → 번호 추가 필요.
+      return "needs";
+    }
+    // 일부/전부 후보의 주민번호가 비어 있어 '다른 사람'이라 단정 불가. 단독이면 그 사람으로 매칭.
+    if (list.length === 1) return list[0].customer_no;
     return null; // 못 좁힘 → 섣불리 번호 안 붙임(미표시)
   }
 

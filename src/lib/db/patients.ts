@@ -20,6 +20,9 @@ export interface ListPatientsResult {
   hasMore: boolean;
 }
 
+// form_data 값에서 공백 아닌 문자열만 꺼낸다(아니면 "").
+const pickStr = (v: unknown): string => (typeof v === "string" && v.trim() ? v : "");
+
 // B안: 고객(customers) 전체를 통째로 읽지 않고, '그 화면에 보이는 환자 이름들'에
 // 해당하는 고객만 조회한다 → egress·지연이 전체 데이터량과 무관하게 작게 유지됨.
 // 시트에 동명이인이 "이진우(2)"처럼 접미사로 저장될 수 있어, base로 '시작하는' 이름(접미사 포함)을
@@ -89,7 +92,7 @@ async function attachDocsAndInfo(
     fdByPatient.set(pid, m);
   }
 
-  const idInfo = new Map<string, { customerNo: number | null; photoPath: string | null; birth6: string | null }>();
+  const idInfo = new Map<string, { customerNo: number | null; photoPath: string | null; birth6: string | null; phone: string | null }>();
   for (const [pid, docs] of fdByPatient) {
     const idc = docs["id_card"] ?? {};
     const sub = docs["subsidy_application"] ?? {};
@@ -98,10 +101,14 @@ async function attachDocsAndInfo(
     // 신분증 OCR은 오독 가능성이 있어 맨 뒤로(수기 값이 없을 때만).
     const birth6 =
       pick6(sub.patient_rrn) || pick6(poa.insured_rrn) || pick6(idc.birth6) || null;
+    // 전화번호: 환자 폰(급여신청서 휴대전화 → 위임장 전화). patients.phone는 비어 있는 경우가 많아
+    // 서류 form_data에서 꺼낸다. (주민번호 오타 시 전화로 같은 사람을 구제하는 데 쓰임)
+    const phone = pickStr(sub.patient_mobile_phone) || pickStr(poa.delegator_phone) || null;
     idInfo.set(pid, {
       customerNo: typeof idc.customer_no === "number" ? (idc.customer_no as number) : null,
       photoPath: typeof idc.photo_path === "string" ? (idc.photo_path as string) : null,
       birth6,
+      phone,
     });
   }
 
@@ -117,8 +124,10 @@ async function attachDocsAndInfo(
     const info = idInfo.get(p.id);
     // 생년월일6: 신분증 OCR(birth6) 없으면 환자 주민번호 앞 6자리로 보완 → 동명이인 특정 성공률↑
     const birth6 = info?.birth6 || (p as Patient).resident_number || null;
+    // 전화: 서류에서 꺼낸 값 우선, 없으면 patients.phone.
+    const phone = info?.phone || p.phone || null;
     // 실시간 매칭(이름 → 생년월일6 → 전화번호). 동명이인이면 옛 저장번호로 폴백하지 않음
-    const no = resolveCustomerNo(custIndex, p.name, birth6, p.phone, info?.customerNo ?? null);
+    const no = resolveCustomerNo(custIndex, p.name, birth6, phone, info?.customerNo ?? null);
     const numNo = typeof no === "number" ? no : null;
     return {
       ...(p as Patient),
@@ -321,8 +330,14 @@ export async function getPatient(id: string): Promise<PatientWithDocuments | nul
     pick6(idDoc?.form_data?.birth6) ||
     pick6((patient as Patient).resident_number) ||
     null;
+  // 전화: 서류(급여 휴대전화→위임장 전화)에서 꺼낸 값 우선, 없으면 patients.phone.
+  const matchPhone =
+    pickStr(subDoc?.form_data?.patient_mobile_phone) ||
+    pickStr(poaDoc?.form_data?.delegator_phone) ||
+    (patient as Patient).phone ||
+    null;
   const storedCn = typeof cn === "number" ? cn : null;
-  const resolvedCnRaw = resolveCustomerNo(custIndex, (patient as Patient).name, idBirth6, (patient as Patient).phone, storedCn);
+  const resolvedCnRaw = resolveCustomerNo(custIndex, (patient as Patient).name, idBirth6, matchPhone, storedCn);
   const resolvedCn = typeof resolvedCnRaw === "number" ? resolvedCnRaw : null;
 
   // 환자관리카드 방문점검 서명(guardianSign)이 스토리지 경로면 서명 URL로 변환
