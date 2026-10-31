@@ -149,33 +149,48 @@ export async function POST(req: Request) {
     let partial: Parsed | null = null; // 이름만 있고 주민번호가 빈 결과(백업)
     let lastStatus = 0;
     let lastDetail = "no response";
-    // 모델당 1회 호출. 단, 200이어도 주민번호(rrn)가 비면 거기서 끝내지 않고 다음 모델로 rrn 있는 응답을 더 찾는다.
-    // (과부하 땐 모델이 이름·생년월일만 주고 rrn·box·card를 통째로 건너뛰는 일이 잦음 → 한 번의 OCR 요청으로 rrn까지 확보)
+    // 모델을 순회하되, '되는 모델(200)'을 찾으면 그 모델을 주민번호(rrn)가 나올 때까지 몇 번 더 두드린다.
+    // 과부하 땐 lite 모델만 200이고 그 lite가 호출마다 rrn을 넣었다 뺐다 하는 변동성이 커서,
+    // 체인을 한 바퀴 도는 1회로는 rrn을 자주 놓침 → 되는 모델에 재시도를 몰아주는 게 핵심(실측).
+    // 비200(503/429/오류)은 재시도해도 같으니 즉시 다음 모델로.
+    const RRN_RETRY_PER_MODEL = 3;
     for (const model of MODELS) {
       if (best) break;
       if (Date.now() - started > TOTAL_BUDGET_MS) break; // 시간 상한 초과 → 중단
-      const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), PER_CALL_MS);
-      try {
-        const resp = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-          { method: "POST", headers: { "Content-Type": "application/json" }, body: bodyFor(model), signal: ctrl.signal }
-        );
-        clearTimeout(timer);
-        if (resp.ok) {
-          const parsed = parseOut(await resp.json());
-          if (parsed.name && parsed.rrn) { best = parsed; break; }  // 최상: 이름+주민번호 → 확정
-          if (!partial || (parsed.name && !partial.name)) partial = parsed; // 백업 보관(이름 있는 쪽 우선)
-          continue; // 주민번호 찾으러 다음 모델로
+      for (let attempt = 0; attempt < RRN_RETRY_PER_MODEL; attempt++) {
+        if (best) break;
+        if (Date.now() - started > TOTAL_BUDGET_MS) break;
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), PER_CALL_MS);
+        try {
+          const resp = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+            { method: "POST", headers: { "Content-Type": "application/json" }, body: bodyFor(model), signal: ctrl.signal }
+          );
+          clearTimeout(timer);
+          if (resp.ok) {
+            const parsed = parseOut(await resp.json());
+            if (parsed.name && parsed.rrn) { best = parsed; break; }          // 최상: 이름+주민번호 → 확정
+            if (!partial || (parsed.name && !partial.name)) partial = parsed; // 백업 보관(이름 있는 쪽 우선)
+            continue; // 200인데 rrn 없음 → 같은 모델 한 번 더(변동성 구제)
+          }
+          lastStatus = resp.status;
+          lastDetail = `${model}:${resp.status} ${(await resp.text()).slice(0, 120)}`;
+          break; // 비200 → 다음 모델
+        } catch {
+          clearTimeout(timer);
+          lastDetail = `${model}: timeout/err`; // 타임아웃·네트워크
+          break; // 다음 모델
         }
-        lastStatus = resp.status;
-        lastDetail = `${model}:${resp.status} ${(await resp.text()).slice(0, 120)}`;
-      } catch {
-        clearTimeout(timer);
-        lastDetail = `${model}: timeout/err`; // 타임아웃·네트워크
       }
     }
 
+    // best(이름+주민번호) 모델이 box/card(얼굴·카드 영역)를 안 준 경우, partial에서 보완(사진 크롭 유지).
+    if (best && partial) {
+      if (!best.box) best.box = partial.box;
+      if (!best.card) best.card = partial.card;
+      if (!best.rotation && partial.rotation) best.rotation = partial.rotation;
+    }
     const out = best ?? partial;
     if (!out) {
       // 모든 모델 실패. 429(한도)·503(과부하)를 구분해 사용자에게 명확히 안내.
