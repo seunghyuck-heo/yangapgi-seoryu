@@ -181,6 +181,7 @@ export default function IdCardUploader({ patientId, initialUrl, backHref }: IdCa
     }
   }
   const [nameSaving, setNameSaving] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
 
   async function handleIdFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -368,9 +369,18 @@ export default function IdCardUploader({ patientId, initialUrl, backHref }: IdCa
       } catch {
         /* 무시 */
       }
+      // 저장 완료 토스트 — 무엇이 저장됐는지(특히 주민번호)를 눈으로 바로 확인할 수 있게.
+      const saved = ["이름"];
+      if (nameSheet.rrn) saved.push("주민번호");
+      if (nameSheet.photoPath) saved.push("사진");
+      const msg = nameSheet.rrn
+        ? `${saved.join("·")}이(가) 저장됐습니다`
+        : `${saved.join("·")}이(가) 저장됐습니다 · 주민번호 미인식(서식에서 입력)`;
       setPreviewUrl(nameSheet.preview);
       setNameSheet(null);
-      router.push(backHref);
+      setToast(msg);
+      // 토스트를 잠깐 보여준 뒤 목록으로 이동
+      setTimeout(() => router.push(backHref), 1600);
     } finally {
       setNameSaving(false);
     }
@@ -385,6 +395,7 @@ export default function IdCardUploader({ patientId, initialUrl, backHref }: IdCa
       </div>
 
       {error && <div className="error-banner no-print">{error}</div>}
+      {toast && <div className="toast no-print">{toast}</div>}
 
       <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" hidden onChange={handleIdFile} />
       <input ref={galleryInputRef} type="file" accept="image/*" hidden onChange={handleIdFile} />
