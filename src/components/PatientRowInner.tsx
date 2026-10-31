@@ -74,9 +74,11 @@ export default function PatientRowInner({ patient, editMode = false, checked = f
           : patient.name_dup_rank
             ? `${patient.name}(${patient.name_dup_rank})`
             : patient.name}
-        {patient.customer_no != null && (
+        {patient.customer_no != null ? (
           <span className="patient-list__no">(No. {patient.customer_no})</span>
-        )}
+        ) : patient.customer_no_needed && patient.name !== DRAFT_NAME ? (
+          <span className="patient-list__no patient-list__no--needed">(번호 추가 필요)</span>
+        ) : null}
       </div>
       <div
         className={`patient-list__progress ${allDone || patient.manual_complete ? "patient-list__progress--done" : ""}`}

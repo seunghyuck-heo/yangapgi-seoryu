@@ -1856,6 +1856,35 @@ input[type="password"]::placeholder {
   font-weight: 700;
 }
 
+/* 아직 구글시트에 없는(주민번호 불일치) 환자: 번호 대신 '번호 추가 필요' 경고색 표기 */
+.patient-list__no--needed,
+.patient-detail-page__no--needed {
+  color: #d97706; /* amber-600 */
+}
+.patient-detail-page__no--needed {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+.patient-detail-page__no-refresh {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: rgba(217, 119, 6, 0.12);
+  color: #d97706;
+  cursor: pointer;
+}
+.patient-detail-page__no-refresh:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .patient-list__rename {
   flex-shrink: 0;
   padding: 4px 10px;

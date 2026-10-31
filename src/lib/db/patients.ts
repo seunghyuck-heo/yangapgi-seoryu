@@ -63,37 +63,47 @@ async function buildCustomerIndex(
   return index;
 }
 
-// 이름 → 후보 중 생년월일·전화번호로 좁혀 고유번호 결정. 확정 못 하면 null.
+// 매칭 결과:
+//  · number  → 시트에서 주민번호로 확정된 고유번호
+//  · "needs" → 주민번호로 대조했는데 일치 고객이 없음 = 아직 시트에 없는 (새) 사람 → '번호 추가 필요'
+//  · null    → 주민번호를 못 읽어 대조 자체가 불가(동명이인이라 함부로 번호를 못 정함)
+type NoMatch = number | "needs" | null;
+
+// 이름 → 주민번호(생년월일6)로 시트 고객을 특정. 핵심 규칙:
+//  "주민번호가 일치해야만 그 고유번호를 쓴다." 같은 이름이 1명뿐이어도 주민번호가 다르면
+//  남의 번호(예: 기존 이진우 No.99)를 물려주지 않고 '번호 추가 필요'로 본다.
 function matchCustomerNo(
   index: CustomerIndex,
   name: string | null | undefined,
   birth6: string | null | undefined,
   phone: string | null | undefined
-): number | null {
+): NoMatch {
   const list = index.get(normName(name));
-  if (!list || list.length === 0) return null;
-  if (list.length === 1) return list[0].customer_no; // 동명이인 없음 → 바로 확정
+  // 이름이 시트에 아예 없음 → 미등록(번호 추가 필요). (물려줄 번호가 없으니 주민번호 유무와 무관)
+  if (!list || list.length === 0) return "needs";
 
-  // 동명이인: 생년월일6 → 전화번호로 좁힌다
   const b6 = norm6(birth6);
-  let pool = b6 ? list.filter((c) => c.birth6 === b6) : list;
-  if (pool.length === 1) return pool[0].customer_no;
-  if (pool.length === 0) pool = list; // 생년월일 불일치면 이름 전체 후보로 되돌려 전화번호로 시도
+  if (b6) {
+    // 주민번호가 있으면 반드시 주민번호로 대조한다(단독 후보여도 동일).
+    const byBirth = list.filter((c) => c.birth6 === b6);
+    if (byBirth.length === 1) return byBirth[0].customer_no;
+    // 이름+주민번호가 모두 같은 복수 행 = 같은 사람의 중복 등록 → 가장 작은 고유번호로 확정.
+    if (byBirth.length > 1) return Math.min(...byBirth.map((c) => c.customer_no));
+    // 주민번호가 어떤 후보와도 불일치 = 같은 이름의 다른(새) 사람 → 번호 추가 필요.
+    return "needs";
+  }
 
+  // 주민번호를 못 읽음(대조 불가). 함부로 남의 번호를 쓰지 않도록 보수적으로만 확정:
+  //  · 후보가 1명뿐 → 그 번호(그 이름의 유일한 고객이므로 안전)
+  //  · 동명이인인데 전화번호로 정확히 1명으로 좁혀지면 → 그 번호
+  //  · 그 외(동명이인·좁히기 실패) → null(표시 안 함)
+  if (list.length === 1) return list[0].customer_no;
   const pt = phoneTail(phone);
   if (pt) {
-    const byPhone = pool.filter((c) => c.phoneTail && c.phoneTail === pt);
+    const byPhone = list.filter((c) => c.phoneTail && c.phoneTail === pt);
     if (byPhone.length === 1) return byPhone[0].customer_no;
-    if (byPhone.length > 1) pool = byPhone; // 전화로 좁혔지만 여전히 복수 → 그 안에서 판단
   }
-
-  // 이름+생년월일이 모두 같은 복수 행 = 사실상 같은 사람의 중복 등록(시트에 두 번 들어간 경우).
-  // 이때는 모호가 아니라 '같은 사람'이므로 가장 작은 고유번호로 결정적 확정 → (1) 라벨이 뜸.
-  // (생년월일이 서로 다른 진짜 동명이인은 위 birth6 필터에서 1명으로 좁혀지므로 여기 오지 않음)
-  if (b6 && pool.length > 1 && pool.every((c) => c.birth6 === b6)) {
-    return Math.min(...pool.map((c) => c.customer_no));
-  }
-  return null; // 여전히 모호 → 잘못된 번호를 표시하지 않음
+  return null;
 }
 
 // 이름의 동명이인 수(서로 다른 고유번호 기준)
@@ -113,21 +123,24 @@ function dupRankOf(index: CustomerIndex, name: string | null | undefined, custom
 }
 
 // 최종 고유번호 결정: 라이브 매칭 우선. 동명이인이면 옛 저장번호로 폴백하지 않음(엉뚱한 쌍둥이 방지).
+//  반환: number(확정) | "needs"(시트 미등록→번호 추가 필요) | null(판단 불가·미표시)
 function resolveCustomerNo(
   index: CustomerIndex,
   name: string | null | undefined,
   birth6: string | null | undefined,
   phone: string | null | undefined,
   storedNo: number | null
-): number | null {
+): NoMatch {
   const live = matchCustomerNo(index, name, birth6, phone);
-  if (live != null) return live;
+  if (typeof live === "number") return live;
+  if (live === "needs") return "needs"; // 주민번호로 대조했으나 미등록 → '번호 추가 필요'
+  // live === null: 주민번호를 못 읽어 대조 불가(동명이인 등).
   const nos = distinctNosForName(index, name);
   const isDup = nos.length > 1;
-  if (!isDup) return storedNo;
-  // 동명이인 + 라이브 매칭 실패: 생년월일 정보가 아예 없어 좁힐 수 없을 때만,
-  // 저장된 고유번호가 현재 동명이인 그룹의 일원이면 그 번호로 표시(최소한 라벨은 뜨게).
-  // birth6가 있는데도 실패한 경우는 잘못된 번호를 낼 위험이 있어 미표시 유지(김민철류 회귀 방지).
+  if (!isDup) return storedNo; // (후보 단독이면 위에서 이미 number를 냈으므로 사실상 도달X) 안전망
+  // 동명이인 + 대조 불가: 생년월일 정보가 아예 없을 때만, 저장된 고유번호가 현재 동명이인
+  // 그룹의 일원이면 그 번호로 표시(최소한 라벨은 뜨게). birth6가 있었는데 실패한 경우는
+  // 위 matchCustomerNo에서 "needs"로 갈라졌으므로 여기 오지 않음.
   if (!norm6(birth6) && storedNo != null && nos.includes(storedNo)) return storedNo;
   return null; // 동명이인이면 확정 못 할 때 번호 미표시
 }
@@ -202,11 +215,13 @@ async function attachDocsAndInfo(
     const birth6 = info?.birth6 || (p as Patient).resident_number || null;
     // 실시간 매칭(이름 → 생년월일6 → 전화번호). 동명이인이면 옛 저장번호로 폴백하지 않음
     const no = resolveCustomerNo(custIndex, p.name, birth6, p.phone, info?.customerNo ?? null);
+    const numNo = typeof no === "number" ? no : null;
     return {
       ...(p as Patient),
       documents: documentsByPatient.get(p.id) ?? [],
-      customer_no: no,
-      name_dup_rank: dupRankOf(custIndex, p.name, no),
+      customer_no: numNo,
+      customer_no_needed: no === "needs",
+      name_dup_rank: dupRankOf(custIndex, p.name, numNo),
     };
   });
 
@@ -441,7 +456,8 @@ export async function getPatient(id: string): Promise<PatientWithDocuments | nul
     pick6((patient as Patient).resident_number) ||
     null;
   const storedCn = typeof cn === "number" ? cn : null;
-  const resolvedCn = resolveCustomerNo(custIndex, (patient as Patient).name, idBirth6, (patient as Patient).phone, storedCn);
+  const resolvedCnRaw = resolveCustomerNo(custIndex, (patient as Patient).name, idBirth6, (patient as Patient).phone, storedCn);
+  const resolvedCn = typeof resolvedCnRaw === "number" ? resolvedCnRaw : null;
 
   // 환자관리카드 방문점검 서명(guardianSign)이 스토리지 경로면 서명 URL로 변환
   const STORAGE_PATH = /^[0-9a-f-]{36}\/[0-9a-f-]{36}\//i;
@@ -472,6 +488,7 @@ export async function getPatient(id: string): Promise<PatientWithDocuments | nul
     ...(patient as Patient),
     documents: docs,
     customer_no: resolvedCn,
+    customer_no_needed: resolvedCnRaw === "needs",
     name_dup_rank: globalRank ?? dupRankOf(custIndex, (patient as Patient).name, resolvedCn),
     signedUrls,
   };
