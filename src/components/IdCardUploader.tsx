@@ -289,6 +289,29 @@ export default function IdCardUploader({ patientId, initialUrl, backHref }: IdCa
       /* 진행 */
     }
 
+    // 1차 OCR이 주민번호(13자리)를 놓쳤으면, 반듯하게 크롭·회전된 '깨끗한 카드 이미지'로 한 번 더 판독.
+    // 기운 원본은 뒤 7자리를 놓치기 쉽지만 정렬된 카드 이미지는 잘 읽힘(실측 확인).
+    // finalFull이 원본과 다를 때(=크롭/회전으로 개선됐을 때)만 호출 → 평소엔 1콜, 놓쳤을 때만 1콜 추가.
+    if (!rrn && guess && finalFull !== dataUrl) {
+      try {
+        const res2 = await fetch("/api/ocr-name", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ dataUrl: finalFull }),
+        });
+        if (res2.ok) {
+          const j2 = await res2.json();
+          const r2 = typeof j2.rrn === "string" ? j2.rrn.replace(/\D/g, "") : "";
+          if (r2.length === 13) {
+            rrn = r2;
+            if (!birth6) birth6 = r2.slice(0, 6);
+          }
+        }
+      } catch {
+        /* 무시 — 주민번호는 서식에서 직접 입력 가능 */
+      }
+    }
+
     setOcrBusy(false);
     setNameSheet({ value: guess, path, photoPath, birth6, rrn, preview: finalFull });
     // 주민번호가 들어왔으면 그 순간 바로 구글시트와 대조(오늘 매칭 로직)
