@@ -123,30 +123,26 @@ export async function POST(req: Request) {
     let ok: Response | null = null;
     let lastStatus = 0;
     let lastDetail = "no response";
+    // 모델당 1회만 호출하고 503/429/오류는 즉시 다음 모델로 넘어간다.
+    // (flash 티어가 전면 과부하(503)일 때 같은 모델을 재시도해봐야 똑같이 503이라 지연만 늘고,
+    //  체인에 flash 7개 + lite 2개가 있어 과부하 안 겪는 모델로 빠르게 떨어지는 게 더 빠르고 확실함.)
     for (const model of MODELS) {
       if (ok) break;
-      // 503(과부하)은 일시적이라 같은 모델을 짧게 한 번 더 시도. 429(한도)·기타는 바로 다음 모델.
-      for (let attempt = 0; attempt < 2; attempt++) {
-        if (Date.now() - started > TOTAL_BUDGET_MS) break; // 시간 상한 초과 → 중단
-        const ctrl = new AbortController();
-        const timer = setTimeout(() => ctrl.abort(), PER_CALL_MS);
-        let status = 0;
-        try {
-          const resp = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-            { method: "POST", headers: { "Content-Type": "application/json" }, body: bodyFor(model), signal: ctrl.signal }
-          );
-          clearTimeout(timer);
-          if (resp.ok) { ok = resp; break; }
-          status = resp.status;
-          lastStatus = resp.status;
-          lastDetail = `${model}:${resp.status} ${(await resp.text()).slice(0, 120)}`;
-        } catch {
-          clearTimeout(timer);
-          lastDetail = `${model}: timeout/err`; // 타임아웃·네트워크
-        }
-        if (status === 503 && attempt === 0) { await new Promise((r) => setTimeout(r, 700)); continue; } // 과부하 → 한 번 더
-        break; // 그 외(429·404·타임아웃)는 다음 모델로
+      if (Date.now() - started > TOTAL_BUDGET_MS) break; // 시간 상한 초과 → 중단
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), PER_CALL_MS);
+      try {
+        const resp = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+          { method: "POST", headers: { "Content-Type": "application/json" }, body: bodyFor(model), signal: ctrl.signal }
+        );
+        clearTimeout(timer);
+        if (resp.ok) { ok = resp; break; }
+        lastStatus = resp.status;
+        lastDetail = `${model}:${resp.status} ${(await resp.text()).slice(0, 120)}`;
+      } catch {
+        clearTimeout(timer);
+        lastDetail = `${model}: timeout/err`; // 타임아웃·네트워크
       }
     }
 
