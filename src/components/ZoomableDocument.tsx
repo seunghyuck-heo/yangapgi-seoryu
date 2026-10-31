@@ -174,13 +174,6 @@ export default function ZoomableDocument({
     if (key) onTapField(key);
   }
 
-  function zoomButton(delta: number) {
-    const rect = viewportRef.current?.getBoundingClientRect();
-    const fx = rect ? rect.width / 2 : 0;
-    const fy = rect ? rect.height / 2 : 0;
-    applyZoom(stateRef.current.scale + delta, fx, fy);
-  }
-
   return (
     <div className="zoomdoc">
       <div
@@ -200,20 +193,6 @@ export default function ZoomableDocument({
           }}
         >
           {children}
-        </div>
-        <div
-          className="zoomdoc__controls no-print"
-          onPointerDown={(e) => e.stopPropagation()}
-          onPointerUp={(e) => e.stopPropagation()}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <button type="button" onClick={() => zoomButton(-0.5)} aria-label="축소">
-            −
-          </button>
-          <span className="zoomdoc__level">{Math.round(scale * 100)}%</span>
-          <button type="button" onClick={() => zoomButton(0.5)} aria-label="확대">
-            +
-          </button>
         </div>
       </div>
     </div>
