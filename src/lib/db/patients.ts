@@ -3,6 +3,15 @@ import { Patient, PatientDocument, PatientWithDocuments } from "./types";
 import { createSignedUrls } from "./documents";
 import { isRegisteredPatient } from "@/lib/patientStatus";
 import { DOC_TYPE_ORDER } from "@/lib/templates/types";
+// 고객(구글시트=customers) 매칭 순수 로직은 customerMatch.ts로 분리(단위 테스트 가능).
+import {
+  CustomerIndex,
+  indexCustomers,
+  pick6,
+  queryBase,
+  resolveCustomerNo,
+  sheetDupRank,
+} from "./customerMatch";
 
 export interface ListPatientsResult {
   patients: PatientWithDocuments[];
@@ -10,63 +19,19 @@ export interface ListPatientsResult {
   hasMore: boolean;
 }
 
-// 고객 매칭용 정규화 헬퍼
-// 이름 끝의 "(숫자)" 접미사(수동으로 붙인 동명이인 표기 등)와 공백을 제거해 '기본 이름'으로 묶는다.
-const normName = (s: string | null | undefined) =>
-  (s ?? "").replace(/\s*\(\s*\d+\s*\)\s*$/, "").replace(/\s/g, "");
-const norm6 = (s: string | null | undefined) => (s ?? "").replace(/\D/g, "").slice(0, 6);
-// 값(문자열/임의 타입)에서 숫자 앞 6자리(생년월일)를 뽑는다. 6자리 미만이면 null.
-const pick6 = (v: unknown): string | null => {
-  if (typeof v !== "string") return null;
-  const d = v.replace(/\D/g, "").slice(0, 6);
-  return d.length === 6 ? d : null;
-};
-const phoneTail = (s: string | null | undefined) => {
-  const d = (s ?? "").replace(/\D/g, "");
-  return d.length >= 8 ? d.slice(-8) : d; // 끝 8자리로 비교(접두어·하이픈·010 유무 무시)
-};
-
-interface CustomerRec {
-  customer_no: number;
-  birth6: string;
-  phoneTail: string;
-}
-export type CustomerIndex = Map<string, CustomerRec[]>; // 이름(공백제거) → 후보 목록
-
-// or-필터/LIKE 특수문자를 제거하고 끝의 "(N)" 접미사를 떼어 'base 이름'을 만든다.
-// (시트에 동명이인이 "이진우(2)"처럼 접미사로 저장될 수 있어, 이 base로 시작하는 행까지 모두 조회해야 함)
-const queryBase = (s: string | null | undefined) =>
-  (s ?? "")
-    .replace(/\s*\(\s*\d+\s*\)\s*$/, "") // 끝 "(2)" 등 제거
-    .replace(/[,()"*%_\\]/g, "")          // PostgREST or-필터·LIKE 특수문자 제거(한글 이름엔 없음)
-    .trim();
-
 // B안: 고객(customers) 전체를 통째로 읽지 않고, '그 화면에 보이는 환자 이름들'에
 // 해당하는 고객만 조회한다 → egress·지연이 전체 데이터량과 무관하게 작게 유지됨.
-// (동명이인 대비 이름당 후보 배열로 인덱싱)
+// 시트에 동명이인이 "이진우(2)"처럼 접미사로 저장될 수 있어, base로 '시작하는' 이름(접미사 포함)을
+// ilike로 모두 가져온다. 정확 일치(.in)로는 "이진우(2)" 행을 놓쳐, 번호가 있는데도 '번호 추가 필요'로
+// 뜨던 원인이었음. (과다수집돼도 normName 키로 묶고 matchCustomerNo가 정확 키로만 조회하므로 매칭엔 무해)
 async function buildCustomerIndex(
   supabase: Awaited<ReturnType<typeof getSupabaseServerClient>>,
   names: string[]
 ): Promise<CustomerIndex> {
-  const index: CustomerIndex = new Map();
   const bases = Array.from(new Set(names.map(queryBase).filter((n) => n)));
-  if (bases.length === 0) return index;
-
-  const addRows = (rows: { customer_no: number; name: string; birth6: string; phone: string }[]) => {
-    for (const c of rows) {
-      if (!c.name) continue;
-      const key = normName(c.name); // 접미사·공백 제거 → "이진우(2)"와 "이진우"를 같은 키로 묶음
-      const rec: CustomerRec = { customer_no: c.customer_no, birth6: norm6(c.birth6), phoneTail: phoneTail(c.phone) };
-      const list = index.get(key);
-      if (list) list.push(rec);
-      else index.set(key, [rec]);
-    }
-  };
-
+  if (bases.length === 0) return new Map();
+  type Row = { customer_no: number; name: string; birth6: string; phone: string };
   try {
-    // base로 '시작하는' 이름(접미사 "(2)" 포함)을 ilike로 모두 가져온다. 정확 일치(.in)로는
-    // "이진우(2)" 같은 동명이인 행을 놓쳐, 번호가 있는데도 '번호 추가 필요'로 뜨던 문제의 원인이었음.
-    // (과다수집돼도 normName 키로 묶고 matchCustomerNo가 정확 키로만 조회하므로 매칭엔 무해)
     const orFilter = bases.map((b) => `name.ilike.${b}*`).join(",");
     const { data, error } = await supabase
       .from("customers")
@@ -75,106 +40,13 @@ async function buildCustomerIndex(
     if (error || !data) {
       // ilike 실패 시 정확 일치로 폴백(최소한 접미사 없는 행은 매칭)
       const exact = await supabase.from("customers").select("customer_no,name,birth6,phone").in("name", bases);
-      if (!exact.error && exact.data) addRows(exact.data as { customer_no: number; name: string; birth6: string; phone: string }[]);
-      return index;
+      return indexCustomers((exact.error ? [] : (exact.data ?? [])) as Row[]);
     }
-    addRows(data as { customer_no: number; name: string; birth6: string; phone: string }[]);
+    return indexCustomers(data as Row[]);
   } catch {
     // customers 테이블 없거나 조회 실패 → 매칭 생략(저장된 번호만 사용)
+    return new Map();
   }
-  return index;
-}
-
-// 매칭 결과:
-//  · number  → 시트에서 주민번호로 확정된 고유번호
-//  · "needs" → 주민번호로 대조했는데 일치 고객이 없음 = 아직 시트에 없는 (새) 사람 → '번호 추가 필요'
-//  · null    → 주민번호를 못 읽어 대조 자체가 불가(동명이인이라 함부로 번호를 못 정함)
-type NoMatch = number | "needs" | null;
-
-// 이름 → 주민번호(생년월일6)로 시트 고객을 특정. 핵심 규칙:
-//  "주민번호가 일치해야만 그 고유번호를 쓴다." 같은 이름이 1명뿐이어도 주민번호가 다르면
-//  남의 번호(예: 기존 이진우 No.99)를 물려주지 않고 '번호 추가 필요'로 본다.
-function matchCustomerNo(
-  index: CustomerIndex,
-  name: string | null | undefined,
-  birth6: string | null | undefined,
-  phone: string | null | undefined
-): NoMatch {
-  const list = index.get(normName(name));
-  // 이름이 시트에 아예 없음 → 미등록(번호 추가 필요). (물려줄 번호가 없으니 주민번호 유무와 무관)
-  if (!list || list.length === 0) return "needs";
-
-  const b6 = norm6(birth6);
-  if (b6) {
-    // 주민번호가 있으면 반드시 주민번호로 대조한다(단독 후보여도 동일).
-    const byBirth = list.filter((c) => c.birth6 === b6);
-    if (byBirth.length === 1) return byBirth[0].customer_no;
-    // 이름+주민번호가 모두 같은 복수 행 = 같은 사람의 중복 등록 → 가장 작은 고유번호로 확정.
-    if (byBirth.length > 1) return Math.min(...byBirth.map((c) => c.customer_no));
-    // 주민번호가 어떤 후보와도 불일치 = 같은 이름의 다른(새) 사람 → 번호 추가 필요.
-    return "needs";
-  }
-
-  // 주민번호를 못 읽음(대조 불가). 함부로 남의 번호를 쓰지 않도록 보수적으로만 확정:
-  //  · 후보가 1명뿐 → 그 번호(그 이름의 유일한 고객이므로 안전)
-  //  · 동명이인인데 전화번호로 정확히 1명으로 좁혀지면 → 그 번호
-  //  · 그 외(동명이인·좁히기 실패) → null(표시 안 함)
-  if (list.length === 1) return list[0].customer_no;
-  const pt = phoneTail(phone);
-  if (pt) {
-    const byPhone = list.filter((c) => c.phoneTail && c.phoneTail === pt);
-    if (byPhone.length === 1) return byPhone[0].customer_no;
-  }
-  return null;
-}
-
-// 이름의 동명이인 수(서로 다른 고유번호 기준)
-function distinctNosForName(index: CustomerIndex, name: string | null | undefined): number[] {
-  const list = index.get(normName(name));
-  if (!list) return [];
-  return [...new Set(list.map((c) => c.customer_no))].sort((a, b) => a - b);
-}
-
-// 동명이인 순번(시트 기준). 매칭 결과(number|"needs"|null)를 받아 이름 옆 (N) 표기를 정한다.
-//  · 번호 확정(number): 시트 고유번호 오름차순에서 몇 번째인지(동명이인 2명↑일 때만).
-//  · "needs"(아직 시트 미등록): 같은 이름이 시트에 이미 있으면 다음 순번(기존수+1) →
-//    새로 추가되는 동명이인도 번호를 받기 전부터 (2)가 바로 붙는다(사용자 규칙).
-//  · 그 외: null(동명이인 아님/판단 불가).
-function sheetDupRank(index: CustomerIndex, name: string | null | undefined, resolved: NoMatch): number | null {
-  const nos = distinctNosForName(index, name);
-  if (typeof resolved === "number") {
-    if (nos.length <= 1) return null;
-    const i = nos.indexOf(resolved);
-    return i >= 0 ? i + 1 : null;
-  }
-  if (resolved === "needs") {
-    // 같은 이름이 시트에 1명 이상 있으면 이 신규 환자는 그 다음 순번(시트에 아직 없어도).
-    return nos.length >= 1 ? nos.length + 1 : null;
-  }
-  return null;
-}
-
-// 최종 고유번호 결정: 라이브 매칭 우선. 동명이인이면 옛 저장번호로 폴백하지 않음(엉뚱한 쌍둥이 방지).
-//  반환: number(확정) | "needs"(시트 미등록→번호 추가 필요) | null(판단 불가·미표시)
-function resolveCustomerNo(
-  index: CustomerIndex,
-  name: string | null | undefined,
-  birth6: string | null | undefined,
-  phone: string | null | undefined,
-  storedNo: number | null
-): NoMatch {
-  const live = matchCustomerNo(index, name, birth6, phone);
-  if (typeof live === "number") return live;
-  if (live === "needs") return "needs"; // 주민번호로 대조했으나 미등록 → '번호 추가 필요'
-  // live === null: 주민번호를 못 읽어 대조 불가(동명이인 등).
-  const nos = distinctNosForName(index, name);
-  const isDup = nos.length > 1;
-  if (!isDup) return storedNo; // (후보 단독이면 위에서 이미 number를 냈으므로 사실상 도달X) 안전망
-  // 동명이인 + 대조 불가: 생년월일 정보가 아예 없을 때만, 저장된 고유번호가 현재 동명이인
-  // 그룹의 일원이면 그 번호로 표시(최소한 라벨은 뜨게). birth6가 있었는데 실패한 경우는
-  // 위 matchCustomerNo에서 "needs"로 갈라졌으므로 여기 오지 않음.
-  if (!norm6(birth6) && storedNo != null && nos.includes(storedNo)) return storedNo;
-  return null; // 동명이인이면 확정 못 할 때 번호 미표시
 }
 
 // 주어진 환자 행들에 문서(경량)·고객번호·증명사진 URL을 붙인다. (form_data 본문은 제외해 속도/용량 최적화)
@@ -185,11 +57,11 @@ async function attachDocsAndInfo(
   const ids = patientsRows.map((p) => p.id);
   if (ids.length === 0) return [];
 
-  // 독립적인 Supabase 쿼리 4개를 병렬 실행(순차 → 병렬로 목록 로딩 지연 대폭 단축).
-  //  ① 문서 상태(경량)  ② 신분증/급여/위임 form_data(번호·생년월일)  ③ 고객시트 인덱스  ④ 동명이인 전역 순번
-  //  ③④는 B안: 이 화면에 보이는 환자 '이름들'에 해당하는 고객/환자만 조회(전체 로드 X).
+  // 독립적인 Supabase 쿼리 3개를 병렬 실행(순차 → 병렬로 목록 로딩 지연 대폭 단축).
+  //  ① 문서 상태(경량)  ② 신분증/급여/위임 form_data(번호·생년월일)  ③ 고객시트 인덱스
+  //  ③은 B안: 이 화면에 보이는 환자 '이름들'에 해당하는 고객만 조회(전체 로드 X).
   const names = patientsRows.map((p) => p.name);
-  const [docsRes, infoRes, custIndex, globalDupRanks] = await Promise.all([
+  const [docsRes, infoRes, custIndex] = await Promise.all([
     supabase
       .from("documents")
       .select("id, patient_id, doc_type, status, file_path, completed_at, updated_at")
@@ -200,7 +72,6 @@ async function attachDocsAndInfo(
       .in("doc_type", ["id_card", "subsidy_application", "power_of_attorney"])
       .in("patient_id", ids),
     buildCustomerIndex(supabase, names),
-    buildNameDupRanks(supabase, names),
   ]);
   if (docsRes.error) throw new Error(docsRes.error.message);
   if (infoRes.error) throw new Error(infoRes.error.message);
@@ -270,46 +141,11 @@ async function attachDocsAndInfo(
     }
   }
 
-  // 동명이인 번호(전역, 위 Promise.all에서 병렬 조회함): 같은 이름 2명↑이면 등록순 (1)(2)(3)….
-  // 페이지 분할·시트 매칭과 무관하게 전체 환자 기준으로 계산하므로, 서로 다른 페이지여도 정확.
-  for (const p of result) {
-    const r = globalDupRanks.get(p.id);
-    if (r != null) p.name_dup_rank = r; // 전역 등록순이 최우선(사용자 규칙). 단독 환자는 위 시트기반 rank 유지.
-  }
+  // 동명이인 (N) 순번은 오직 시트(customers) 기준(sheetDupRank)으로만 매긴다.
+  // 예전엔 '웹앱 환자 등록순' 전역 override가 시트 순번을 덮어써서, 시트엔 1명뿐인데 웹앱에
+  // 같은 이름이 2개면 엉뚱하게 (2)가 붙는 문제가 있었음(이강호 오표기). → override 제거.
 
   return result;
-}
-
-// 환자보기 전체에서 이름이 겹치는(동명이인) 환자들에게 등록순 번호를 매긴다.
-// patientId → 순번(1부터). 같은 이름이 1명뿐이면 포함하지 않음(단독은 시트기반 rank에 맡김).
-// B안: 환자 전체를 읽지 않고, 주어진 이름들에 해당하는 환자만 조회해 동명이인 순번 계산.
-// (같은 이름의 환자 전원을 가져오므로 '전역 등록순' 번호는 그대로 정확함)
-async function buildNameDupRanks(
-  supabase: Awaited<ReturnType<typeof getSupabaseServerClient>>,
-  names: string[]
-): Promise<Map<string, number>> {
-  const ranks = new Map<string, number>();
-  const uniq = Array.from(new Set(names.filter((n) => n && n.trim())));
-  if (uniq.length === 0) return ranks;
-  const { data, error } = await supabase
-    .from("patients")
-    .select("id, name, created_at")
-    .in("name", uniq);
-  if (error || !data) return ranks;
-  const groups = new Map<string, { id: string; created_at: string }[]>();
-  for (const p of data as { id: string; name: string; created_at: string }[]) {
-    const key = normName(p.name);
-    if (!key) continue;
-    const g = groups.get(key);
-    if (g) g.push({ id: p.id, created_at: p.created_at });
-    else groups.set(key, [{ id: p.id, created_at: p.created_at }]);
-  }
-  for (const g of groups.values()) {
-    if (g.length < 2) continue; // 동명이인 아님
-    g.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-    g.forEach((p, i) => ranks.set(p.id, i + 1));
-  }
-  return ranks;
 }
 
 // RPC 미설치(마이그레이션 전) 시 사용하는 폴백: 전체 조회 후 등록 환자만 필터(기존과 동일 동작)
@@ -469,12 +305,9 @@ export async function getPatient(id: string): Promise<PatientWithDocuments | nul
   if (docsRes.error) throw new Error(docsRes.error.message);
   const docs = (docsRes.data ?? []) as PatientDocument[];
 
-  // 2) 이 환자 이름에 해당하는 고객/동명이인만 조회(전체 로드 X).
+  // 2) 이 환자 이름에 해당하는 고객(시트)만 조회(전체 로드 X).
   const names = [(patient as Patient).name];
-  const [custIndex, globalDupRanks] = await Promise.all([
-    buildCustomerIndex(supabase, names),
-    buildNameDupRanks(supabase, names),
-  ]);
+  const custIndex = await buildCustomerIndex(supabase, names);
 
   const idDoc = docs.find((d) => d.doc_type === "id_card");
   const subDoc = docs.find((d) => d.doc_type === "subsidy_application");
@@ -512,16 +345,12 @@ export async function getPatient(id: string): Promise<PatientWithDocuments | nul
     }
   }
 
-  // 동명이인 번호: 전역 등록순(환자보기와 동일 규칙) 우선, 없으면 시트기반 rank
-  // (globalDupRanks는 상단 Promise.all에서 이미 조회됨)
-  const globalRank = globalDupRanks.get(id) ?? null;
-
   return {
     ...(patient as Patient),
     documents: docs,
     customer_no: resolvedCn,
     customer_no_needed: resolvedCnRaw === "needs",
-    name_dup_rank: globalRank ?? sheetDupRank(custIndex, (patient as Patient).name, resolvedCnRaw),
+    name_dup_rank: sheetDupRank(custIndex, (patient as Patient).name, resolvedCnRaw),
     signedUrls,
   };
 }
