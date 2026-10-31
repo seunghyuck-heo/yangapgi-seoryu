@@ -225,19 +225,8 @@ export default function IdCardUploader({ patientId, initialUrl, backHref }: IdCa
       try {
         const faceRaw = await cropFace(dataUrl, box);
         if (faceRaw) {
-          try {
-            const fr = await fetch("/api/face-rotation", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ dataUrl: faceRaw }),
-            });
-            if (fr.ok) {
-              const n = (await fr.json()).rotation;
-              if (typeof n === "number") rotation = n;
-            }
-          } catch {
-            /* 유지 */
-          }
+          // 회전은 이름OCR(/api/ocr-name)이 돌려준 rotation을 그대로 사용한다.
+          // (얼굴회전 전용 Gemini 호출을 없애 신분증 1장당 AI 호출을 1회로 줄임 → 무료 쿼터 절약)
           const faceUrl = rotation ? await rotateDataUrl(faceRaw, rotation) : faceRaw;
           const up = await fetch("/api/uploads", {
             method: "POST",
