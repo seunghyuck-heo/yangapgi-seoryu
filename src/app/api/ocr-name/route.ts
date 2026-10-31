@@ -145,20 +145,21 @@ export async function POST(req: Request) {
       return { name, birth6, rrn, box, card, rotation };
     };
 
-    let best: Parsed | null = null;    // 이름+주민번호(13) 모두 있는 최상 결과
-    let partial: Parsed | null = null; // 이름만 있고 주민번호가 빈 결과(백업)
+    // 과부하 땐 모델이 호출마다 주는 필드가 달라진다(어떤 땐 rrn, 어떤 땐 box/card만).
+    // 그래서 '첫 응답으로 끝'내지 않고, 응답마다 '아직 못 모은 필드'를 채워 누적한다.
+    // 되는 모델(200)은 필요한 게 다 모일 때까지 같은 모델로 최대 RETRY_PER_MODEL회 더 시도.
+    // 비200(503/429/오류)은 재시도해도 같으니 즉시 다음 모델로.
+    const acc: Parsed = { name: "", birth6: "", rrn: "", box: null, card: null, rotation: 0 };
+    let gotAny = false; // 200 응답을 하나라도 받았는지(에러 구분용)
     let lastStatus = 0;
     let lastDetail = "no response";
-    // 모델을 순회하되, '되는 모델(200)'을 찾으면 그 모델을 주민번호(rrn)가 나올 때까지 몇 번 더 두드린다.
-    // 과부하 땐 lite 모델만 200이고 그 lite가 호출마다 rrn을 넣었다 뺐다 하는 변동성이 커서,
-    // 체인을 한 바퀴 도는 1회로는 rrn을 자주 놓침 → 되는 모델에 재시도를 몰아주는 게 핵심(실측).
-    // 비200(503/429/오류)은 재시도해도 같으니 즉시 다음 모델로.
-    const RRN_RETRY_PER_MODEL = 3;
+    const complete = () => !!(acc.name && acc.rrn && acc.box && acc.card); // 이름+주민번호+얼굴+카드 다 모이면 종료
+    const RETRY_PER_MODEL = 3;
     for (const model of MODELS) {
-      if (best) break;
+      if (complete()) break;
       if (Date.now() - started > TOTAL_BUDGET_MS) break; // 시간 상한 초과 → 중단
-      for (let attempt = 0; attempt < RRN_RETRY_PER_MODEL; attempt++) {
-        if (best) break;
+      for (let attempt = 0; attempt < RETRY_PER_MODEL; attempt++) {
+        if (complete()) break;
         if (Date.now() - started > TOTAL_BUDGET_MS) break;
         const ctrl = new AbortController();
         const timer = setTimeout(() => ctrl.abort(), PER_CALL_MS);
@@ -169,10 +170,16 @@ export async function POST(req: Request) {
           );
           clearTimeout(timer);
           if (resp.ok) {
-            const parsed = parseOut(await resp.json());
-            if (parsed.name && parsed.rrn) { best = parsed; break; }          // 최상: 이름+주민번호 → 확정
-            if (!partial || (parsed.name && !partial.name)) partial = parsed; // 백업 보관(이름 있는 쪽 우선)
-            continue; // 200인데 rrn 없음 → 같은 모델 한 번 더(변동성 구제)
+            gotAny = true;
+            const p = parseOut(await resp.json());
+            // 아직 못 모은 필드만 채운다(같은 신분증이라 호출이 달라도 좌표·값이 호환됨)
+            if (!acc.name && p.name) acc.name = p.name;
+            if (!acc.rrn && p.rrn) { acc.rrn = p.rrn; acc.birth6 = p.rrn.slice(0, 6); }
+            if (!acc.birth6 && p.birth6) acc.birth6 = p.birth6;
+            if (!acc.box && p.box) acc.box = p.box;
+            if (!acc.card && p.card) acc.card = p.card;
+            if (!acc.rotation && p.rotation) acc.rotation = p.rotation;
+            continue; // 남은 필드 모으러 같은 모델 재시도
           }
           lastStatus = resp.status;
           lastDetail = `${model}:${resp.status} ${(await resp.text()).slice(0, 120)}`;
@@ -185,14 +192,7 @@ export async function POST(req: Request) {
       }
     }
 
-    // best(이름+주민번호) 모델이 box/card(얼굴·카드 영역)를 안 준 경우, partial에서 보완(사진 크롭 유지).
-    if (best && partial) {
-      if (!best.box) best.box = partial.box;
-      if (!best.card) best.card = partial.card;
-      if (!best.rotation && partial.rotation) best.rotation = partial.rotation;
-    }
-    const out = best ?? partial;
-    if (!out) {
+    if (!gotAny) {
       // 모든 모델 실패. 429(한도)·503(과부하)를 구분해 사용자에게 명확히 안내.
       const quota = lastStatus === 429;
       const busy = lastStatus === 503;
@@ -206,7 +206,7 @@ export async function POST(req: Request) {
         { status: quota ? 429 : busy ? 503 : 502 }
       );
     }
-    return NextResponse.json(out);
+    return NextResponse.json(acc);
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500 });
   }
