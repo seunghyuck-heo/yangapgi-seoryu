@@ -234,10 +234,10 @@ export default function PatientDetailPage({ params }: PatientDetailPageProps) {
       <h1>
         {patient ? (patient.name === DRAFT_NAME ? (draftRank ? `새 환자 (${draftRank})` : "새 환자") : patient.name_dup_rank ? `${patient.name}(${patient.name_dup_rank})` : patient.name) : " "}
         {patient?.customer_no != null ? (
-          <span className="patient-detail-page__no"> (No. {patient.customer_no})</span>
+          <span className="patient-detail-page__no">(No. {patient.customer_no})</span>
         ) : patient?.customer_no_needed && patient.name !== DRAFT_NAME ? (
           <span className="patient-detail-page__no patient-detail-page__no--needed">
-            {" "}(번호 추가 필요)
+            (번호 추가 필요)
             <button
               type="button"
               className="patient-detail-page__no-refresh"

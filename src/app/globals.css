@@ -1854,6 +1854,7 @@ input[type="password"]::placeholder {
   color: var(--brand);
   font-size: 18px;
   font-weight: 700;
+  margin-left: 6px; /* 이름과 (No./번호 추가 필요) 사이 한 칸 띄움 */
 }
 
 /* 아직 구글시트에 없는(주민번호 불일치) 환자: 번호 대신 '번호 추가 필요' 경고색 표기 */
