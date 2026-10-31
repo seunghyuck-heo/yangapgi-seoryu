@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+export const maxDuration = 60; // 폴백 체인(최대 ~45s) 동안 함수가 끊기지 않도록
+
 // 신분증 이미지에서 이름·생년월일·얼굴/카드 영역·회전·주민번호를 '한 번의 호출'로 추출 — Gemini 비전.
 // 이미지는 서버에서 Google로 전송됩니다(온디바이스 아님).
 //
@@ -63,23 +65,32 @@ export async function POST(req: Request) {
   });
 
   try {
+    // 느린/과부하 모델에 오래 매달리지 않도록 호출마다 타임아웃(12s) + 전체 상한(45s)을 둔다.
+    // (쿼터 소진 모델은 빠르게 429로 떨어지고, 건강한 모델은 보통 몇 초 안에 응답)
+    const PER_CALL_MS = 12000;
+    const TOTAL_BUDGET_MS = 45000;
+    const started = Date.now();
     let ok: Response | null = null;
     let lastStatus = 0;
     let lastDetail = "no response";
     for (const model of MODELS) {
-      let done = false;
-      for (let attempt = 0; attempt < 2 && !done; attempt++) {
+      if (Date.now() - started > TOTAL_BUDGET_MS) break; // 시간 상한 초과 → 중단
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), PER_CALL_MS);
+      try {
         const resp = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-          { method: "POST", headers: { "Content-Type": "application/json" }, body: reqBody }
+          { method: "POST", headers: { "Content-Type": "application/json" }, body: reqBody, signal: ctrl.signal }
         );
-        if (resp.ok) { ok = resp; done = true; break; }
+        clearTimeout(timer);
+        if (resp.ok) { ok = resp; break; }
         lastStatus = resp.status;
         lastDetail = `${model}:${resp.status} ${(await resp.text()).slice(0, 120)}`;
-        if (resp.status === 503) { await new Promise((r) => setTimeout(r, 600)); continue; } // 과부하: 한 번 더
-        break; // 429(한도)·404 등: 다음 모델로
+        // 429(한도)·503(과부하)·404 등 → 재시도 없이 바로 다음 모델(시간 절약)
+      } catch {
+        clearTimeout(timer);
+        lastDetail = `${model}: timeout/err`; // 타임아웃·네트워크 → 다음 모델
       }
-      if (ok) break;
     }
 
     if (!ok) {
