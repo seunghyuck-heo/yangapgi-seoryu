@@ -205,6 +205,16 @@ export default function IdCardUploader({ patientId, initialUrl, backHref }: IdCa
         rotation = typeof json.rotation === "number" ? json.rotation : 0;
         birth6 = typeof json.birth6 === "string" ? json.birth6 : "";
         rrn = typeof json.rrn === "string" ? json.rrn : "";
+      } else {
+        // OCR 실패(특히 429=AI 사용량 초과)를 사용자에게 명확히 알린다(이름 직접 입력은 가능).
+        let msg = "신분증 자동 인식에 실패했습니다. 이름을 직접 입력해 주세요.";
+        try {
+          const ej = await res.json();
+          if (typeof ej?.error === "string") msg = ej.error + " (이름은 직접 입력하실 수 있습니다.)";
+        } catch {
+          /* 무시 */
+        }
+        setError(msg);
       }
     } catch {
       // 실패해도 이름 직접 입력 가능
