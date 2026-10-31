@@ -31,6 +31,8 @@ export interface PatientWithDocuments extends Patient {
   /** 주민번호로 시트 대조 시 일치 고객이 없음 = 아직 구글시트에 미등록 → '번호 추가 필요' 표시.
    *  (customer_no가 null이면서 이 값이 true일 때만 라벨을 띄운다. 주민번호 자체를 못 읽으면 false) */
   customer_no_needed?: boolean;
+  /** needs일 때 구체 사유 안내(상세화면 새로고침 토스트용). 'name_absent' | 'rrn_mismatch' */
+  customer_no_hint?: "name_absent" | "rrn_mismatch";
   /** 동명이인 순번(고유번호 작은=등록 먼저 순으로 1,2,…). 동명이인 아니면 null */
   name_dup_rank?: number | null;
   /** 스토리지 경로 → 서명 URL 맵 (예: 환자관리카드 방문점검 서명 이미지) */

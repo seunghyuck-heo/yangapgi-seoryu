@@ -66,8 +66,11 @@ export function indexCustomers(
 
 // ── 매칭 ─────────────────────────────────────────────────────
 // 이름 → 주민번호(생년월일6)로 시트 고객을 특정. 핵심 규칙:
-//  "주민번호가 일치해야만 그 고유번호를 쓴다." 같은 이름이 1명뿐이어도 주민번호가 다르면
-//  남의 번호(예: 기존 이진우 No.99)를 물려주지 않고 '번호 추가 필요'로 본다.
+//  주민번호는 "동명이인을 가려내고, 남의 번호를 못 물려주게 막는" 용도다(매칭 필수조건 아님).
+//  ⚠️ 시트엔 주민번호 칸이 비어 있는 고객이 많다. 그런 행을 '불일치'로 보면 안 된다.
+//   · 같은 이름이 1명뿐이면 → 주민번호가 비어 있어도 그 사람으로 매칭.
+//   · "번호 추가 필요"(needs)는 이름이 아예 없거나, 같은 이름 후보가 '모두 주민번호를 갖고 있는데'
+//     하나도 안 맞을 때만(= 진짜 다른 사람). 예: 기존 이진우 No.99가 주민번호를 갖고 있고 다르면 needs.
 export function matchCustomerNo(
   index: CustomerIndex,
   name: string | null | undefined,
@@ -75,24 +78,35 @@ export function matchCustomerNo(
   phone: string | null | undefined
 ): NoMatch {
   const list = index.get(normName(name));
-  // 이름이 시트에 아예 없음 → 미등록(번호 추가 필요). (물려줄 번호가 없으니 주민번호 유무와 무관)
+  // 이름이 시트에 아예 없음 → 미등록(번호 추가 필요).
   if (!list || list.length === 0) return "needs";
 
   const b6 = norm6(birth6);
   if (b6) {
-    // 주민번호가 있으면 반드시 주민번호로 대조한다(단독 후보여도 동일).
     const byBirth = list.filter((c) => c.birth6 === b6);
     if (byBirth.length === 1) return byBirth[0].customer_no;
     // 이름+주민번호가 모두 같은 복수 행 = 같은 사람의 중복 등록 → 가장 작은 고유번호로 확정.
     if (byBirth.length > 1) return Math.min(...byBirth.map((c) => c.customer_no));
-    // 주민번호가 어떤 후보와도 불일치 = 같은 이름의 다른(새) 사람 → 번호 추가 필요.
-    return "needs";
+
+    // 주민번호 정확 일치가 없음. '주민번호가 기재된' 후보만 추려 판단한다.
+    const withBirth = list.filter((c) => c.birth6);
+    if (withBirth.length === list.length) {
+      // 같은 이름 시트 행이 전부 주민번호를 갖고 있는데 아무도 안 맞음 → 다른(새) 사람 → 번호 추가 필요.
+      return "needs";
+    }
+    // 일부/전부 후보의 주민번호가 비어 있어 '다른 사람'이라 단정 불가.
+    //  · 그 이름 후보가 1명뿐 → 그 사람(시트에 주민번호만 미기재)으로 매칭.
+    if (list.length === 1) return list[0].customer_no;
+    //  · 동명이인 + 주민번호 미기재 섞임 → 전화번호로 1명 좁혀지면 그 번호.
+    const pt = phoneTail(phone);
+    if (pt) {
+      const byPhone = list.filter((c) => c.phoneTail && c.phoneTail === pt);
+      if (byPhone.length === 1) return byPhone[0].customer_no;
+    }
+    return null; // 못 좁힘 → 섣불리 번호 안 붙임(미표시)
   }
 
-  // 주민번호를 못 읽음(대조 불가). 함부로 남의 번호를 쓰지 않도록 보수적으로만 확정:
-  //  · 후보가 1명뿐 → 그 번호(그 이름의 유일한 고객이므로 안전)
-  //  · 동명이인인데 전화번호로 정확히 1명으로 좁혀지면 → 그 번호
-  //  · 그 외(동명이인·좁히기 실패) → null(표시 안 함)
+  // 환자 주민번호를 못 읽음(대조 불가). 보수적으로만 확정:
   if (list.length === 1) return list[0].customer_no;
   const pt = phoneTail(phone);
   if (pt) {
@@ -100,6 +114,17 @@ export function matchCustomerNo(
     if (byPhone.length === 1) return byPhone[0].customer_no;
   }
   return null;
+}
+
+// "번호 추가 필요"의 구체 사유(상세화면 안내용). resolved === "needs"일 때만 의미 있음.
+//  · "name_absent": 시트에 그 이름이 아예 없음 → 시트에 추가해야 함.
+//  · "rrn_mismatch": 이름은 있으나 (주민번호 기재된 후보와) 주민번호가 달라 다른 사람으로 판단됨.
+export function needsReason(
+  index: CustomerIndex,
+  name: string | null | undefined
+): "name_absent" | "rrn_mismatch" {
+  const list = index.get(normName(name));
+  return !list || list.length === 0 ? "name_absent" : "rrn_mismatch";
 }
 
 // 이름의 동명이인 수(서로 다른 고유번호 기준, 오름차순)

@@ -7,6 +7,7 @@ import { DOC_TYPE_ORDER } from "@/lib/templates/types";
 import {
   CustomerIndex,
   indexCustomers,
+  needsReason,
   pick6,
   queryBase,
   resolveCustomerNo,
@@ -350,6 +351,7 @@ export async function getPatient(id: string): Promise<PatientWithDocuments | nul
     documents: docs,
     customer_no: resolvedCn,
     customer_no_needed: resolvedCnRaw === "needs",
+    customer_no_hint: resolvedCnRaw === "needs" ? needsReason(custIndex, (patient as Patient).name) : undefined,
     name_dup_rank: sheetDupRank(custIndex, (patient as Patient).name, resolvedCnRaw),
     signedUrls,
   };

@@ -112,11 +112,13 @@ export default function PatientDetailPage({ params }: PatientDetailPageProps) {
       const json = await res.json();
       if (res.ok && json.patient) {
         setPatient(json.patient);
-        showToast(
-          json.patient.customer_no != null
-            ? `번호를 받았습니다. (No. ${json.patient.customer_no})`
-            : "아직 번호가 없습니다. 시트 등록을 확인해 주세요."
-        );
+        if (json.patient.customer_no != null) {
+          showToast(`번호를 받았습니다. (No. ${json.patient.customer_no})`);
+        } else if (json.patient.customer_no_hint === "rrn_mismatch") {
+          showToast("시트에 이름은 있으나 주민번호가 달라요. 시트의 주민번호를 확인해 주세요.");
+        } else {
+          showToast("시트에 이 이름이 없습니다. 시트에 추가 후 다시 눌러주세요.");
+        }
       } else {
         showToast("새로고침에 실패했습니다.");
       }
