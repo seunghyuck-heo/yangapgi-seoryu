@@ -483,18 +483,19 @@ export default function IdCardUploader({ patientId, initialUrl, backHref }: IdCa
                 if (e.key === "Enter") saveName();
               }}
             />
-            {/* 구글시트 대조 결과(주민번호 들어온 순간 즉시 판별) */}
+            {/* 구글시트 대조: DB 있으면 생년월일(주민 앞6)로 정확도 대조, 없으면 OCR 주민번호 그대로 서식에 prefill */}
             <div className="id-card-sheet__match" aria-live="polite">
               {nameSheet.matching ? (
                 <span className="id-card-sheet__match--checking">구글시트 확인 중…</span>
               ) : !nameSheet.birth6 || nameSheet.birth6.length !== 6 ? (
                 <span className="id-card-sheet__match--none">주민번호 미인식 — 서식에서 직접 입력하세요</span>
               ) : nameSheet.customerNo != null ? (
-                <span className="id-card-sheet__match--ok">✓ 구글시트 등록됨 (No. {nameSheet.customerNo})</span>
+                <span className="id-card-sheet__match--ok">✓ 구글시트 등록됨 (No. {nameSheet.customerNo}) · 생년월일 일치</span>
               ) : nameSheet.needs ? (
                 <span className="id-card-sheet__match--needed">
-                  ⚠️ 구글시트에 없음 — 번호 추가 필요
-                  {nameSheet.matchReason === "rrn_mismatch" ? " (이름은 있으나 주민번호가 다름)" : ""}
+                  {nameSheet.matchReason === "rrn_mismatch"
+                    ? "⚠️ 이름은 시트에 있으나 생년월일이 다름 — 주민번호 확인 필요"
+                    : "⚠️ 구글시트에 없음 — 신분증 주민번호로 등록(번호 추가 필요)"}
                 </span>
               ) : nameSheet.checked ? (
                 <span className="id-card-sheet__match--none">구글시트 확인 불가</span>
