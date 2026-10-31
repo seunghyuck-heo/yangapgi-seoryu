@@ -59,29 +59,40 @@ export async function POST(req: Request) {
 
   // 무료 한도는 '모델별로 따로'다. 한 모델이 429(한도 소진)면 다음 모델로 넘어간다(모두 무료 flash).
   // 503(과부하)은 같은 모델 한 번 더. OCR 정확도 위해 capable 모델 우선, lite는 뒤로.
-  const envModel = process.env.GEMINI_MODEL || "gemini-3.6-flash";
+  //  · gemini-2.5-flash/-lite는 구글이 신규 사용자에게 폐기(404) → 체인에서 제거(헛호출 방지).
+  //  · lite 계열은 thinkingConfig를 거부(400 invalid argument)하므로 body에서 뺀다(모델별 분기).
+  //  · 3.x flash가 전면 과부하(503)일 때 과부하가 덜한 lite로라도 넘어가도록 폴백에 포함.
+  const envModel = process.env.GEMINI_MODEL || "gemini-flash-latest";
   const MODELS = [...new Set([
     envModel,
-    "gemini-2.5-flash",
     "gemini-flash-latest",
-    "gemini-2.5-flash-lite",
-    "gemini-flash-lite-latest",
+    "gemini-3.5-flash",
+    "gemini-3.6-flash",
+    "gemini-3.7-flash",
     "gemini-3.8-flash",
+    "gemini-3-flash-preview",
+    "gemini-flash-lite-latest",
+    "gemini-3.5-flash-lite",
   ])];
-  const reqBody = JSON.stringify({
-    contents: [{ parts: [{ text: PROMPT }, { inline_data: { mime_type: mimeType, data: base64 } }] }],
-    generationConfig: {
-      temperature: 0,
-      maxOutputTokens: 300,
-      thinkingConfig: { thinkingBudget: 0 },
-      responseMimeType: "application/json",
-    },
-  });
+  const isLite = (m: string) => m.includes("lite");
+  const buildBody = (useThinking: boolean) =>
+    JSON.stringify({
+      contents: [{ parts: [{ text: PROMPT }, { inline_data: { mime_type: mimeType, data: base64 } }] }],
+      generationConfig: {
+        temperature: 0,
+        maxOutputTokens: 300,
+        ...(useThinking ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
+        responseMimeType: "application/json",
+      },
+    });
+  // lite 모델은 thinkingConfig 미지원 → 빼고 호출. 나머지는 thinkingBudget:0(사고 비활성, 빠름).
+  const bodyFor = (m: string) => buildBody(!isLite(m));
 
   // 진단: ?probe=1 → 각 모델을 한 번씩(최대 20s) 호출해 상태코드를 반환(어느 모델이 유효/가용한지 파악).
   if (new URL(req.url).searchParams.get("probe") === "1") {
     const listParam = new URL(req.url).searchParams.get("list");
     const probeModels = listParam ? listParam.split(",").map((s) => s.trim()).filter(Boolean) : MODELS;
+    const forceNoThink = new URL(req.url).searchParams.get("nothink") === "1"; // thinkingConfig 제거 테스트용
     const out: { model: string; status: number | string; ms: number; detail?: string }[] = [];
     for (const model of probeModels) {
       const ctrl = new AbortController();
@@ -90,7 +101,7 @@ export async function POST(req: Request) {
       try {
         const resp = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-          { method: "POST", headers: { "Content-Type": "application/json" }, body: reqBody, signal: ctrl.signal }
+          { method: "POST", headers: { "Content-Type": "application/json" }, body: forceNoThink ? buildBody(false) : bodyFor(model), signal: ctrl.signal }
         );
         clearTimeout(timer);
         const detail = resp.ok ? undefined : (await resp.text()).slice(0, 160);
@@ -123,7 +134,7 @@ export async function POST(req: Request) {
         try {
           const resp = await fetch(
             `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-            { method: "POST", headers: { "Content-Type": "application/json" }, body: reqBody, signal: ctrl.signal }
+            { method: "POST", headers: { "Content-Type": "application/json" }, body: bodyFor(model), signal: ctrl.signal }
           );
           clearTimeout(timer);
           if (resp.ok) { ok = resp; break; }
