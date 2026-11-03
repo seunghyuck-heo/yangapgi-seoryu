@@ -7,6 +7,7 @@ import { getSupabaseServerClient } from "@/lib/supabase/server";
 import TemplateForm from "@/components/TemplateForm";
 import OverlayDocumentForm from "@/components/OverlayDocumentForm";
 import IdCardUploader from "@/components/IdCardUploader";
+import { fetchCustomerRowsCached, findCustomer } from "@/lib/google/customerSheet";
 
 interface DocPageProps {
   params: Promise<{ id: string; docType: string }>;
@@ -68,12 +69,33 @@ export default async function DocumentPage({ params, searchParams }: DocPageProp
         needName ? getPatientName(id) : Promise.resolve(""),
         needCard ? getDocument(id, "id_card") : Promise.resolve(null),
       ]);
-      const rrnRaw = typeof idCard?.form_data?.rrn === "string" ? (idCard.form_data.rrn as string).replace(/\D/g, "") : "";
-      const rrn = rrnRaw.length === 13 ? rrnRaw : "";
-      const birth6 = rrn ? rrn.slice(0, 6) : (typeof idCard?.form_data?.birth6 === "string" ? (idCard.form_data.birth6 as string).replace(/\D/g, "").slice(0, 6) : "");
-      // 전화: 저장돼 있으면 사용. 010-접두 서식칸용으로 '010 뒤 로컬번호'만 남긴다.
-      const phoneRaw = typeof idCard?.form_data?.phone === "string" ? (idCard.form_data.phone as string).replace(/\D/g, "") : "";
-      const phone = phoneRaw.startsWith("010") ? phoneRaw.slice(3) : phoneRaw.length > 8 ? phoneRaw.slice(-8) : phoneRaw;
+      const toLocalPhone = (digits: string) =>
+        digits.startsWith("010") ? digits.slice(3) : digits.length > 8 ? digits.slice(-8) : digits;
+      let rrn = (() => {
+        const d = typeof idCard?.form_data?.rrn === "string" ? (idCard.form_data.rrn as string).replace(/\D/g, "") : "";
+        return d.length === 13 ? d : "";
+      })();
+      let birth6 = rrn ? rrn.slice(0, 6) : (typeof idCard?.form_data?.birth6 === "string" ? (idCard.form_data.birth6 as string).replace(/\D/g, "").slice(0, 6) : "");
+      let phone = toLocalPhone(typeof idCard?.form_data?.phone === "string" ? (idCard.form_data.phone as string).replace(/\D/g, "") : "");
+
+      // 영구 안전장치: id_card에 주민번호/연락처가 비어 있으면(예: 구버전 등록, 시트에 뒤늦게 기입)
+      // 구글시트(고객파일)에서 직접 보강한다. 고유번호(저장돼 있으면)로 특정 → 동명이인 안전, 없으면 단독 이름.
+      const needRrn = prefillFields.some((f) => f.prefillFrom === "rrn");
+      const needPhone = prefillFields.some((f) => f.prefillFrom === "phone");
+      if ((needRrn && !rrn) || (needPhone && !phone)) {
+        try {
+          const custNo = typeof idCard?.form_data?.customer_no === "number" ? (idCard.form_data.customer_no as number) : null;
+          const rows = await fetchCustomerRowsCached();
+          const c = findCustomer(rows, { customerNo: custNo, name: patientName });
+          if (c) {
+            if (!rrn && c.rrn.length === 13) rrn = c.rrn;
+            if (!birth6 && c.birth6) birth6 = c.birth6;
+            if (!phone && c.phone) phone = toLocalPhone(c.phone.replace(/\D/g, ""));
+          }
+        } catch {
+          // 시트 조회 실패해도 서식은 열려야 함(직원이 직접 입력 가능)
+        }
+      }
       const patch: Record<string, unknown> = {};
       for (const f of prefillFields) {
         const cur = initialFormData[f.key];

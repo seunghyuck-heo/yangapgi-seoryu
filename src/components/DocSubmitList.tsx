@@ -210,8 +210,10 @@ export default function DocSubmitList({
       }
       setNameSheet(null);
       setPickList(null);
-      // 방금 등록한 환자는 '작성 중' 리스트로 내려보내고, 위 서식은 새 환자로 리셋한다.
+      // 위 서식은 '새 환자'로 리셋하고(onRegistered), 방금 등록한 환자의 상세로 이동해
+      // 그 환자의 서식(이름·주민번호·연락처 자동입력됨)을 바로 이어 작성하게 한다.
       onRegistered?.();
+      router.push(`/patients/${pid}?from=submit`);
     } finally {
       setNameSaving(false);
     }

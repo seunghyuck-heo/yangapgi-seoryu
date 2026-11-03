@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { normName } from "@/lib/db/customerMatch";
 
 // 구글 시트(고객파일) → 고객 행 읽기 공용 로직. 동기화(/api/customers/sync)와
 // 등록 시점 실시간 조회(/api/customer-lookup)가 함께 쓴다.
@@ -141,4 +142,32 @@ export async function fetchCustomerRows(): Promise<CustomerSheetResult> {
   }
 
   return { title, totalRows: rowData.length, skippedYellow, rows };
+}
+
+// 짧은 캐시(서버 인스턴스 메모리). 한 환자의 여러 서식을 연달아 열 때 시트를 매번 안 읽게.
+let _cache: { at: number; rows: CustomerSheetRow[] } | null = null;
+const CACHE_TTL_MS = 30_000;
+
+export async function fetchCustomerRowsCached(): Promise<CustomerSheetRow[]> {
+  if (_cache && Date.now() - _cache.at < CACHE_TTL_MS) return _cache.rows;
+  const { rows } = await fetchCustomerRows();
+  _cache = { at: Date.now(), rows };
+  return rows;
+}
+
+// 고유번호(최우선, 동명이인 안전) → 없으면 '단독으로 일치하는 이름'으로 시트 고객 1명 특정.
+export function findCustomer(
+  rows: CustomerSheetRow[],
+  by: { customerNo?: number | null; name?: string | null }
+): CustomerSheetRow | null {
+  if (typeof by.customerNo === "number") {
+    const byNo = rows.find((r) => r.customer_no === by.customerNo);
+    if (byNo) return byNo;
+  }
+  const key = normName(by.name);
+  if (key) {
+    const matches = rows.filter((r) => normName(r.name) === key);
+    if (matches.length === 1) return matches[0]; // 동명이인이면 이름만으론 특정 불가 → null
+  }
+  return null;
 }
