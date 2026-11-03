@@ -342,7 +342,9 @@ export async function getPatient(id: string): Promise<PatientWithDocuments | nul
     (patient as Patient).phone ||
     null;
   const storedCn = typeof cn === "number" ? cn : null;
-  const resolvedCnRaw = resolveCustomerNo(custIndex, (patient as Patient).name, idBirth6, matchPhone, storedCn);
+  let resolvedCnRaw = resolveCustomerNo(custIndex, (patient as Patient).name, idBirth6, matchPhone, storedCn);
+  // '번호 추가 필요'여도 등록 때 구글시트에서 가져와 저장해 둔 고유번호가 있으면 그걸 쓴다(목록과 동일, 동기화 지연 구제).
+  if (resolvedCnRaw === "needs" && storedCn != null) resolvedCnRaw = storedCn;
   const resolvedCn = typeof resolvedCnRaw === "number" ? resolvedCnRaw : null;
 
   // 환자관리카드 방문점검 서명(guardianSign)이 스토리지 경로면 서명 URL로 변환
