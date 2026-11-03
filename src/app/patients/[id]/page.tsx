@@ -56,7 +56,6 @@ export default function PatientDetailPage({ params }: PatientDetailPageProps) {
   const [showBundle, setShowBundle] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [manualSaving, setManualSaving] = useState(false);
-  const [syncingNo, setSyncingNo] = useState(false);
   const [receiptCount, setReceiptCount] = useState<number | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pdfAutoRef = useRef(false);
@@ -97,35 +96,6 @@ export default function PatientDetailPage({ params }: PatientDetailPageProps) {
     }
   }
 
-  // '번호 추가 필요' 옆 새로고침: 구글시트를 다시 동기화(customers 갱신)한 뒤 이 환자를 재조회.
-  // 시트에 방금 추가·주민번호 입력한 고객이면 이때 새 고유번호가 잡힌다.
-  async function refreshCustomerNo() {
-    if (syncingNo) return;
-    setSyncingNo(true);
-    try {
-      try {
-        await fetch("/api/customers/sync"); // 시트 → customers 동기화(실패해도 재조회는 진행)
-      } catch {
-        // 무시
-      }
-      const res = await fetch(`/api/patients/${id}`);
-      const json = await res.json();
-      if (res.ok && json.patient) {
-        setPatient(json.patient);
-        if (json.patient.customer_no != null) {
-          showToast(`번호를 받았습니다. (No. ${json.patient.customer_no})`);
-        } else if (json.patient.customer_no_hint === "rrn_mismatch") {
-          showToast("시트에 이름은 있으나 주민번호가 달라요. 시트의 주민번호를 확인해 주세요.");
-        } else {
-          showToast("시트에 이 이름이 없습니다. 시트에 추가 후 다시 눌러주세요.");
-        }
-      } else {
-        showToast("새로고침에 실패했습니다.");
-      }
-    } finally {
-      setSyncingNo(false);
-    }
-  }
 
   function handleOpenBundle() {
     if (!patient) return;
@@ -237,25 +207,6 @@ export default function PatientDetailPage({ params }: PatientDetailPageProps) {
         {patient ? (patient.name === DRAFT_NAME ? (draftRank ? `새 환자 (${draftRank})` : "새 환자") : patient.name_dup_rank ? `${patient.name}(${patient.name_dup_rank})` : patient.name) : " "}
         {patient?.customer_no != null ? (
           <span className="patient-detail-page__no">(No. {patient.customer_no})</span>
-        ) : patient?.customer_no_needed && patient.name !== DRAFT_NAME ? (
-          <span className="patient-detail-page__no patient-detail-page__no--needed">
-            (번호 추가 필요)
-            <button
-              type="button"
-              className="patient-detail-page__no-refresh"
-              onClick={refreshCustomerNo}
-              disabled={syncingNo}
-              aria-label="번호 새로고침"
-              title="구글시트에 추가한 뒤 눌러 새 번호 받기"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" style={syncingNo ? { animation: "spin 0.8s linear infinite" } : undefined}>
-                <path d="M21 12a9 9 0 0 1-9 9c-2.5 0-4.8-1-6.4-2.7L3 16" />
-                <path d="M3 12a9 9 0 0 1 9-9c2.5 0 4.8 1 6.4 2.7L21 8" />
-                <path d="M21 3v5h-5" />
-                <path d="M3 21v-5h5" />
-              </svg>
-            </button>
-          </span>
         ) : null}
       </h1>
       {patient?.phone ? <p className="patient-detail-page__meta">{patient.phone}</p> : null}

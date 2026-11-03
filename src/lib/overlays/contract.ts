@@ -74,7 +74,7 @@ export const contractOverlay: OverlayDoc = {
     // 을 주소
     { key: "patient_address", type: "text", x: 58, y: 95.6, w: 38, h: 1.4, label: "주소", align: "left", addressSearch: true },
     // 을 연락처 / 비상연락처 (010- + 뒤 8자리, 4+4 자동 하이픈)
-    { key: "patient_phone", type: "text", x: 56.4, y: 97.5, w: 15, h: 1.4, label: "연락처", prefix: "010-", hidePrefixOnDoc: true, dashPattern: [4, 4], align: "left" },
+    { key: "patient_phone", type: "text", x: 56.4, y: 97.5, w: 15, h: 1.4, label: "연락처", prefix: "010-", hidePrefixOnDoc: true, dashPattern: [4, 4], align: "left", prefillFrom: "phone" },
     { key: "patient_emergency_phone", type: "text", x: 82.9, y: 97.5, w: 14, h: 1.4, label: "비상연락처", prefix: "010-", hidePrefixOnDoc: true, dashPattern: [4, 4], align: "left" },
 
     // ===== [갑] 회사 — 성명(드롭다운) 선택에 따라 주소·연락처·도장이 함께 바뀜 =====
