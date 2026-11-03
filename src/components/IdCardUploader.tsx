@@ -3,6 +3,8 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PATIENTS_CHANGED_EVENT } from "./BottomTabs";
+import CustomerPicker from "./CustomerPicker";
+import { candidateFormData, lookupCustomerByName, type CustomerCandidate } from "@/lib/customerLookup";
 
 interface IdCardUploaderProps {
   patientId: string;
@@ -50,35 +52,9 @@ export default function IdCardUploader({ patientId, initialUrl, backHref }: IdCa
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [nameSheet, setNameSheet] = useState<{
-    value: string; path: string; photoPath?: string; birth6?: string; rrn?: string; preview: string;
-    // 구글시트(customers) 대조 결과(오늘 매칭 로직). 주민번호 들어오는 순간 즉시 판별.
-    matching?: boolean; checked?: boolean; customerNo?: number | null; needs?: boolean; matchReason?: string;
-  } | null>(null);
-
-  // 이름+주민번호로 구글시트와 대조해 nameSheet에 결과를 채운다(오늘 매칭 로직 = /api/match-customer).
-  async function checkSheet(name: string, birth6: string | undefined) {
-    const nm = (name || "").trim();
-    const b6 = (birth6 || "").replace(/\D/g, "").slice(0, 6);
-    if (!nm || b6.length !== 6) {
-      setNameSheet((p) => (p ? { ...p, matching: false, checked: true, customerNo: null, needs: false, matchReason: undefined } : p));
-      return;
-    }
-    setNameSheet((p) => (p ? { ...p, matching: true } : p));
-    try {
-      const r = await fetch("/api/match-customer", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: nm, birth6: b6 }),
-      });
-      const j = r.ok ? await r.json() : {};
-      setNameSheet((p) =>
-        p ? { ...p, matching: false, checked: true, customerNo: j.customer_no ?? null, needs: !!j.needs, matchReason: j.reason } : p
-      );
-    } catch {
-      setNameSheet((p) => (p ? { ...p, matching: false, checked: true } : p));
-    }
-  }
+  const [nameSheet, setNameSheet] = useState<{ value: string; path: string; preview: string } | null>(null);
+  // 동명이인일 때 띄우는 선택 후보 목록(시트 조회 결과가 2명↑).
+  const [pickList, setPickList] = useState<CustomerCandidate[] | null>(null);
   const [nameSaving, setNameSaving] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -112,35 +88,37 @@ export default function IdCardUploader({ patientId, initialUrl, backHref }: IdCa
     if (galleryInputRef.current) galleryInputRef.current.value = "";
   }
 
-  // 확인: 신분증 문서 저장 + 이름 저장
+  // 확인: 입력한 이름으로 구글시트(고객파일) 조회 → 주민번호·연락처·고유번호를 가져와 저장.
+  //  · 후보 1명(또는 0명): 바로 저장.  · 2명↑(동명이인): 선택창을 띄워 직원이 고른 뒤 저장.
   async function saveName() {
     if (!nameSheet) return;
-    if (!nameSheet.value.trim()) {
+    const name0 = nameSheet.value.trim();
+    if (!name0) {
       setError("환자 이름을 입력해 주세요.");
       return;
     }
     setNameSaving(true);
+    setError(null);
     try {
-      const name0 = nameSheet.value.trim();
-      let customerNo: number | null = null;
-      if (name0 && nameSheet.birth6 && nameSheet.birth6.length === 6) {
-        try {
-          const mr = await fetch("/api/match-customer", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name: name0, birth6: nameSheet.birth6 }),
-          });
-          if (mr.ok) customerNo = (await mr.json()).customer_no ?? null;
-        } catch {
-          /* 진행 */
-        }
+      const candidates = await lookupCustomerByName(name0);
+      if (candidates.length > 1) {
+        setPickList(candidates); // 동명이인 → 선택창
+        setNameSaving(false);
+        return;
       }
-      const formData: Record<string, unknown> = {};
-      if (nameSheet.photoPath) formData.photo_path = nameSheet.photoPath;
-      if (nameSheet.birth6) formData.birth6 = nameSheet.birth6;
-      if (nameSheet.rrn) formData.rrn = nameSheet.rrn; // 주민번호 전체(급여·위임 서식 프리필용)
-      if (customerNo != null) formData.customer_no = customerNo;
+      await finalizeSave(name0, candidates[0] ?? null);
+    } catch {
+      setNameSaving(false);
+      setError("저장 중 오류가 발생했습니다. 다시 시도해 주세요.");
+    }
+  }
 
+  // 실제 저장: 신분증 문서(이미지+시트정보) + 환자 이름.
+  async function finalizeSave(name0: string, chosen: CustomerCandidate | null) {
+    if (!nameSheet) return;
+    setNameSaving(true);
+    try {
+      const formData = candidateFormData(chosen);
       const docRes = await fetch(`/api/documents/${patientId}/id_card`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -161,13 +139,16 @@ export default function IdCardUploader({ patientId, initialUrl, backHref }: IdCa
       } catch {
         /* 무시 */
       }
-      // 저장 완료 토스트 — 무엇이 저장됐는지(특히 주민번호)를 눈으로 바로 확인할 수 있게.
-      const msg = "이름·신분증이 저장됐습니다 · 주민번호는 서식에서 입력하세요";
-      setPreviewUrl(nameSheet.preview);
+      const preview = nameSheet.preview;
+      const hasRrn = typeof formData.rrn === "string";
+      const msg = chosen
+        ? `이름·신분증 저장됨 · 시트에서 ${hasRrn ? "주민번호·연락처" : "연락처"} 불러옴 (No.${chosen.customer_no})`
+        : "이름·신분증 저장됨 · 시트에 없는 이름(주민번호·연락처는 서식에서 입력)";
+      setPreviewUrl(preview);
       setNameSheet(null);
+      setPickList(null);
       setToast(msg);
-      // 토스트를 잠깐 보여준 뒤 목록으로 이동
-      setTimeout(() => router.push(backHref), 1600);
+      setTimeout(() => router.push(backHref), 1800);
     } finally {
       setNameSaving(false);
     }
@@ -258,37 +239,18 @@ export default function IdCardUploader({ patientId, initialUrl, backHref }: IdCa
           <div className="sheet sheet--center" onClick={(e) => e.stopPropagation()}>
             <div className="sheet__title sheet__title--name">환자 이름 입력</div>
             <p style={{ textAlign: "center", color: "var(--ink-soft)", fontSize: 13, marginTop: -4 }}>
-              환자 이름을 입력해 주세요.
+              이름을 입력하면 구글시트에서 주민번호·연락처를 찾아 서식에 자동으로 채웁니다.
             </p>
             <input
               type="text"
               value={nameSheet.value}
               placeholder="환자 이름"
               autoFocus
-              onChange={(e) => setNameSheet((prev) => (prev ? { ...prev, value: e.target.value, checked: false } : prev))}
-              onBlur={(e) => checkSheet(e.target.value, nameSheet.birth6)}
+              onChange={(e) => setNameSheet((prev) => (prev ? { ...prev, value: e.target.value } : prev))}
               onKeyDown={(e) => {
                 if (e.key === "Enter") saveName();
               }}
             />
-            {/* 구글시트 대조: DB 있으면 생년월일(주민 앞6)로 정확도 대조, 없으면 OCR 주민번호 그대로 서식에 prefill */}
-            <div className="id-card-sheet__match" aria-live="polite">
-              {nameSheet.matching ? (
-                <span className="id-card-sheet__match--checking">구글시트 확인 중…</span>
-              ) : !nameSheet.birth6 || nameSheet.birth6.length !== 6 ? (
-                <span className="id-card-sheet__match--none">주민번호 미인식 — 서식에서 직접 입력하세요</span>
-              ) : nameSheet.customerNo != null ? (
-                <span className="id-card-sheet__match--ok">✓ 구글시트 등록됨 (No. {nameSheet.customerNo}) · 생년월일 일치</span>
-              ) : nameSheet.needs ? (
-                <span className="id-card-sheet__match--needed">
-                  {nameSheet.matchReason === "rrn_mismatch"
-                    ? "⚠️ 이름은 시트에 있으나 생년월일이 다름 — 주민번호 확인 필요"
-                    : "⚠️ 구글시트에 없음 — 신분증 주민번호로 등록(번호 추가 필요)"}
-                </span>
-              ) : nameSheet.checked ? (
-                <span className="id-card-sheet__match--none">구글시트 확인 불가</span>
-              ) : null}
-            </div>
             <div className="field-popup__actions">
               <button type="button" onClick={() => setNameSheet(null)}>
                 취소
@@ -299,6 +261,15 @@ export default function IdCardUploader({ patientId, initialUrl, backHref }: IdCa
             </div>
           </div>
         </div>
+      )}
+
+      {pickList && nameSheet && (
+        <CustomerPicker
+          name={nameSheet.value.trim()}
+          candidates={pickList}
+          onPick={(c) => finalizeSave(nameSheet.value.trim(), c)}
+          onCancel={() => setPickList(null)}
+        />
       )}
     </div>
   );

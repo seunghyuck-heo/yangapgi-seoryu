@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { DocType } from "@/lib/templates/types";
 import { DOC_ICON_STYLES } from "./docIcons";
 import { PATIENTS_CHANGED_EVENT } from "./BottomTabs";
+import CustomerPicker from "./CustomerPicker";
+import { candidateFormData, lookupCustomerByName, type CustomerCandidate } from "@/lib/customerLookup";
 
 interface DocSubmitListProps {
   /** null이면 아직 폴더 없음 — 목록은 즉시 표시, 저장 행동 시 ensurePatientId로 생성 */
@@ -79,7 +81,8 @@ export default function DocSubmitList({
   const [sheetOpen, setSheetOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [nameSheet, setNameSheet] = useState<{ value: string; path: string; pid: string; photoPath?: string; birth6?: string } | null>(null);
+  const [nameSheet, setNameSheet] = useState<{ value: string; path: string; pid: string } | null>(null);
+  const [pickList, setPickList] = useState<CustomerCandidate[] | null>(null);
   const [nameSaving, setNameSaving] = useState(false);
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
   const galleryInputRef = useRef<HTMLInputElement | null>(null);
@@ -147,37 +150,39 @@ export default function DocSubmitList({
     if (galleryInputRef.current) galleryInputRef.current.value = "";
   }
 
-  // 확인: 이 시점에 신분증 문서를 실제로 저장(등록)하고, 이름이 있으면 함께 저장
+  // 확인: 입력한 이름으로 구글시트(고객파일) 조회 → 주민번호·연락처·고유번호를 가져와 등록.
+  //  · 후보 1명(또는 0명): 바로 저장.  · 2명↑(동명이인): 선택창을 띄워 직원이 고른 뒤 저장.
   async function saveName() {
     if (!nameSheet) return;
     // 이름이 입력돼야 정식 환자로 등록 (신분증 업로드 + 이름 입력 후부터 카운팅)
-    if (!nameSheet.value.trim()) {
+    const name0 = nameSheet.value.trim();
+    if (!name0) {
       setError("환자 이름을 입력해 주세요.");
       return;
     }
+    setNameSaving(true);
+    setError(null);
+    try {
+      const candidates = await lookupCustomerByName(name0);
+      if (candidates.length > 1) {
+        setPickList(candidates); // 동명이인 → 선택창
+        setNameSaving(false);
+        return;
+      }
+      await finalizeSave(name0, candidates[0] ?? null);
+    } catch {
+      setNameSaving(false);
+      setError("저장 중 오류가 발생했습니다. 다시 시도해 주세요.");
+    }
+  }
+
+  // 실제 저장: 신분증 문서(이미지+시트정보) + 환자 이름.
+  async function finalizeSave(name0: string, chosen: CustomerCandidate | null) {
+    if (!nameSheet) return;
     const pid = nameSheet.pid;
     setNameSaving(true);
     try {
-      const name0 = nameSheet.value.trim();
-      // 고객 참조 매칭(이름+생년월일6) → 고유번호
-      let customerNo: number | null = null;
-      if (name0 && nameSheet.birth6 && nameSheet.birth6.length === 6) {
-        try {
-          const mr = await fetch("/api/match-customer", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name: name0, birth6: nameSheet.birth6 }),
-          });
-          if (mr.ok) customerNo = (await mr.json()).customer_no ?? null;
-        } catch {
-          // 매칭 실패해도 진행
-        }
-      }
-      const formData: Record<string, unknown> = {};
-      if (nameSheet.photoPath) formData.photo_path = nameSheet.photoPath;
-      if (nameSheet.birth6) formData.birth6 = nameSheet.birth6;
-      if (customerNo != null) formData.customer_no = customerNo;
-
+      const formData = candidateFormData(chosen);
       const docRes = await fetch(`/api/documents/${pid}/id_card`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -192,14 +197,11 @@ export default function DocSubmitList({
         setError(docJson.error || "저장에 실패했습니다");
         return;
       }
-      const name = nameSheet.value.trim();
-      if (name) {
-        await fetch(`/api/patients/${pid}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name }),
-        });
-      }
+      await fetch(`/api/patients/${pid}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name0 }),
+      });
       // 환자 보기 탭 배지 즉시 갱신
       try {
         window.dispatchEvent(new Event(PATIENTS_CHANGED_EVENT));
@@ -207,6 +209,7 @@ export default function DocSubmitList({
         // 무시
       }
       setNameSheet(null);
+      setPickList(null);
       // 방금 등록한 환자는 '작성 중' 리스트로 내려보내고, 위 서식은 새 환자로 리셋한다.
       onRegistered?.();
     } finally {
@@ -326,7 +329,7 @@ export default function DocSubmitList({
           <div className="sheet sheet--center" onClick={(e) => e.stopPropagation()}>
             <div className="sheet__title sheet__title--name">환자 이름 입력</div>
             <p style={{ textAlign: "center", color: "var(--ink-soft)", fontSize: 13, marginTop: -4 }}>
-              환자 이름을 입력해 주세요.
+              이름을 입력하면 구글시트에서 주민번호·연락처를 찾아 서식에 자동으로 채웁니다.
             </p>
             <input
               type="text"
@@ -353,6 +356,15 @@ export default function DocSubmitList({
             </div>
           </div>
         </div>
+      )}
+
+      {pickList && nameSheet && (
+        <CustomerPicker
+          name={nameSheet.value.trim()}
+          candidates={pickList}
+          onPick={(c) => finalizeSave(nameSheet.value.trim(), c)}
+          onCancel={() => setPickList(null)}
+        />
       )}
     </div>
   );

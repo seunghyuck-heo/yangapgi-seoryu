@@ -9,7 +9,7 @@ export const subsidyOverlay: OverlayDoc = {
     { key: "patient_name", type: "text", x: 19.7, y: 12.49, w: 26, h: 1.2, label: "수진자 성명", align: "left", prefillFrom: "patientName" },
     { key: "patient_rrn", type: "text", x: 66.5, y: 12.49, w: 18, h: 1.2, label: "주민(외국인)등록번호", dashPattern: [6, 7], align: "left", prefillFrom: "rrn" },
     // 자택 전화번호: 입력 대상에서 제외(건너뜀) — 휴대전화만 입력
-    { key: "patient_mobile_phone", type: "text", x: 19.5, y: 17.75, w: 24, h: 1.2, label: "휴대전화", prefix: "010-", dashPattern: [4, 4], align: "left" },
+    { key: "patient_mobile_phone", type: "text", x: 19.5, y: 17.75, w: 24, h: 1.2, label: "휴대전화", prefix: "010-", dashPattern: [4, 4], align: "left", prefillFrom: "phone" },
     { key: "diagnosis_date", type: "text", x: 74.65, y: 21.24, w: 15, h: 1.2, label: "진단확인일", align: "left", dateGroup: "diag", datePart: "full" },
     { key: "level1_year", type: "text", x: 47.96, y: 27.63, w: 4.4, h: 1.2, label: "검사 실시 연도", align: "right", dateGroup: "level1", datePart: "y", fullYear: true },
     { key: "level1_month", type: "text", x: 54.07, y: 27.63, w: 2.6, h: 1.2, label: "검사 실시 월", align: "right", dateGroup: "level1", datePart: "m" },
@@ -23,7 +23,7 @@ export const subsidyOverlay: OverlayDoc = {
     // 신청인 영역: 원본 서식에 맞춰 우측 배치(이미지 baked 텍스트도 +39% 이동됨)
     { key: "applicant_seal", type: "signature", x: 84, y: 76.54, w: 9, h: 3.11, label: "서명 (수기)" },
     { key: "applicant_signature", type: "signature", x: 68, y: 76.68, w: 12, h: 2.83, label: "성명 (수기)", confirmText: "성명 확정", align: "center" },
-    { key: "applicant_phone", type: "text", x: 74, y: 80.49, w: 15.5, h: 1.2, label: "신청인 연락처", prefix: "010-", dashPattern: [4, 4], align: "center" },
+    { key: "applicant_phone", type: "text", x: 74, y: 80.49, w: 15.5, h: 1.2, label: "신청인 연락처", prefix: "010-", dashPattern: [4, 4], align: "center", prefillFrom: "phone" },
     // 요양기관 직인: (요양기관 직인) 위치에 병원 도장이 실제 찍힌 것처럼(multiply 블렌드) 표시. 문서 안쪽 배치.
     { key: "clinic_stamp", type: "text", x: 59.6, y: 61.7, w: 34.0, h: 9.0, stampImage: "/stamps/clinic-stamp.png" },
   ],
