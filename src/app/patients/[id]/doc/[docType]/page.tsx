@@ -54,30 +54,22 @@ export default async function DocumentPage({ params, searchParams }: DocPageProp
 
   const overlay = getOverlayDoc(docType);
   if (overlay) {
-    // 이름·주민번호는 '모든 서류'에 자동 프리필한다(빈 칸만, 편집 가능 — 직원 입력값은 덮지 않음).
-    //  · 소스: 환자 이름(patients.name), 주민번호 전체(신분증 OCR → id_card form_data.rrn).
-    //  · 필드에 prefillFrom("patientName"|"rrn"|"birth6")이 지정된 칸을 채운다.
+    // 이름만 '모든 서류'에 자동 프리필한다(빈 칸만, 편집 가능 — 직원 입력값은 덮지 않음).
+    //  · 소스: 환자 이름(patients.name, 등록창에서 직접 입력).
+    //  · 주민번호 자동입력은 2026-11-03 제거(승혁님 지시 — 다른 방식으로 처리 예정).
     let initialFormData: Record<string, unknown> = document?.form_data ?? {};
-    const prefillFields = overlay.fields.filter((f) => f.prefillFrom);
-    if (prefillFields.length > 0) {
-      const needName = prefillFields.some((f) => f.prefillFrom === "patientName");
-      const needRrn = prefillFields.some((f) => f.prefillFrom === "rrn" || f.prefillFrom === "birth6");
-      const [patientName, idCard] = await Promise.all([
-        needName ? getPatientName(id) : Promise.resolve(""),
-        needRrn ? getDocument(id, "id_card") : Promise.resolve(null),
-      ]);
-      const rrnRaw = typeof idCard?.form_data?.rrn === "string" ? (idCard.form_data.rrn as string).replace(/\D/g, "") : "";
-      const rrn = rrnRaw.length === 13 ? rrnRaw : "";
-      const idBirth6 = typeof idCard?.form_data?.birth6 === "string" ? (idCard.form_data.birth6 as string).replace(/\D/g, "").slice(0, 6) : "";
-      const birth6 = rrn ? rrn.slice(0, 6) : idBirth6;
-      const patch: Record<string, unknown> = {};
-      for (const f of prefillFields) {
-        const cur = initialFormData[f.key];
-        if (typeof cur === "string" && cur.trim() !== "") continue; // 이미 입력된 칸은 유지
-        const v = f.prefillFrom === "patientName" ? patientName : f.prefillFrom === "rrn" ? rrn : birth6;
-        if (v) patch[f.key] = v;
+    const nameFields = overlay.fields.filter((f) => f.prefillFrom === "patientName");
+    if (nameFields.length > 0) {
+      const patientName = await getPatientName(id);
+      if (patientName) {
+        const patch: Record<string, unknown> = {};
+        for (const f of nameFields) {
+          const cur = initialFormData[f.key];
+          if (typeof cur === "string" && cur.trim() !== "") continue; // 이미 입력된 칸은 유지
+          patch[f.key] = patientName;
+        }
+        if (Object.keys(patch).length) initialFormData = { ...initialFormData, ...patch };
       }
-      if (Object.keys(patch).length) initialFormData = { ...initialFormData, ...patch };
     }
     return (
       <OverlayDocumentForm
