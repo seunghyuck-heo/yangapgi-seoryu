@@ -132,8 +132,8 @@ export default function DocumentBundleViewer({
             let canvas: HTMLCanvasElement | null = null;
             if (docType === "id_card") {
               const path = doc!.file_path;
-              // 신분증은 흑백으로 출력(팩스 전송 시 컬러가 까맣게 떠 보이는 문제 방지)
-              if (path && imgMap[path]) canvas = await renderImagePage(imgMap[path], 1240, true);
+              // 신분증은 컬러로 출력(승혁님 요청으로 흑백→컬러 복원)
+              if (path && imgMap[path]) canvas = await renderImagePage(imgMap[path], 1240, false);
             } else {
               const overlay = getOverlayDoc(docType);
               if (overlay) canvas = await renderOverlayPage(overlay, doc!.form_data ?? {}, imgMap, completedAt);
