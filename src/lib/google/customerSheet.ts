@@ -124,14 +124,17 @@ export async function fetchCustomerRows(): Promise<CustomerSheetResult> {
       skippedYellow++;
       continue;
     }
-    const rrnFull = digits(cell(5)); // 주민번호 전체(있을 때만)
+    // 주민번호는 두 칸에 나뉘어 있다: F(5)=앞6자리(생년월일), G(6)=뒤7자리. 둘 다 있을 때만 13자리로 합침.
+    const front6 = digits(cell(5)); // 주민 앞 6자리
+    const back7 = digits(cell(6)); // 주민 뒤 7자리
+    const rrnFull = front6.length === 6 && back7.length === 7 ? front6 + back7 : "";
     rows.push({
       customer_no: no,
       name,
       region: cell(3),
       chart: cell(4),
-      birth6: rrnFull.slice(0, 6),
-      rrn: rrnFull.length === 13 ? rrnFull : "",
+      birth6: front6.slice(0, 6),
+      rrn: rrnFull,
       phone: cell(7),
       insurance: cell(8),
     });
