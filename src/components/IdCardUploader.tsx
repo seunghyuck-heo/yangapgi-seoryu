@@ -14,106 +14,6 @@ interface IdCardUploaderProps {
 const MAX_DIMENSION = 1800;
 const JPEG_QUALITY = 0.85;
 
-// 시계방향 deg(0/90/180/270) 회전 jpeg dataURL
-function rotateDataUrl(dataUrl: string, deg: number): Promise<string> {
-  return new Promise((resolve) => {
-    const r = ((deg % 360) + 360) % 360;
-    if (r === 0) return resolve(dataUrl);
-    const img = new Image();
-    img.onerror = () => resolve(dataUrl);
-    img.onload = () => {
-      const w = img.naturalWidth;
-      const h = img.naturalHeight;
-      const canvas = document.createElement("canvas");
-      if (r === 90 || r === 270) {
-        canvas.width = h;
-        canvas.height = w;
-      } else {
-        canvas.width = w;
-        canvas.height = h;
-      }
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return resolve(dataUrl);
-      ctx.translate(canvas.width / 2, canvas.height / 2);
-      ctx.rotate((r * Math.PI) / 180);
-      ctx.drawImage(img, -w / 2, -h / 2);
-      resolve(canvas.toDataURL("image/jpeg", 0.9));
-    };
-    img.src = dataUrl;
-  });
-}
-
-// 얼굴 box 중심 정사각형 크롭(아바타용)
-function cropFace(dataUrl: string, box: number[]): Promise<string | null> {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onerror = () => resolve(null);
-    img.onload = () => {
-      const [ymin, xmin, ymax, xmax] = box;
-      const W = img.naturalWidth;
-      const H = img.naturalHeight;
-      const bx0 = (Math.min(xmin, xmax) / 1000) * W;
-      const by0 = (Math.min(ymin, ymax) / 1000) * H;
-      const bx1 = (Math.max(xmin, xmax) / 1000) * W;
-      const by1 = (Math.max(ymin, ymax) / 1000) * H;
-      const bw = bx1 - bx0;
-      const bh = by1 - by0;
-      if (bw < 8 || bh < 8) return resolve(null);
-      const cx = (bx0 + bx1) / 2;
-      const cy = (by0 + by1) / 2;
-      let side = Math.max(bw, bh) * 1.25;
-      side = Math.min(side, W, H);
-      let sx = cx - side / 2;
-      let sy = cy - side / 2;
-      sx = Math.max(0, Math.min(sx, W - side));
-      sy = Math.max(0, Math.min(sy, H - side));
-      const out = 320;
-      const canvas = document.createElement("canvas");
-      canvas.width = out;
-      canvas.height = out;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return resolve(null);
-      ctx.drawImage(img, sx, sy, side, side, 0, 0, out, out);
-      resolve(canvas.toDataURL("image/jpeg", 0.9));
-    };
-    img.src = dataUrl;
-  });
-}
-
-// 신분증 카드 box 영역 크롭(배경 제거)
-function cropBox(dataUrl: string, box: number[], margin = 0.015): Promise<string | null> {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onerror = () => resolve(null);
-    img.onload = () => {
-      const [ymin, xmin, ymax, xmax] = box;
-      const W = img.naturalWidth;
-      const H = img.naturalHeight;
-      let x0 = (Math.min(xmin, xmax) / 1000) * W;
-      let y0 = (Math.min(ymin, ymax) / 1000) * H;
-      let x1 = (Math.max(xmin, xmax) / 1000) * W;
-      let y1 = (Math.max(ymin, ymax) / 1000) * H;
-      const mw = (x1 - x0) * margin;
-      const mh = (y1 - y0) * margin;
-      x0 = Math.max(0, x0 - mw);
-      y0 = Math.max(0, y0 - mh);
-      x1 = Math.min(W, x1 + mw);
-      y1 = Math.min(H, y1 + mh);
-      const w = x1 - x0;
-      const h = y1 - y0;
-      if (w < 20 || h < 20) return resolve(null);
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.round(w);
-      canvas.height = Math.round(h);
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return resolve(null);
-      ctx.drawImage(img, x0, y0, w, h, 0, 0, canvas.width, canvas.height);
-      resolve(canvas.toDataURL("image/jpeg", 0.92));
-    };
-    img.src = dataUrl;
-  });
-}
-
 function resizeImageFile(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -150,7 +50,6 @@ export default function IdCardUploader({ patientId, initialUrl, backHref }: IdCa
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [ocrBusy, setOcrBusy] = useState(false);
   const [nameSheet, setNameSheet] = useState<{
     value: string; path: string; photoPath?: string; birth6?: string; rrn?: string; preview: string;
     // 구글시트(customers) 대조 결과(오늘 매칭 로직). 주민번호 들어오는 순간 즉시 판별.
@@ -200,7 +99,9 @@ export default function IdCardUploader({ patientId, initialUrl, backHref }: IdCa
           setError(uploadJson.error || "업로드에 실패했습니다");
           return;
         }
-        void runIdOcr(dataUrl, uploadJson.path);
+        // 신분증 이미지만 저장(AI 자동인식 제거). 이름은 아래 확인창에서 직접 입력한다.
+        setPreviewUrl(dataUrl);
+        setNameSheet({ value: "", path: uploadJson.path, preview: dataUrl });
       } catch (err) {
         setError((err as Error).message);
       } finally {
@@ -209,115 +110,6 @@ export default function IdCardUploader({ patientId, initialUrl, backHref }: IdCa
     }
     if (cameraInputRef.current) cameraInputRef.current.value = "";
     if (galleryInputRef.current) galleryInputRef.current.value = "";
-  }
-
-  // 신분증에서 이름·사진 추정 → 확인 시트
-  async function runIdOcr(dataUrl: string, path: string) {
-    setOcrBusy(true);
-    let guess = "";
-    let box: number[] | null = null;
-    let card: number[] | null = null;
-    let rotation = 0;
-    let birth6 = "";
-    let rrn = "";
-    try {
-      const res = await fetch("/api/ocr-name", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dataUrl }),
-      });
-      if (res.ok) {
-        const json = await res.json();
-        guess = typeof json.name === "string" ? json.name : "";
-        box = Array.isArray(json.box) ? json.box : null;
-        card = Array.isArray(json.card) ? json.card : null;
-        rotation = typeof json.rotation === "number" ? json.rotation : 0;
-        birth6 = typeof json.birth6 === "string" ? json.birth6 : "";
-        rrn = typeof json.rrn === "string" ? json.rrn : "";
-      } else {
-        // OCR 실패(특히 429=AI 사용량 초과)를 사용자에게 명확히 알린다(이름 직접 입력은 가능).
-        let msg = "신분증 자동 인식에 실패했습니다. 이름을 직접 입력해 주세요.";
-        try {
-          const ej = await res.json();
-          if (typeof ej?.error === "string") msg = ej.error + " (이름은 직접 입력하실 수 있습니다.)";
-        } catch {
-          /* 무시 */
-        }
-        setError(msg);
-      }
-    } catch {
-      // 실패해도 이름 직접 입력 가능
-    }
-
-    let photoPath: string | undefined;
-    if (box) {
-      try {
-        const faceRaw = await cropFace(dataUrl, box);
-        if (faceRaw) {
-          // 회전은 이름OCR(/api/ocr-name)이 돌려준 rotation을 그대로 사용한다.
-          // (얼굴회전 전용 Gemini 호출을 없애 신분증 1장당 AI 호출을 1회로 줄임 → 무료 쿼터 절약)
-          const faceUrl = rotation ? await rotateDataUrl(faceRaw, rotation) : faceRaw;
-          const up = await fetch("/api/uploads", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ patientId, docType: "id_card", kind: "photo", dataUrl: faceUrl }),
-          });
-          if (up.ok) photoPath = (await up.json()).path;
-        }
-      } catch {
-        /* 진행 */
-      }
-    }
-
-    // 카드 영역 크롭(배경 제거) + 정위치 회전해 저장(같은 경로 덮어쓰기)
-    let finalFull = dataUrl;
-    try {
-      let full = dataUrl;
-      if (card) {
-        const cropped = await cropBox(dataUrl, card);
-        if (cropped) full = cropped;
-      }
-      if (rotation) full = await rotateDataUrl(full, rotation);
-      if (full !== dataUrl) {
-        await fetch("/api/uploads", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ patientId, docType: "id_card", kind: "id_card", dataUrl: full }),
-        });
-        finalFull = full;
-      }
-    } catch {
-      /* 진행 */
-    }
-
-    // 1차 OCR이 주민번호(13자리)를 놓치면 재판독한다. 과부하 때 모델이 이름·생년월일만 주고
-    // rrn(과 box·card)을 통째로 건너뛰는 경우가 잦은데(호출마다 결과가 들쭉날쭉), 같은 이미지라도
-    // 다시 호출하면 rrn 13자리가 잘 잡힌다(실측). 크롭 여부와 무관하게, rrn이 빌 때만 최대 2회 재시도.
-    // finalFull = 크롭·회전으로 개선된 이미지가 있으면 그쪽, 없으면 원본.
-    for (let attempt = 0; !rrn && guess && attempt < 1; attempt++) {
-      try {
-        const res2 = await fetch("/api/ocr-name", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ dataUrl: finalFull }),
-        });
-        if (res2.ok) {
-          const j2 = await res2.json();
-          const r2 = typeof j2.rrn === "string" ? j2.rrn.replace(/\D/g, "") : "";
-          if (r2.length === 13) {
-            rrn = r2;
-            if (!birth6) birth6 = r2.slice(0, 6);
-          }
-        }
-      } catch {
-        /* 무시 — 주민번호는 서식에서 직접 입력 가능 */
-      }
-    }
-
-    setOcrBusy(false);
-    setNameSheet({ value: guess, path, photoPath, birth6, rrn, preview: finalFull });
-    // 주민번호가 들어왔으면 그 순간 바로 구글시트와 대조(오늘 매칭 로직)
-    void checkSheet(guess, birth6);
   }
 
   // 확인: 신분증 문서 저장 + 이름 저장
@@ -370,12 +162,7 @@ export default function IdCardUploader({ patientId, initialUrl, backHref }: IdCa
         /* 무시 */
       }
       // 저장 완료 토스트 — 무엇이 저장됐는지(특히 주민번호)를 눈으로 바로 확인할 수 있게.
-      const saved = ["이름"];
-      if (nameSheet.rrn) saved.push("주민번호");
-      if (nameSheet.photoPath) saved.push("사진");
-      const msg = nameSheet.rrn
-        ? `${saved.join("·")}이(가) 저장됐습니다`
-        : `${saved.join("·")}이(가) 저장됐습니다 · 주민번호 미인식(서식에서 입력)`;
+      const msg = "이름·신분증이 저장됐습니다 · 주민번호는 서식에서 입력하세요";
       setPreviewUrl(nameSheet.preview);
       setNameSheet(null);
       setToast(msg);
@@ -466,23 +253,12 @@ export default function IdCardUploader({ patientId, initialUrl, backHref }: IdCa
         </div>
       )}
 
-      {ocrBusy && (
-        <div className="sheet-overlay sheet-overlay--center">
-          <div className="sheet sheet--center">
-            <div className="sheet__title sheet__title--name">신분증 분석 중…</div>
-            <p style={{ textAlign: "center", color: "var(--ink-soft)", fontSize: 13, lineHeight: 1.6 }}>
-              AI가 이름과 사진을 자동으로 읽고 있어요. 잠시만 기다려 주세요.
-            </p>
-          </div>
-        </div>
-      )}
-
       {nameSheet && (
         <div className="sheet-overlay sheet-overlay--center">
           <div className="sheet sheet--center" onClick={(e) => e.stopPropagation()}>
-            <div className="sheet__title sheet__title--name">환자 이름 확인</div>
+            <div className="sheet__title sheet__title--name">환자 이름 입력</div>
             <p style={{ textAlign: "center", color: "var(--ink-soft)", fontSize: 13, marginTop: -4 }}>
-              인식된 이름이 맞는지 확인하고, 다르면 고쳐 주세요.
+              환자 이름을 입력해 주세요.
             </p>
             <input
               type="text"
