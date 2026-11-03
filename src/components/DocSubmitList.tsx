@@ -366,6 +366,19 @@ export default function DocSubmitList({
           onCancel={() => setPickList(null)}
         />
       )}
+
+      {nameSaving && (
+        <div className="sheet-overlay sheet-overlay--center">
+          <div className="sheet sheet--center">
+            <div className="sheet__title sheet__title--name">자동 입력 중…</div>
+            <p style={{ textAlign: "center", color: "var(--ink-soft)", fontSize: 13.5, lineHeight: 1.7 }}>
+              이름 · 주민번호 · 연락처 · 환자번호를
+              <br />
+              자동으로 입력하고 있어요. 잠시만 기다려 주세요.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
