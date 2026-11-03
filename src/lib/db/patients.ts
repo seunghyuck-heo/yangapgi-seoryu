@@ -127,7 +127,12 @@ async function attachDocsAndInfo(
     // 전화: 서류에서 꺼낸 값 우선, 없으면 patients.phone.
     const phone = info?.phone || p.phone || null;
     // 실시간 매칭(이름 → 생년월일6 → 전화번호). 동명이인이면 옛 저장번호로 폴백하지 않음
-    const no = resolveCustomerNo(custIndex, p.name, birth6, phone, info?.customerNo ?? null);
+    let no = resolveCustomerNo(custIndex, p.name, birth6, phone, info?.customerNo ?? null);
+    // '번호 추가 필요'여도, 등록 때 구글시트(고객파일)에서 이름으로 찾아 저장해 둔 고유번호가 있으면 그 번호를 쓴다.
+    // (customers 테이블 동기화가 아직 안 돼 시트엔 있는데 테이블엔 없는 경우를 구제 — 등록 시점 조회가 더 최신)
+    if (no === "needs" && typeof info?.customerNo === "number") {
+      no = info.customerNo;
+    }
     const numNo = typeof no === "number" ? no : null;
     return {
       ...(p as Patient),
