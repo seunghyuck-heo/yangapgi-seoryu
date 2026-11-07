@@ -23,7 +23,7 @@ export async function GET(request: Request) {
       chart: r.chart,
       birth6: r.birth6,
       phone: r.phone,
-      insurance: r.insurance,
+      insurance: r.gongdanNo, // customers.insurance 컬럼 = 시트 I열(공단관리번호)
     }));
 
     const supabase = await getSupabaseServerClient();

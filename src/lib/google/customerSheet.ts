@@ -16,7 +16,7 @@ export interface CustomerSheetRow {
   birth6: string; // 주민번호 앞 6자리(생년월일)
   rrn: string; // 주민번호 전체(13자리) — 시트에 기재돼 있을 때만, 없으면 ""
   phone: string;
-  insurance: string;
+  gongdanNo: string; // 공단관리번호(I열) — 환자관리카드 '기기 관리번호'에 들어감
 }
 
 export interface CustomerSheetResult {
@@ -137,7 +137,7 @@ export async function fetchCustomerRows(): Promise<CustomerSheetResult> {
       birth6: front6.slice(0, 6),
       rrn: rrnFull,
       phone: cell(7),
-      insurance: cell(8),
+      gongdanNo: cell(8), // I열 = 공단관리번호(환자관리카드 기기 관리번호에 들어감)
     });
   }
 
@@ -155,10 +155,11 @@ export async function fetchCustomerRowsCached(): Promise<CustomerSheetRow[]> {
   return rows;
 }
 
-// 고유번호(최우선, 동명이인 안전) → 없으면 '단독으로 일치하는 이름'으로 시트 고객 1명 특정.
+// 시트 고객 1명 특정. 우선순위: ① 고유번호(등록 때 확정, 가장 안전) ② 이름+주민번호(13) ③ 이름+생년월일6
+// ④ 단독으로 일치하는 이름. 동명이인인데 주민번호로도 못 좁히면 null(함부로 남의 번호 안 붙임).
 export function findCustomer(
   rows: CustomerSheetRow[],
-  by: { customerNo?: number | null; name?: string | null }
+  by: { customerNo?: number | null; name?: string | null; rrn?: string | null }
 ): CustomerSheetRow | null {
   if (typeof by.customerNo === "number") {
     const byNo = rows.find((r) => r.customer_no === by.customerNo);
@@ -166,8 +167,18 @@ export function findCustomer(
   }
   const key = normName(by.name);
   if (key) {
-    const matches = rows.filter((r) => normName(r.name) === key);
-    if (matches.length === 1) return matches[0]; // 동명이인이면 이름만으론 특정 불가 → null
+    const named = rows.filter((r) => normName(r.name) === key);
+    const rrn = (by.rrn ?? "").replace(/\D/g, "");
+    if (rrn.length === 13) {
+      const byRrn = named.filter((r) => r.rrn === rrn);
+      if (byRrn.length >= 1) return byRrn[0];
+    }
+    const b6 = rrn.slice(0, 6);
+    if (b6.length === 6) {
+      const byB6 = named.filter((r) => r.birth6 === b6);
+      if (byB6.length === 1) return byB6[0];
+    }
+    if (named.length === 1) return named[0]; // 동명이인이면 이름만으론 특정 불가 → null
   }
   return null;
 }

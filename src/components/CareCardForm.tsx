@@ -11,6 +11,8 @@ import SignaturePad from "./SignaturePad";
 interface CareCardFormProps {
   patientId: string;
   backHref: string;
+  /** 구글시트 공단관리번호 — '기기 관리번호' 칸에 디폴트로 들어감(서버에서 이름+주민번호로 찾음) */
+  gongdanNo?: string;
 }
 
 const CALL_CENTER = "010-5966-2460";
@@ -444,7 +446,7 @@ const CareCardBody = memo(function CareCardBody({
 });
 
 // 양압기 환자관리카드 (별지 제5호 서식) — 다른 서류와 동일한 작성/수정 흐름.
-export default function CareCardForm({ patientId, backHref }: CareCardFormProps) {
+export default function CareCardForm({ patientId, backHref, gongdanNo }: CareCardFormProps) {
   const router = useRouter();
   const [patient, setPatient] = useState<PatientWithDocuments | null>(null);
   const [visits, setVisits] = useState<Visit[]>(() => Array.from({ length: VISIT_COUNT }, blankVisit));
@@ -709,8 +711,8 @@ export default function CareCardForm({ patientId, backHref }: CareCardFormProps)
   const cms = fd(docs, "cms_autopay");
   const contract = fd(docs, "contract");
 
-  // 기기정보 자동 채움(계약서에서)
-  const deviceId = typeof contract.device_id === "string" ? contract.device_id : "";
+  // 기기 관리번호 = 구글시트 공단관리번호(서버에서 이름+주민번호로 찾아 전달). 없으면 계약서 device_id 폴백.
+  const deviceId = (gongdanNo && gongdanNo.trim()) || (typeof contract.device_id === "string" ? contract.device_id : "");
   const contractPeriod = (() => {
     const y = parseInt(String(contract.rental_start_year ?? ""), 10);
     const m = parseInt(String(contract.rental_start_month ?? ""), 10);
