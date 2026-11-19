@@ -1124,7 +1124,9 @@ input[type="password"]::placeholder {
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
-  line-height: 1;
+  /* 1 → 1.3: 어센트가 큰 한글 고딕(Apple SD Gothic Neo 등)이 1em 줄상자를 넘쳐 글자 윗부분이
+     잘리던 문제 수정(표준계약서 주소 등 작은 글자에서 두드러짐). 부모 flex 중앙정렬이라 세로 위치는 동일. */
+  line-height: 1.3;
   transform: translateY(0.18em);
 }
 

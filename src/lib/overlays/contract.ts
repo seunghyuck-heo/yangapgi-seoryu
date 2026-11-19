@@ -26,12 +26,17 @@ const AFTER_SHIFT_KEYS = new Set([
   "device_type",
 ]);
 
-export const contractOverlay: OverlayDoc = {
-  image: "/documents/contract-8.jpg",
-  width: 1654,
-  height: 2338,
-  title: "양압기치료 서비스 표준계약서",
-  fields: [
+// 인쇄 라벨과의 수평(세로) 정렬 보정: 오버레이 텍스트는 화면(CSS translateY 0.18em)·PDF(캔버스 +0.18em) 모두
+// 글자를 살짝 아래로 내려 그리는데(옛 서식의 파란 입력블록 기준), 새 배경(contract-8)의 인쇄 라벨은 셀 정중앙이라
+// 그 옆 고정 숫자가 ~0.17em(2x 기준 3~4px) 내려가 보임(승혁님 지적 2026-11-19). 인라인 텍스트 칸만 그만큼 올린다.
+// (선택블록·서명·도장·가림박스·체크는 제외 — 블록 자체가 보이는 요소라 위치 유지)
+const TEXT_LIFT = 0.16; // % of page height
+function liftInlineText(f: OverlayField): OverlayField {
+  if (f.type !== "text" || f.cover || f.stampImage || f.selectBlock) return f;
+  return { ...f, y: +(f.y - TEXT_LIFT).toFixed(2) };
+}
+
+const RAW_FIELDS: OverlayField[] = [
     // ===== 제2조 표 =====
     // 양압기 대여 계약기간(내용 38.24~65.08): 인쇄된 ". . . ～ . . ." 자리를 가리고 "YYYY.MM.DD ~ YYYY.MM.DD"
     { key: "rental_cover", type: "text", x: 38.8, y: 15.62, w: 25.8, h: 1.55, cover: true },
@@ -80,7 +85,8 @@ export const contractOverlay: OverlayDoc = {
     { key: "gap_company", type: "text", x: 13.2, y: 87.2, w: 30.5, h: 1.85, label: "[갑] 준요양기관명", align: "left", options: GAP_COMPANY_OPTIONS, default: GAP_COMPANY_DEFAULT, selectBlock: true, fontPct: 1.2, fontPctByValue: { [GAP_COMPANY_DEFAULT]: 1.2, [GAP_COMPANY_NQS]: 0.95 } },
     { key: "gap_bizno", type: "text", x: 14.5, y: 89.75, w: 22, h: 1.6, align: "left", fromCompany: "bizNo", fontPct: 1.2 },
     { key: "gap_rep", type: "text", x: 12.4, y: 92.25, w: 14, h: 1.6, align: "left", fromCompany: "rep", fontPct: 1.2 },
-    { key: "gap_addr", type: "text", x: 8.6, y: 94.75, w: 38.6, h: 1.55, align: "left", fromCompany: "address", fontPct: 1.0 },
+    // 주소: 다른 줄과 같은 크기(1.2, 실측 글자폭 ≈29em → 밑줄 끝 47.7% 안에 들어감) + 칸 높이 1.9로 글자 상단 잘림 방지(승혁님 지적 2026-11-19)
+    { key: "gap_addr", type: "text", x: 8.6, y: 94.4, w: 39.0, h: 1.9, align: "left", fromCompany: "address", fontPct: 1.2 },
     { key: "gap_phone", type: "text", x: 9.4, y: 97.2, w: 22, h: 1.6, align: "left", fromCompany: "phone", fontPct: 1.2 },
     // 대표자 성명 옆 "(서명 또는 인)" 위에 회사별 도장(투명 PNG, 저해상도 t2 — 축소 잘림 버그 회피). 정사각 박스.
     { key: "gap_stamp_my", type: "text", x: 42.75, y: 91.8, w: 4.8, h: 3.4, stampImage: "/documents/stamp-my-t2.png", stampScale: 0.95, showWhenCompany: GAP_COMPANY_DEFAULT },
@@ -95,10 +101,17 @@ export const contractOverlay: OverlayDoc = {
     // 환자와의 관계: "본인" 고정 표시(편집 불가 — 승혁님 지시 2026-11-19)
     { key: "patient_relation", type: "text", x: 61.8, y: 92.2, w: 14, h: 1.7, staticText: "본인", align: "left", fontPct: 1.3 },
     // 주 소: 도로명/지번 검색
-    { key: "patient_address", type: "text", x: 56.7, y: 94.75, w: 38.6, h: 1.55, label: "주소", align: "left", addressSearch: true, fontPct: 1.05 },
+    { key: "patient_address", type: "text", x: 56.7, y: 94.4, w: 39.5, h: 1.9, label: "주소", align: "left", addressSearch: true, fontPct: 1.2 },
     // 연락처: 010- 접두 + 4-4 하이픈, 시트 연락처 자동
     { key: "patient_phone", type: "text", x: 57.5, y: 97.2, w: 18, h: 1.6, label: "연락처", prefix: "010-", dashPattern: [4, 4], align: "left", prefillFrom: "phone", fontPct: 1.2 },
-  ],
+];
+
+export const contractOverlay: OverlayDoc = {
+  image: "/documents/contract-8.jpg",
+  width: 1654,
+  height: 2338,
+  title: "양압기치료 서비스 표준계약서",
+  fields: RAW_FIELDS.map(liftInlineText),
 };
 
 // 순응 후 표준계약서 — 같은 서식. ① 표의 '순응후' 블록을 채우고(순응중 블록 비움) 순응후 [ ] 체크,
