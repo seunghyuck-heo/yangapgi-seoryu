@@ -16,12 +16,11 @@ import { GAP_COMPANY_OPTIONS, GAP_COMPANY_DEFAULT, GAP_COMPANY_NQS } from "./gap
 // 표의 순응중 블록 → 순응후 블록 y 이동량(측정값: 20.97 → 28.28)
 const AFTER_SHIFT = 7.31;
 // 순응후 계약서에서 y를 이동시킬 필드(순응중 블록 전용 칸들)
+// (본인부담금 copay_pre/copay_post는 두 줄 모두 항상 표시라 이동 대상 아님)
 const AFTER_SHIFT_KEYS = new Set([
   "adapt_check",
   "amount_won_cover",
   "rental_amount",
-  "copay_won_cover",
-  "copay",
   "device_id",
   "device_model",
   "device_type",
@@ -52,14 +51,18 @@ export const contractOverlay: OverlayDoc = {
     // 대여 서비스 금액(내용): 인쇄 "원"(51.5~52.5)을 가리고 "89,000원" 셀 중앙(51.7)에 고정 표시(편집 불가 — 승혁님 지시 2026-11-19)
     { key: "amount_won_cover", type: "text", x: 51.3, y: 21.15, w: 1.5, h: 1.45, cover: true },
     { key: "rental_amount", type: "text", x: 43.2, y: 21.1, w: 17, h: 1.55, staticText: "89,000원", align: "center", fontPct: 1.3 },
-    // 본인부담금(을)(비고): 인쇄 "원"(74.3~75.3)을 가리고 라벨("본인부담금(을):" 끝 ≈73.6) 뒤에 고정 텍스트
-    // 순응전 44,500원 / 순응후 17,800원 (편집 불가 — 승혁님 지시 2026-11-19). 인쇄 라벨과 같은 줄·크기(1.21%)·세로중심.
-    { key: "copay_won_cover", type: "text", x: 74.1, y: 21.15, w: 1.5, h: 1.45, cover: true },
-    { key: "copay", type: "text", x: 73.95, y: 21.1, w: 9.5, h: 1.55, staticText: "44,500원", align: "left", fontPct: 1.22 },
+    // 본인부담금(을)(비고): 인쇄 "원"(74.3~75.3)을 가리고 라벨("본인부담금(을):" 끝 ≈73.6) 뒤에 고정 텍스트.
+    // 순응중 44,500원 / 순응후 17,800원 — 어느 계약서(순응전/순응후)를 쓰든 두 줄 모두 항상 표시(승혁님 지시 2026-11-19).
+    // 인쇄 라벨과 같은 줄·크기(1.22%≈인쇄 10px)·세로중심. (y 이동 대상 아님)
+    { key: "copay_pre_won_cover", type: "text", x: 74.1, y: 21.15, w: 1.5, h: 1.45, cover: true },
+    { key: "copay_pre", type: "text", x: 73.95, y: 21.1, w: 9.5, h: 1.55, staticText: "44,500원", align: "left", fontPct: 1.22 },
+    { key: "copay_post_won_cover", type: "text", x: 74.1, y: 28.46, w: 1.5, h: 1.45, cover: true },
+    { key: "copay_post", type: "text", x: 73.95, y: 28.41, w: 9.5, h: 1.55, staticText: "17,800원", align: "left", fontPct: 1.22 },
     // 기기 관리번호: 구글시트 공단관리번호 자동(prefillFrom gongdanNo), 수정 가능
     { key: "device_id", type: "text", x: 39.0, y: 22.95, w: 25.4, h: 1.5, label: "기기 관리번호", align: "center", fontPct: 1.2, prefillFrom: "gongdanNo" },
     { key: "device_model", type: "text", x: 43.2, y: 24.78, w: 17, h: 1.5, label: "모델명", align: "center", options: ["Prisma Smart", "Smart Max"], default: "Prisma Smart", selectBlock: true, fontPct: 1.2 },
-    { key: "device_type", type: "text", x: 43.2, y: 26.61, w: 17, h: 1.5, label: "종류", align: "center", options: ["자동형(APAP)", "고정형(CPAP)"], default: "자동형(APAP)", selectBlock: true, fontPct: 1.2 },
+    // 종류: "자동형(APAP)" 고정(편집 불가 — 승혁님 지시 2026-11-19)
+    { key: "device_type", type: "text", x: 43.2, y: 26.61, w: 17, h: 1.5, staticText: "자동형(APAP)", align: "center", fontPct: 1.3 },
 
     // 마스크: 금액(내용) + 본인부담금(비고)
     { key: "mask_won_cover", type: "text", x: 51.3, y: 35.77, w: 1.5, h: 1.45, cover: true },
@@ -103,7 +106,6 @@ export const contractAfterOverlay: OverlayDoc = {
   ...contractOverlay,
   fields: contractOverlay.fields.map((f): OverlayField => {
     if (f.key === "rental_end_full") return { ...f, autoTodayOffsetDays: -1, autoTodayOffsetYears: 1 };
-    if (f.key === "copay") return { ...f, y: f.y + AFTER_SHIFT, staticText: "17,800원" };
     if (AFTER_SHIFT_KEYS.has(f.key)) return { ...f, y: f.y + AFTER_SHIFT };
     return f;
   }),
