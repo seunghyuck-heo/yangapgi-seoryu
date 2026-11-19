@@ -232,7 +232,7 @@ export default function PatientDetailPage({ params }: PatientDetailPageProps) {
                   {style.icon}
                 </span>
                 <span className="doc-row__title">
-                  {docType === "contract" ? "표준계약서 (순응 전)" : DOC_TYPE_LABELS[docType]}
+                  {docType === "contract" ? "표준계약서 (순응중)" : DOC_TYPE_LABELS[docType]}
                 </span>
                 <span className={`doc-row__status doc-row__status--${state}`}>{label}</span>
                 <span className="doc-row__chevron" aria-hidden>
@@ -302,7 +302,7 @@ export default function PatientDetailPage({ params }: PatientDetailPageProps) {
                     <path d="M8 13h8M8 17h5" />
                   </svg>
                 </span>
-                <span className="doc-row__title">표준계약서 (순응 후)</span>
+                <span className="doc-row__title">표준계약서 (순응후)</span>
                 <span className={`doc-row__status doc-row__status--${afterState}`}>{afterLabel}</span>
                 <span className="doc-row__chevron" aria-hidden>
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">

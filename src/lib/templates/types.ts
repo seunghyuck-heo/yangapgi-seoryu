@@ -58,7 +58,7 @@ export const DOC_TYPE_LABELS: Record<DocType, string> = {
   power_of_attorney: "요양비 지급청구 위임장",
   rental_guide: "양압기 임대 안내",
   care_card: "양압기 환자관리카드",
-  contract_after: "표준계약서 (순응 후)",
+  contract_after: "표준계약서 (순응후)",
 };
 
 export const DOC_TYPE_ICONS: Record<DocType, string> = {
