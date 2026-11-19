@@ -33,6 +33,14 @@ function formatBoxPattern(raw: string, pattern: number[]): string {
   return out;
 }
 
+/** 다른 필드의 선택값에 따른 파생 텍스트(예: 마스크 금액 → 본인부담금). 선택값이 없으면 그 필드의 default 기준. */
+function derivedByOption(field: OverlayField, fields: OverlayField[], values: Record<string, unknown>): string | null {
+  const spec = field.textByOptionOf!;
+  const raw = values[spec.field];
+  const src = typeof raw === "string" && raw.trim() ? raw : (fields.find((f) => f.key === spec.field)?.default ?? "");
+  return spec.map[src] ?? null;
+}
+
 function formatDatePart(field: OverlayField, dt: Date): string | null {
   const y = dt.getFullYear();
   const m = dt.getMonth() + 1;
@@ -400,7 +408,9 @@ export async function renderOverlayPage(
     }
 
     // 일반 텍스트 / 날짜 (저장값 없으면 field.default 사용 — 예: 마스크 금액 기본 95,000원)
-    const val = field.fromCompany
+    const val = field.textByOptionOf
+      ? derivedByOption(field, overlay.fields, values)
+      : field.fromCompany
       ? gapCompanyValue(values, field.fromCompany)
       : field.fromPoaCompany
       ? poaCompanyValue(values, field.fromPoaCompany)

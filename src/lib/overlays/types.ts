@@ -103,6 +103,9 @@ export interface OverlayField {
    *  표준 형식대로 '-'를 넣되, 자릿수가 달라도 숫자는 잘리지 않음.
    *  예: { field: "pay_company", map: { "신한은행": [3,3,6], ... } } */
   dashPatternByOptionOf?: { field: string; map: Record<string, number[]> };
+  /** 다른 필드(선택 필드)의 값에 따라 자동 표시되는 파생 텍스트(편집 불가). 선택값이 없으면 그 필드의 default 기준.
+   *  예: 마스크 본인부담금 = { field: "mask_amount", map: { "95,000원": "19,000원", "105,000원": "29,000원", "110,000원": "34,000원" } } */
+  textByOptionOf?: { field: string; map: Record<string, string> };
 }
 
 export interface OverlayDoc {

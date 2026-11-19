@@ -67,8 +67,9 @@ export const contractOverlay: OverlayDoc = {
     // 마스크: 금액(내용) + 본인부담금(비고)
     { key: "mask_won_cover", type: "text", x: 51.3, y: 35.77, w: 1.5, h: 1.45, cover: true },
     { key: "mask_amount", type: "text", x: 43.2, y: 35.72, w: 17, h: 1.55, label: "마스크 금액", align: "center", options: ["95,000원", "105,000원", "110,000원"], default: "95,000원", selectBlock: true, fontPct: 1.2 },
+    // 마스크 본인부담금(을): 마스크 금액 선택값에 따라 자동(편집 불가) — 95,000→19,000 / 105,000→29,000 / 110,000→34,000 (승혁님 지시 2026-11-19)
     { key: "mask_copay_won_cover", type: "text", x: 74.1, y: 35.77, w: 1.5, h: 1.45, cover: true },
-    { key: "mask_copay", type: "text", x: 74.0, y: 35.72, w: 9.5, h: 1.55, label: "마스크 본인부담금(을)", align: "left", options: ["19,000원"], default: "19,000원", selectBlock: true, fontPct: 1.2 },
+    { key: "mask_copay", type: "text", x: 73.95, y: 35.72, w: 9.5, h: 1.55, align: "left", fontPct: 1.22, textByOptionOf: { field: "mask_amount", map: { "95,000원": "19,000원", "105,000원": "29,000원", "110,000원": "34,000원" } } },
 
     // ===== 계약일: 20 YY 년 MM 월 DD 일 — 작성일 = 대여 시작일(baseGroup, v311) =====
     { key: "sign_year", type: "text", x: 44.55, y: 83.4, w: 3.1, h: 1.45, label: "작성일", dateGroup: "sign", datePart: "y", autoToday: true, baseGroup: "rental_start", align: "center", fontPct: 1.3 },
@@ -91,8 +92,8 @@ export const contractOverlay: OverlayDoc = {
     { key: "patient_seal", type: "signature", x: 89.4, y: 86.3, w: 7.6, h: 2.9, label: "서명 (수기)" },
     // 환자 성명: 환자 이름 자동(수정 가능)
     { key: "patient_name", type: "text", x: 59.3, y: 89.75, w: 22, h: 1.6, label: "환자 성명", align: "left", prefillFrom: "patientName", fontPct: 1.2 },
-    // 환자와의 관계: 기본 본인(드롭다운)
-    { key: "patient_relation", type: "text", x: 61.8, y: 92.2, w: 14, h: 1.7, label: "환자와의 관계", align: "left", options: ["본인", "배우자", "자녀", "부모", "기타"], default: "본인", selectBlock: true, fontPct: 1.2 },
+    // 환자와의 관계: "본인" 고정 표시(편집 불가 — 승혁님 지시 2026-11-19)
+    { key: "patient_relation", type: "text", x: 61.8, y: 92.2, w: 14, h: 1.7, staticText: "본인", align: "left", fontPct: 1.3 },
     // 주 소: 도로명/지번 검색
     { key: "patient_address", type: "text", x: 56.7, y: 94.75, w: 38.6, h: 1.55, label: "주소", align: "left", addressSearch: true, fontPct: 1.05 },
     // 연락처: 010- 접두 + 4-4 하이픈, 시트 연락처 자동
