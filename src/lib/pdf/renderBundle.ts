@@ -340,6 +340,13 @@ export async function renderOverlayPage(
       continue;
     }
 
+    // 거울 서명 칸: 원본 서명 필드의 이미지를 그대로 그림(예: [을] 성명 → 환자 성명)
+    if (field.mirrorSignatureOf) {
+      const img = sigImgs[field.mirrorSignatureOf];
+      if (img) drawSignature(ctx, img, bx, by, bw, bh);
+      continue;
+    }
+
     if (field.type === "signature") {
       const img = sigImgs[field.key];
       if (img) drawSignature(ctx, img, bx, by, bw, bh);

@@ -16,11 +16,12 @@ import { GAP_COMPANY_OPTIONS, GAP_COMPANY_DEFAULT, GAP_COMPANY_NQS } from "./gap
 // 표의 순응중 블록 → 순응후 블록 y 이동량(측정값: 20.97 → 28.28)
 const AFTER_SHIFT = 7.31;
 // 순응후 계약서에서 y를 이동시킬 필드(순응중 블록 전용 칸들)
-// (본인부담금 copay_pre/copay_post는 두 줄 모두 항상 표시라 이동 대상 아님)
 const AFTER_SHIFT_KEYS = new Set([
   "adapt_check",
   "amount_won_cover",
   "rental_amount",
+  "copay_won_cover",
+  "copay",
   "device_id",
   "device_model",
   "device_type",
@@ -51,18 +52,17 @@ const RAW_FIELDS: OverlayField[] = [
     // 최초지급일자(비고, 라벨 끝 72.5) — 대여 시작일과 항상 동일(baseGroup 파생, 시작일 정하면 자동·편집 불가)
     { key: "mask_first_date", type: "text", x: 72.9, y: 19.38, w: 10.5, h: 1.4, label: "소모품 최초지급일자", dateGroup: "mask_first", datePart: "full", align: "left", fontPct: 1.2, autoToday: true, baseGroup: "rental_start" },
 
-    // 순응중 [ ] 체크 — 순응전 계약서는 항상 체크(편집 불가). 순응후 계약서는 아래 블록으로 이동.
-    { key: "adapt_check", type: "checkbox", x: 6.45, y: 24.45, w: 1.95, h: 1.4, fixedChecked: true },
+    // 순응중 [ ] 표시 — 괄호 안에 "O" 고정 텍스트(✓ 아님, 승혁님 지시 2026-11-19). 순응후 계약서는 아래 블록으로 이동.
+    // 인쇄 "[  ]" span: x 6.68~8.19, y 24.62~25.65 → 중심(7.44, 25.13)에 맞춤(리프트 전 좌표).
+    { key: "adapt_check", type: "text", x: 6.49, y: 24.43, w: 1.9, h: 1.4, staticText: "O", align: "center", fontPct: 1.05 },
     // 대여 서비스 금액(내용): 인쇄 "원"(51.5~52.5)을 가리고 "89,000원" 셀 중앙(51.7)에 고정 표시(편집 불가 — 승혁님 지시 2026-11-19)
     { key: "amount_won_cover", type: "text", x: 51.3, y: 21.15, w: 1.5, h: 1.45, cover: true },
     { key: "rental_amount", type: "text", x: 43.2, y: 21.1, w: 17, h: 1.55, staticText: "89,000원", align: "center", fontPct: 1.3 },
     // 본인부담금(을)(비고): 인쇄 "원"(74.3~75.3)을 가리고 라벨("본인부담금(을):" 끝 ≈73.6) 뒤에 고정 텍스트.
-    // 순응중 44,500원 / 순응후 17,800원 — 어느 계약서(순응전/순응후)를 쓰든 두 줄 모두 항상 표시(승혁님 지시 2026-11-19).
-    // 인쇄 라벨과 같은 줄·크기(1.22%≈인쇄 10px)·세로중심. (y 이동 대상 아님)
-    { key: "copay_pre_won_cover", type: "text", x: 74.1, y: 21.15, w: 1.5, h: 1.45, cover: true },
-    { key: "copay_pre", type: "text", x: 73.95, y: 21.1, w: 9.5, h: 1.55, staticText: "44,500원", align: "left", fontPct: 1.22 },
-    { key: "copay_post_won_cover", type: "text", x: 74.1, y: 28.46, w: 1.5, h: 1.45, cover: true },
-    { key: "copay_post", type: "text", x: 73.95, y: 28.41, w: 9.5, h: 1.55, staticText: "17,800원", align: "left", fontPct: 1.22 },
+    // 작성 중인 단계의 줄에만 표시: 순응전 계약서=순응중 44,500원 / 순응후 계약서=순응후 17,800원(y 이동) — 승혁님 지시 2026-11-19.
+    // 인쇄 라벨과 같은 줄·크기(1.22%≈인쇄 10px)·세로중심.
+    { key: "copay_won_cover", type: "text", x: 74.1, y: 21.15, w: 1.5, h: 1.45, cover: true },
+    { key: "copay", type: "text", x: 73.95, y: 21.1, w: 9.5, h: 1.55, staticText: "44,500원", align: "left", fontPct: 1.22 },
     // 기기 관리번호: 구글시트 공단관리번호 자동(prefillFrom gongdanNo), 수정 가능
     { key: "device_id", type: "text", x: 39.0, y: 22.95, w: 25.4, h: 1.5, label: "기기 관리번호", align: "center", fontPct: 1.2, prefillFrom: "gongdanNo" },
     { key: "device_model", type: "text", x: 43.2, y: 24.78, w: 17, h: 1.5, label: "모델명", align: "center", options: ["Prisma Smart", "Smart Max"], default: "Prisma Smart", selectBlock: true, fontPct: 1.2 },
@@ -77,9 +77,10 @@ const RAW_FIELDS: OverlayField[] = [
     { key: "mask_copay", type: "text", x: 73.95, y: 35.72, w: 9.5, h: 1.55, align: "left", fontPct: 1.22, textByOptionOf: { field: "mask_amount", map: { "95,000원": "19,000원", "105,000원": "29,000원", "110,000원": "34,000원" } } },
 
     // ===== 계약일: 20 YY 년 MM 월 DD 일 — 작성일 = 대여 시작일(baseGroup, v311) =====
-    { key: "sign_year", type: "text", x: 44.55, y: 83.4, w: 3.1, h: 1.45, label: "작성일", dateGroup: "sign", datePart: "y", autoToday: true, baseGroup: "rental_start", align: "center", fontPct: 1.3 },
-    { key: "sign_month", type: "text", x: 48.85, y: 83.4, w: 3.0, h: 1.45, label: "작성일", dateGroup: "sign", datePart: "m", autoToday: true, baseGroup: "rental_start", align: "center", fontPct: 1.3 },
-    { key: "sign_day", type: "text", x: 53.1, y: 83.4, w: 3.0, h: 1.45, label: "작성일", dateGroup: "sign", datePart: "d", autoToday: true, baseGroup: "rental_start", align: "center", fontPct: 1.3 },
+    // 숫자 크기: 인쇄 "20"(13px bold ≈ 1.57% of width)과 같게 — 입력 텍스트는 ×1.1 배율이라 1.42×1.1≈1.56% (승혁님 지시 2026-11-19)
+    { key: "sign_year", type: "text", x: 44.55, y: 83.4, w: 3.1, h: 1.45, label: "작성일", dateGroup: "sign", datePart: "y", autoToday: true, baseGroup: "rental_start", align: "center", fontPct: 1.42 },
+    { key: "sign_month", type: "text", x: 48.85, y: 83.4, w: 3.0, h: 1.45, label: "작성일", dateGroup: "sign", datePart: "m", autoToday: true, baseGroup: "rental_start", align: "center", fontPct: 1.42 },
+    { key: "sign_day", type: "text", x: 53.1, y: 83.4, w: 3.0, h: 1.45, label: "작성일", dateGroup: "sign", datePart: "d", autoToday: true, baseGroup: "rental_start", align: "center", fontPct: 1.42 },
 
     // ===== [갑] 좌측 — 준요양기관명 드롭다운 → 사업자번호·대표자·주소·연락처·도장 파생 =====
     { key: "gap_company", type: "text", x: 13.2, y: 87.2, w: 30.5, h: 1.85, label: "[갑] 준요양기관명", align: "left", options: GAP_COMPANY_OPTIONS, default: GAP_COMPANY_DEFAULT, selectBlock: true, fontPct: 1.2, fontPctByValue: { [GAP_COMPANY_DEFAULT]: 1.2, [GAP_COMPANY_NQS]: 0.95 } },
@@ -96,18 +97,22 @@ const RAW_FIELDS: OverlayField[] = [
     // 성 명: 수기 성명(서명패드) + 우측 "(서명 또는 인)"에 서명(수기)
     { key: "patient_signature", type: "signature", x: 57.0, y: 86.5, w: 25, h: 2.5, label: "성명 (수기)", confirmText: "성명 확정" },
     { key: "patient_seal", type: "signature", x: 89.4, y: 86.3, w: 7.6, h: 2.9, label: "서명 (수기)" },
-    // 환자 성명: 환자 이름 자동(수정 가능)
-    { key: "patient_name", type: "text", x: 59.3, y: 89.75, w: 22, h: 1.6, label: "환자 성명", align: "left", prefillFrom: "patientName", fontPct: 1.2 },
+    // 환자 성명: [을] 성명(수기 서명 이미지)을 그대로 비춤(편집 불가 — 승혁님 지시 2026-11-19). 관계=본인 고정이라 동일인.
+    // 밑줄(eul_patient_ln ≈91.5) 위에 서명 박스 바닥을 맞춤(리프트 −0.16 반영해 y 89.15 → 88.99, h 2.5).
+    { key: "patient_name_mirror", type: "text", x: 59.3, y: 89.15, w: 24, h: 2.5, mirrorSignatureOf: "patient_signature", align: "left" },
     // 환자와의 관계: "본인" 고정 표시(편집 불가 — 승혁님 지시 2026-11-19)
     { key: "patient_relation", type: "text", x: 61.8, y: 92.2, w: 14, h: 1.7, staticText: "본인", align: "left", fontPct: 1.3 },
     // 주 소: 도로명/지번 검색
     { key: "patient_address", type: "text", x: 56.7, y: 94.4, w: 39.5, h: 1.9, label: "주소", align: "left", addressSearch: true, fontPct: 1.2 },
-    // 연락처: 010- 접두 + 4-4 하이픈, 시트 연락처 자동
-    { key: "patient_phone", type: "text", x: 57.5, y: 97.2, w: 18, h: 1.6, label: "연락처", prefix: "010-", dashPattern: [4, 4], align: "left", prefillFrom: "phone", fontPct: 1.2 },
+    // 연락처: 010- 접두 + 4-4 하이픈, 시트 연락처 자동 (밑줄 57.07~71.31)
+    { key: "patient_phone", type: "text", x: 57.5, y: 97.2, w: 13.5, h: 1.6, label: "연락처", prefix: "010-", dashPattern: [4, 4], align: "left", prefillFrom: "phone", fontPct: 1.2 },
+    // 비상연락처: 연락처 우측(인쇄 라벨 73.6~80.9, 밑줄 81.53~95.77), 연락처와 동일 UI(010- + 4-4) — 승혁님 지시 2026-11-19
+    { key: "patient_emergency_phone", type: "text", x: 82.0, y: 97.2, w: 13.5, h: 1.6, label: "비상연락처", prefix: "010-", dashPattern: [4, 4], align: "left", fontPct: 1.2 },
 ];
 
 export const contractOverlay: OverlayDoc = {
-  image: "/documents/contract-8.jpg",
+  // contract-9: contract-8에 [을] 연락처 행을 "연락처 : ___ 비상연락처 : ___"로 나눈 배경(v318). 그 외 좌표 동일.
+  image: "/documents/contract-9.jpg",
   width: 1654,
   height: 2338,
   title: "양압기치료 서비스 표준계약서",
@@ -120,6 +125,7 @@ export const contractAfterOverlay: OverlayDoc = {
   ...contractOverlay,
   fields: contractOverlay.fields.map((f): OverlayField => {
     if (f.key === "rental_end_full") return { ...f, autoTodayOffsetDays: -1, autoTodayOffsetYears: 1 };
+    if (f.key === "copay") return { ...f, y: f.y + AFTER_SHIFT, staticText: "17,800원" };
     if (AFTER_SHIFT_KEYS.has(f.key)) return { ...f, y: f.y + AFTER_SHIFT };
     return f;
   }),

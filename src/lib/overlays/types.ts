@@ -106,6 +106,9 @@ export interface OverlayField {
   /** 다른 필드(선택 필드)의 값에 따라 자동 표시되는 파생 텍스트(편집 불가). 선택값이 없으면 그 필드의 default 기준.
    *  예: 마스크 본인부담금 = { field: "mask_amount", map: { "95,000원": "19,000원", "105,000원": "29,000원", "110,000원": "34,000원" } } */
   textByOptionOf?: { field: string; map: Record<string, string> };
+  /** 다른 서명 필드(type:"signature")의 이미지를 그대로 비추는 거울 칸(편집 불가·입력 대상 아님).
+   *  예: 표준계약서 [을] 성명(수기 서명) → 환자 성명 칸에 동일 이미지 표시 */
+  mirrorSignatureOf?: string;
 }
 
 export interface OverlayDoc {
