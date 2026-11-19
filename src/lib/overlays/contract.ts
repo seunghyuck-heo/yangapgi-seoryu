@@ -42,16 +42,16 @@ export const contractOverlay: OverlayDoc = {
     { key: "rental_end_full", type: "text", x: 52.5, y: 15.7, w: 11.4, h: 1.4, label: "대여 종료일", dateGroup: "rental_end", datePart: "full", align: "left", autoToday: true, baseGroup: "rental_start", autoTodayOffsetDays: 89, fontPct: 1.2 },
     // 대여료 지급일자: 매월 ( N ) 일 — 괄호 안(중심 52.2)
     { key: "pay_day", type: "text", x: 50.9, y: 17.55, w: 2.7, h: 1.4, label: "대여료 지급일 (매월)", placeholder: "25", align: "center", fontPct: 1.2 },
-    // 소모품 교체주기: 필터 ( N )개월 — 괄호 안(중심 52.0), 선택 입력(오렌지)
-    { key: "filter_months", type: "text", x: 51.1, y: 19.38, w: 1.9, h: 1.4, label: "필터 교체주기(개월)", align: "center", fontPct: 1.2, optional: true, orangeBlock: true },
-    // 최초지급일자(비고, 라벨 끝 72.5) — 선택 입력(오렌지), 캘린더
-    { key: "mask_first_date", type: "text", x: 72.9, y: 19.38, w: 10.5, h: 1.4, label: "소모품 최초지급일자", dateGroup: "mask_first", datePart: "full", align: "left", fontPct: 1.2, optional: true, orangeBlock: true },
+    // 소모품 교체주기: 필터 ( 1 )개월 — 1개월 고정 표시(편집 불가, 승혁님 지시 2026-11-19)
+    { key: "filter_months", type: "text", x: 51.1, y: 19.38, w: 1.9, h: 1.4, staticText: "1", align: "center", fontPct: 1.25 },
+    // 최초지급일자(비고, 라벨 끝 72.5) — 대여 시작일과 항상 동일(baseGroup 파생, 시작일 정하면 자동·편집 불가)
+    { key: "mask_first_date", type: "text", x: 72.9, y: 19.38, w: 10.5, h: 1.4, label: "소모품 최초지급일자", dateGroup: "mask_first", datePart: "full", align: "left", fontPct: 1.2, autoToday: true, baseGroup: "rental_start" },
 
     // 순응중 [ ] 체크 — 순응전 계약서는 항상 체크(편집 불가). 순응후 계약서는 아래 블록으로 이동.
     { key: "adapt_check", type: "checkbox", x: 6.45, y: 24.45, w: 1.95, h: 1.4, fixedChecked: true },
-    // 대여 서비스 금액(내용): 인쇄 "원"(51.5~52.5)을 가리고 "89,000원" 셀 중앙(51.7) 표시(드롭다운)
+    // 대여 서비스 금액(내용): 인쇄 "원"(51.5~52.5)을 가리고 "89,000원" 셀 중앙(51.7)에 고정 표시(편집 불가 — 승혁님 지시 2026-11-19)
     { key: "amount_won_cover", type: "text", x: 51.3, y: 21.15, w: 1.5, h: 1.45, cover: true },
-    { key: "rental_amount", type: "text", x: 43.2, y: 21.1, w: 17, h: 1.55, label: "대여 서비스 금액", align: "center", options: ["89,000원"], default: "89,000원", selectBlock: true, fontPct: 1.2 },
+    { key: "rental_amount", type: "text", x: 43.2, y: 21.1, w: 17, h: 1.55, staticText: "89,000원", align: "center", fontPct: 1.3 },
     // 본인부담금(을)(비고): 인쇄 "원"(74.3~75.3)을 가리고 라벨("본인부담금(을):" 끝 ≈73.6) 뒤에 "44,500원"(순응전)
     { key: "copay_won_cover", type: "text", x: 74.1, y: 21.15, w: 1.5, h: 1.45, cover: true },
     { key: "copay", type: "text", x: 74.0, y: 21.1, w: 9.5, h: 1.55, label: "본인부담금(을)", align: "left", options: ["44,500원"], default: "44,500원", selectBlock: true, fontPct: 1.2 },
