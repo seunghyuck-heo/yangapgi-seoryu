@@ -13,7 +13,7 @@ export interface OverlayField {
   /** 서식 로드 시 환자 공통정보로 자동 프리필(빈 칸만, 편집 가능):
    *   "patientName"=환자 이름, "rrn"=주민번호 전체13, "birth6"=생년월일6.
    *  이름·주민번호 칸이면 반드시 지정(모든 서류 자동입력 규칙). */
-  prefillFrom?: "patientName" | "rrn" | "birth6" | "phone";
+  prefillFrom?: "patientName" | "rrn" | "birth6" | "phone" | "gongdanNo";
   /** text 렌더링 폰트 크기 (이미지 폭 대비 %). 기본 1.4 */
   fontPct?: number;
   /** 체크박스 라디오 그룹 (같은 그룹은 하나만 선택) */
@@ -91,7 +91,7 @@ export interface OverlayField {
   /** 체크박스에 따라 팝업 라벨을 다르게 표시. 예: { cb_bank: "계좌번호", cb_card: "카드번호" } */
   labelByCheckbox?: Record<string, string>;
   /** [갑] 회사 선택에 따라 자동 표시되는 파생 텍스트(편집 불가). gapCompany 프리셋에서 가져옴 */
-  fromCompany?: "address" | "phone";
+  fromCompany?: "address" | "phone" | "bizNo" | "rep";
   /** 위임장 ②③ 회사(상호) 선택에 따라 자동 표시되는 파생 텍스트(편집 불가). poaCompany 프리셋에서 가져옴 */
   fromPoaCompany?: "name" | "bizNo" | "rep" | "phone" | "bank" | "holder" | "account";
   /** [갑] 회사가 이 값일 때만 렌더(도장 교체/가림용). gapCompany 회사명과 일치해야 표시 */

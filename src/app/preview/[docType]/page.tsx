@@ -11,7 +11,8 @@ interface PreviewPageProps {
 }
 
 function isValidDocType(value: string): value is DocType {
-  return (DOC_TYPE_ORDER as string[]).includes(value);
+  // 순응 후 표준계약서(contract_after)는 필수 6종 목록엔 없지만 서식 미리보기는 허용
+  return (DOC_TYPE_ORDER as string[]).includes(value) || value === "contract_after";
 }
 
 const PREVIEW_PATIENT_ID = "preview-patient";

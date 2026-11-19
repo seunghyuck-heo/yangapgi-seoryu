@@ -206,6 +206,15 @@ function OverlayDocumentFormInner(
           }
         }
         if (!y || !m || !d) {
+          // 구버전 호환: 현재 서식에 없는 옛 key(그룹_year/_month/_day) 저장값
+          const ly = next[`${g}_year`], lm = next[`${g}_month`], ld = next[`${g}_day`];
+          if (typeof ly === "string" && typeof lm === "string" && typeof ld === "string" && ly.trim() && lm.trim() && ld.trim()) {
+            y = ly.length <= 2 ? "20" + ly.padStart(2, "0") : ly;
+            m = lm;
+            d = ld;
+          }
+        }
+        if (!y || !m || !d) {
           const iso = next[`__d_${g}`];
           if (typeof iso === "string" && /^\d{4}-\d{2}-\d{2}$/.test(iso)) {
             [y, m, d] = iso.split("-");
@@ -273,6 +282,17 @@ function OverlayDocumentFormInner(
         if (offD) dt.setDate(dt.getDate() + offD);
         setGroupFromDate(parts, g, dt);
       }
+      // 수기 입력 날짜 그룹(예: 대여 시작일) 구버전 호환: 현재 서식의 칸은 비어 있어도
+      // 옛 key(y/m/d)·ISO 저장값이 있으면 그 날짜로 채워 보여준다(서식 개편 후 과거 문서).
+      const manualGroups = new Set<string>();
+      for (const f of overlay.fields) if (f.dateGroup && !f.autoToday && !groups.has(f.dateGroup)) manualGroups.add(f.dateGroup);
+      for (const g of manualGroups) {
+        const parts = overlay.fields.filter((f) => f.dateGroup === g);
+        const anyFilled = parts.some((f) => typeof next[f.key] === "string" && (next[f.key] as string).trim());
+        if (anyFilled) continue;
+        const gd = readGroupDate(g);
+        if (gd) setGroupFromDate(parts, g, gd);
+      }
       return changed ? next : prev;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -306,7 +326,7 @@ function OverlayDocumentFormInner(
       } else {
         const s = document.createElement("script");
         s.id = "daum-postcode-script";
-        s.src = "https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js";
+        s.src = "https://t1.kakaocdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js";
         s.onload = embed;
         document.body.appendChild(s);
       }

@@ -6,14 +6,21 @@ export const GAP_COMPANY_DEFAULT = "엠와이메디칼";
 export const GAP_COMPANY_NQS = "엔큐에스 주식회사 (엠와이메디칼 안산지점)";
 export const GAP_COMPANY_OPTIONS = [GAP_COMPANY_DEFAULT, GAP_COMPANY_NQS];
 
-export const GAP_COMPANIES: Record<string, { address: string; phone: string }> = {
+/** [갑] 회사 파생 항목: 주소/연락처 + (새 표준계약서 서명란) 사업자등록번호/대표자 성명 */
+export type GapCompanyField = "address" | "phone" | "bizNo" | "rep";
+
+export const GAP_COMPANIES: Record<string, Record<GapCompanyField, string>> = {
   [GAP_COMPANY_DEFAULT]: {
     address: "경기도 하남시 미사강변동로 73, 5층 501호(망월동, 미사강변 노블레스)",
     phone: "031-794-2460",
+    bizNo: "191-21-01071",
+    rep: "손인경",
   },
   [GAP_COMPANY_NQS]: {
     address: "경기도 안산시 단원구 광덕대로 194, 6층 603-3-19호",
     phone: "031-794-2460",
+    bizNo: "677-88-02709",
+    rep: "손인경",
   },
 };
 
@@ -23,8 +30,8 @@ export function gapCompanyName(values: Record<string, unknown>): string {
   return typeof v === "string" && v in GAP_COMPANIES ? v : GAP_COMPANY_DEFAULT;
 }
 
-/** 현재 [갑] 회사의 주소/연락처 */
-export function gapCompanyValue(values: Record<string, unknown>, kind: "address" | "phone"): string {
+/** 현재 [갑] 회사의 주소/연락처/사업자등록번호/대표자 */
+export function gapCompanyValue(values: Record<string, unknown>, kind: GapCompanyField): string {
   return GAP_COMPANIES[gapCompanyName(values)][kind];
 }
 

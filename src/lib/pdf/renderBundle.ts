@@ -61,6 +61,18 @@ function readGroupDate(
     else if (f.datePart === "d") ds = v;
     else if (f.datePart === "full") full = v;
   }
+  // 구버전 호환(서식 개편 후 과거 문서): 현재 서식에 없는 옛 key(그룹_year/_month/_day)나
+  // 캘린더가 저장한 __d_그룹(YYYY-MM-DD)도 그룹 날짜로 인정 → 대여기간 등이 빈칸으로 안 나옴
+  if (!full && !(ys && ms && ds)) {
+    const ly = values[`${group}_year`], lm = values[`${group}_month`], ld = values[`${group}_day`];
+    if (typeof ly === "string" && typeof lm === "string" && typeof ld === "string" && ly.trim() && lm.trim() && ld.trim()) {
+      ys = ly; ms = lm; ds = ld;
+    }
+    const iso = values[`__d_${group}`];
+    if (!(ys && ms && ds) && typeof iso === "string" && /^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+      [ys, ms, ds] = iso.split("-");
+    }
+  }
   if (full) {
     const [a, b, c] = full.split(".").map((s) => parseInt(s, 10));
     if (a && b && c) return new Date(a < 100 ? 2000 + a : a, b - 1, c);
@@ -95,6 +107,11 @@ function effectiveDateValue(
     return null;
   }
   if (typeof stored === "string" && stored.trim()) return stored;
+  // 저장값이 없어도 같은 그룹의 다른 저장값(옛 y/m/d·ISO)으로 표시(서식 개편 후 과거 문서 호환)
+  if (field.dateGroup && field.datePart) {
+    const gd = readGroupDate(field.dateGroup, fields, values);
+    if (gd) return formatDatePart(field, gd);
+  }
   if (!field.autoToday || !field.datePart) return null;
   const base = new Date(when);
   if (field.autoTodayOffsetYears) base.setFullYear(base.getFullYear() + field.autoTodayOffsetYears);

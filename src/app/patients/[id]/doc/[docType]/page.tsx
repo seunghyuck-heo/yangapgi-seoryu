@@ -63,8 +63,10 @@ export default async function DocumentPage({ params, searchParams }: DocPageProp
     let initialFormData: Record<string, unknown> = document?.form_data ?? {};
     const prefillFields = overlay.fields.filter((f) => f.prefillFrom);
     if (prefillFields.length > 0) {
-      const needName = prefillFields.some((f) => f.prefillFrom === "patientName");
-      const needCard = prefillFields.some((f) => f.prefillFrom === "rrn" || f.prefillFrom === "birth6" || f.prefillFrom === "phone");
+      const needGongdan = prefillFields.some((f) => f.prefillFrom === "gongdanNo");
+      const needName = needGongdan || prefillFields.some((f) => f.prefillFrom === "patientName");
+      const needCard =
+        needGongdan || prefillFields.some((f) => f.prefillFrom === "rrn" || f.prefillFrom === "birth6" || f.prefillFrom === "phone");
       const [patientName, idCard] = await Promise.all([
         needName ? getPatientName(id) : Promise.resolve(""),
         needCard ? getDocument(id, "id_card") : Promise.resolve(null),
@@ -96,12 +98,33 @@ export default async function DocumentPage({ params, searchParams }: DocPageProp
           // 시트 조회 실패해도 서식은 열려야 함(직원이 직접 입력 가능)
         }
       }
+      // 기기 관리번호: 구글시트(고객파일) I열 공단관리번호. 환자관리카드와 동일 규칙으로
+      // 고유번호 우선 → 이름+주민번호로 특정(동명이인 안전). 못 찾으면 빈 칸(직원 입력).
+      let gongdanNo = "";
+      if (needGongdan) {
+        try {
+          const custNo = typeof idCard?.form_data?.customer_no === "number" ? (idCard.form_data.customer_no as number) : null;
+          const rows = await fetchCustomerRowsCached();
+          const c = findCustomer(rows, { customerNo: custNo, name: patientName, rrn });
+          gongdanNo = (c?.gongdanNo ?? "").trim();
+        } catch {
+          // 시트 조회 실패해도 서식은 열려야 함
+        }
+      }
       const patch: Record<string, unknown> = {};
       for (const f of prefillFields) {
         const cur = initialFormData[f.key];
         if (typeof cur === "string" && cur.trim() !== "") continue; // 이미 입력된 칸은 유지
         const v =
-          f.prefillFrom === "patientName" ? patientName : f.prefillFrom === "rrn" ? rrn : f.prefillFrom === "phone" ? phone : birth6;
+          f.prefillFrom === "patientName"
+            ? patientName
+            : f.prefillFrom === "rrn"
+              ? rrn
+              : f.prefillFrom === "phone"
+                ? phone
+                : f.prefillFrom === "gongdanNo"
+                  ? gongdanNo
+                  : birth6;
         if (v) patch[f.key] = v;
       }
       if (Object.keys(patch).length) initialFormData = { ...initialFormData, ...patch };
